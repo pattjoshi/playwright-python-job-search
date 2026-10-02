@@ -66,6 +66,17 @@ Your browser opens <http://127.0.0.1:8000>:
 Your choices are remembered for next time. The app only runs on your own computer; press
 Ctrl+C in the terminal to stop it.
 
+### Daily search
+
+In the **Daily search** card, pick a time (e.g. 9:00 AM) and the days, then press
+**Save daily search**. It saves the search settings shown on the page and registers a task
+with **Windows Task Scheduler** (cron on macOS/Linux), so it runs even when the web page is
+closed. When it finishes, the HTML report opens in your browser. If the laptop was off or
+asleep at that time (Windows), it runs as soon as it's back on. The card shows the next run,
+the last run with a link to its report, and a **Turn off** button.
+
+You can also run the saved search by hand: `python -m job_search.daily` (log: `data/scheduled.log`).
+
 ## Command line
 
 ```bash
@@ -176,4 +187,4 @@ Tests never touch the real sites. They use saved HTML in `tests/fixtures/` and a
 2. ~~Settings in .env~~
 3. ~~Naukri and Indeed, per-site result counts, web UI~~
 4. ~~Remember seen jobs, only-new mode, applied/hide, experience filter, multi-location, stop~~
-5. Daily schedule + email / Telegram alert
+5. ~~Daily search at a chosen time (Task Scheduler / cron)~~

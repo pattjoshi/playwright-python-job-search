@@ -52,7 +52,8 @@ button, input, select { font: inherit; color: inherit; }
 
 /* Funnel: jobs left after each filter */
 .funnel { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-top: 12px; font-size: 12px; color: var(--muted); }
-.funnel .step b { color: var(--text); font-variant-numeric: tabular-nums; }
+.funnel-step { white-space: nowrap; }
+.funnel-step b { color: var(--text); font-variant-numeric: tabular-nums; }
 .funnel .arrow { color: var(--faint); }
 .hint { margin-top: 10px; padding: 9px 12px; border-radius: 8px; background: var(--ok-bg); color: var(--ok); font-size: 13px; }
 
@@ -179,6 +180,24 @@ details.advanced[open] summary::before { content: "▾ "; }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
 .link-button { border: 0; background: none; color: var(--accent); cursor: pointer; padding: 0; font-weight: 600; font-size: 13px; }
 .link-button:disabled { color: var(--faint); cursor: default; }
+
+/* Daily search */
+.days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.days button { border: 1px solid var(--border-strong); background: var(--surface); border-radius: 7px; padding: 6px 0;
+  font-weight: 600; font-size: 12px; color: var(--muted); cursor: pointer; }
+.days button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.quick { display: flex; gap: 12px; margin-top: 6px; }
+.time-row { display: flex; align-items: center; gap: 12px; }
+.time-row input[type=time] { width: 140px; }
+.daily-status { border: 1px solid var(--good); background: var(--good-bg); color: var(--good); border-radius: 10px; padding: 10px 12px;
+  font-size: 13px; margin-bottom: 14px; }
+.daily-status b { display: block; font-size: 14px; }
+.daily-status .last { color: var(--text); margin-top: 6px; }
+.daily-status .last.error { color: var(--danger); }
+.daily-status a { color: inherit; font-weight: 700; }
+.daily-status .row { display: flex; gap: 10px; align-items: flex-start; }
+.daily-status .row > div { flex: 1; }
+.btn-block { width: 100%; margin-top: 14px; }
 
 /* Action footer */
 .actions { position: sticky; bottom: 12px; z-index: 10; box-shadow: 0 -2px 6px rgba(16, 24, 40, .06), 0 10px 28px rgba(16, 24, 40, .16); }
@@ -397,6 +416,30 @@ details.log pre { max-height: 220px; overflow: auto; font-size: 12px; background
           <button type="button" class="link-button" id="forget-seen">Forget seen jobs</button>
         </div>
       </details>
+    </div></section>
+
+    <section class="card" id="daily-card"><div class="card-body">
+      <h2 class="card-head"><span class="step">5</span>Daily search</h2>
+      <div class="daily-status" id="daily-status" hidden aria-live="polite"></div>
+      <p class="help" style="margin: -4px 0 12px">Run the search above automatically and open the report when it's ready.</p>
+      <div class="field">
+        <div class="field-label"><label for="daily-time">Time</label></div>
+        <div class="time-row">
+          <input class="input" type="time" id="daily-time" value="09:00" required>
+          <label class="inline-check" style="margin:0"><input type="checkbox" id="daily-open" checked> Open report when ready</label>
+        </div>
+      </div>
+      <div class="field">
+        <div class="field-label"><span id="days-label">Days</span></div>
+        <div class="days" id="daily-days" role="group" aria-labelledby="days-label"></div>
+        <div class="quick">
+          <button type="button" class="link-button" data-days="mon,tue,wed,thu,fri,sat,sun">Every day</button>
+          <button type="button" class="link-button" data-days="mon,tue,wed,thu,fri">Weekdays</button>
+        </div>
+      </div>
+      <div class="alert" id="daily-error" hidden style="margin-top: 12px"></div>
+      <button type="button" class="btn btn-secondary btn-block" id="daily-save" disabled>Save daily search</button>
+      <p class="help" id="daily-note"></p>
     </div></section>
 
     <section class="card actions"><div class="card-body">
@@ -697,6 +740,7 @@ async function analyze(file) {
   }
 }
 function updateStart() {
+  $("daily-save").disabled = !state.resume || !state.config.has_api_key;
   const running = !!state.jobId;
   $("start").hidden = running; $("stop").hidden = !running;
   $("start").disabled = !state.resume || !state.config.has_api_key;
@@ -704,28 +748,33 @@ function updateStart() {
 }
 
 /* ---------- search ---------- */
-async function startSearch(event) {
-  event.preventDefault();
-  showError("form-error", "");
+function collectSearch() {
   const sites = chosenSites();
-  if (!Object.keys(sites).length) return showError("form-error", "Pick at least one job site.");
-  if (Object.values(sites).some((n) => !(n >= 1 && n <= 100))) return showError("form-error", "Jobs to show must be between 1 and 100.");
+  if (!Object.keys(sites).length) throw new Error("Pick at least one job site.");
+  if (Object.values(sites).some((n) => !(n >= 1 && n <= 100))) throw new Error("Jobs to show must be between 1 and 100.");
   let experience = null;
   if (!$("exp-any").checked) {
     const low = parseInt($("exp-min").value, 10), high = parseInt($("exp-max").value, 10);
-    if (!(low >= 0 && high >= 0 && low <= 50 && high <= 50)) return showError("form-error", "Experience must be between 0 and 50 years.");
-    if (low > high) return showError("form-error", "Experience 'from' can't be more than 'to'.");
+    if (!(low >= 0 && high >= 0 && low <= 50 && high <= 50)) throw new Error("Experience must be between 0 and 50 years.");
+    if (low > high) throw new Error("Experience 'from' can't be more than 'to'.");
     experience = [low, high];
   }
+  return {
+    resume_id: state.resume && state.resume.resume_id, sites, keywords: state.keywords, locations: state.locations, experience,
+    hours: state.hours, only_new: $("only-new").checked, show_browser: $("show-browser").checked,
+    max_pages: parseInt($("max-pages").value, 10), top: parseInt($("top").value, 10),
+  };
+}
+
+async function startSearch(event) {
+  event.preventDefault();
+  showError("form-error", "");
+  let search;
+  try { search = collectSearch(); } catch (error) { return showError("form-error", error.message); }
   savePrefs();
   $("start").disabled = true;
   try {
-    const body = await postJSON("/api/search", {
-      resume_id: state.resume.resume_id, sites, keywords: state.keywords, locations: state.locations, experience,
-      hours: state.hours, only_new: $("only-new").checked, show_browser: $("show-browser").checked,
-      max_pages: parseInt($("max-pages").value, 10), top: parseInt($("top").value, 10),
-    });
-    state.requested = sites;
+    const body = await postJSON("/api/search", search);
     watch(body.id);
   } catch (error) {
     showError("form-error", error.message);
@@ -760,7 +809,6 @@ async function poll() {
   try {
     const job = await api(`/api/search/${jobId}`);
     if (jobId !== state.jobId) return;
-    job.requested = state.requested;
     renderJob(job);
     if (job.status === "running" || job.status === "stopping") setTimeout(poll, POLL_MS);
     else finish(job);
@@ -824,7 +872,7 @@ function renderFunnel(job) {
   $("funnel").hidden = !steps.length;
   $("funnel").replaceChildren(...steps.flatMap(([label, count], i) => [
     ...(i ? [el("span", { class: "arrow", "aria-hidden": "true", text: "→" })] : []),
-    el("span", { class: "step" }, el("b", { text: String(count) }), ` ${label}`)]));
+    el("span", { class: "funnel-step" }, el("b", { text: String(count) }), ` ${label}`)]));
 
   // Explain a short list: which filter removed the most?
   const hint = $("funnel-hint");
@@ -921,6 +969,81 @@ async function setStatus(job, status) {
   } catch (error) { showError("run-error", error.message); }
 }
 
+/* ---------- daily search ---------- */
+const DAY_LABELS = { mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun" };
+const daily = { days: Object.keys(DAY_LABELS), status: null };
+
+function setDays(days) {
+  daily.days = Object.keys(DAY_LABELS).filter((d) => days.includes(d));
+  $("daily-days").replaceChildren(...Object.entries(DAY_LABELS).map(([id, label]) => el("button", {
+    type: "button", "aria-pressed": String(daily.days.includes(id)), "aria-label": label, text: label.slice(0, 2),
+    onclick: () => setDays(daily.days.includes(id) ? daily.days.filter((d) => d !== id) : [...daily.days, id]),
+  })));
+}
+function formatTime(hhmm) {
+  const [h, m] = hhmm.split(":").map(Number);
+  return new Date(2000, 0, 1, h, m).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+function formatDays(days) {
+  if (days.length === 7) return "every day";
+  if (days.join() === "mon,tue,wed,thu,fri") return "on weekdays";
+  return "on " + days.map((d) => DAY_LABELS[d]).join(", ");
+}
+function formatWhen(iso) {
+  const date = new Date(iso), today = new Date();
+  const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+  const time = date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  if (date.toDateString() === today.toDateString()) return `today, ${time}`;
+  if (date.toDateString() === tomorrow.toDateString()) return `tomorrow, ${time}`;
+  return `${date.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}, ${time}`;
+}
+function renderDaily(status) {
+  daily.status = status;
+  const box = $("daily-status"), schedule = status.schedule, last = status.last_run;
+  $("daily-card").hidden = !status.supported;
+  $("daily-note").textContent = status.kind === "windows"
+    ? "Uses Windows Task Scheduler, so it runs even when this page is closed. If your laptop is off or asleep at that time, it runs as soon as it's back on."
+    : "Your computer needs to be on at that time. It runs even when this page is closed.";
+  $("daily-save").textContent = schedule ? "Update daily search" : "Save daily search";
+  box.hidden = !schedule && !last;
+  if (box.hidden) return;
+  const parts = [];
+  if (schedule) {
+    const sites = state.config.sites.filter((s) => schedule.sites[s.id]).map((s) => `${s.name} ${schedule.sites[s.id]}`).join(" · ");
+    parts.push(el("div", { class: "row" },
+      el("div", {},
+        el("b", { text: `✓ Runs ${formatDays(schedule.days)} at ${formatTime(schedule.time)}` }),
+        `Next run ${formatWhen(schedule.next_run)} · ${sites}`),
+      el("button", { type: "button", class: "btn btn-secondary", text: "Turn off", onclick: turnOffDaily })));
+  }
+  if (last) {
+    const when = formatWhen(last.last_run).replace(/^./, (c) => c.toUpperCase());
+    parts.push(last.status === "done"
+      ? el("div", { class: "last" }, `Last run ${when} · ${last.jobs} jobs (${last.new} new)`,
+          last.report_url ? [" · ", el("a", { href: last.report_url, target: "_blank", rel: "noopener", text: "Open report" })] : null)
+      : el("div", { class: "last error", text: `Last run ${when} failed: ${last.error || "unknown error"}` }));
+  }
+  box.replaceChildren(...parts);
+  if (schedule) { $("daily-time").value = schedule.time; setDays(schedule.days); $("daily-open").checked = schedule.open_report; }
+}
+async function saveDaily() {
+  showError("daily-error", "");
+  if (!$("daily-time").value) return showError("daily-error", "Pick a time.");
+  if (!daily.days.length) return showError("daily-error", "Pick at least one day.");
+  let search;
+  try { search = collectSearch(); } catch (error) { return showError("daily-error", error.message); }
+  savePrefs();
+  $("daily-save").disabled = true;
+  try {
+    renderDaily(await postJSON("/api/schedule", { ...search, time: $("daily-time").value, days: daily.days, open_report: $("daily-open").checked }));
+  } catch (error) { showError("daily-error", error.message); }
+  finally { updateStart(); }
+}
+async function turnOffDaily() {
+  showError("daily-error", "");
+  try { renderDaily(await api("/api/schedule", { method: "DELETE" })); } catch (error) { showError("daily-error", error.message); }
+}
+
 /* ---------- history ---------- */
 function renderHistory(counts) {
   if (!counts) return;
@@ -1006,6 +1129,10 @@ async function init() {
   $("form").addEventListener("submit", startSearch);
   $("stop").addEventListener("click", stopSearch);
   $("my-jobs-open").addEventListener("click", () => openMyJobs("applied"));
+  setDays(daily.days);
+  $("daily-save").addEventListener("click", saveDaily);
+  document.querySelectorAll("[data-days]").forEach((b) => b.addEventListener("click", () => setDays(b.dataset.days.split(","))));
+  api("/api/schedule").then(renderDaily).catch(() => { /* daily search is optional */ });
   $("my-jobs-close").addEventListener("click", () => $("my-jobs").close());
   $("my-jobs").addEventListener("click", (e) => { if (e.target === $("my-jobs")) $("my-jobs").close(); });
   $("forget-seen").addEventListener("click", async () => {

@@ -59,9 +59,27 @@ class FakeRunner:
         return SearchResult(Profile(), all_jobs, jobs, html, xlsx, csv)
 
 
+class FakeScheduler:
+    kind = "windows"
+
+    def __init__(self, fail=False):
+        self.installed = None
+        self.fail = fail
+
+    def install(self, schedule):
+        if self.fail:
+            from job_search.schedule import ScheduleError
+
+            raise ScheduleError("Access is denied.")
+        self.installed = schedule
+
+    def remove(self):
+        self.installed = None
+
+
 @pytest.fixture
 def make_client(tmp_path):
-    def make(runner=None, api_key="key", analyzer=None, **settings):
+    def make(runner=None, api_key="key", analyzer=None, scheduler=None, **settings):
         output_dir = tmp_path / "output"
         output_dir.mkdir(exist_ok=True)
         runner = runner or FakeRunner(output_dir)
@@ -71,6 +89,7 @@ def make_client(tmp_path):
             upload_dir=tmp_path / "uploads",
             runner=runner,
             analyzer=analyzer or (lambda path: PROFILE),
+            system_scheduler=scheduler or FakeScheduler(),
         )
         return app.test_client(), runner
 
@@ -294,3 +313,65 @@ def test_list_history(make_client):
     assert body["history"]["applied"] == 1
     assert client.get("/api/history?status=hidden").get_json()["jobs"] == []
     assert client.get("/api/history?status=loved").status_code == 400
+
+
+def test_daily_schedule_save_status_and_turn_off(make_client):
+    scheduler = FakeScheduler()
+    client, _ = make_client(scheduler=scheduler)
+    assert client.get("/api/schedule").get_json() == {"supported": True, "kind": "windows", "schedule": None, "last_run": None}
+
+    resume_id = upload(client).get_json()["resume_id"]
+    body = search_body(resume_id, time="09:30", days=["mon", "tue", "wed", "thu", "fri"], open_report=False)
+    status = client.post("/api/schedule", json=body).get_json()
+
+    schedule = status["schedule"]
+    assert (schedule["time"], schedule["days"], schedule["open_report"]) == ("09:30", ["mon", "tue", "wed", "thu", "fri"], False)
+    assert schedule["sites"] == {"linkedin": 20, "naukri": 12, "indeed": 10}
+    assert schedule["locations"] == ["Pune", "Remote"] and schedule["experience"] == [1, 2]
+    assert schedule["resume"].endswith("My_Resume.txt")
+    assert schedule["next_run"].endswith("09:30")
+    assert scheduler.installed.search["profile"]["skills"] == ["Python"]
+    assert client.get("/api/schedule").get_json()["schedule"]["time"] == "09:30"
+
+    off = client.delete("/api/schedule").get_json()
+    assert off["schedule"] is None and scheduler.installed is None
+
+
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        ({"time": "9am"}, "Time must look like"),
+        ({"days": []}, "at least one day"),
+        ({"sites": {}}, "at least one job site"),
+        ({"resume_id": "gone"}, "Upload your resume"),
+    ],
+)
+def test_daily_schedule_validation(make_client, overrides, message):
+    client, _ = make_client()
+    resume_id = upload(client).get_json()["resume_id"]
+    body = search_body(resume_id, time="09:00", days=["mon"])
+    body.update(overrides)
+    response = client.post("/api/schedule", json=body)
+    assert response.status_code == 400
+    assert message in response.get_json()["error"]
+
+
+def test_daily_schedule_os_error(make_client):
+    client, _ = make_client(scheduler=FakeScheduler(fail=True))
+    resume_id = upload(client).get_json()["resume_id"]
+    response = client.post("/api/schedule", json=search_body(resume_id, time="09:00", days=["mon"]))
+    assert response.status_code == 500
+    assert "Access is denied" in response.get_json()["error"]
+    assert client.get("/api/schedule").get_json()["schedule"] is None
+
+
+def test_last_run_shown_with_report_link(make_client, tmp_path):
+    from job_search.schedule import save_state
+
+    client, _ = make_client()
+    report = tmp_path / "output" / "jobs_x.html"
+    report.write_text("x")
+    save_state(tmp_path, last_run="2026-10-03T09:00:00", status="done", jobs=18, new=5, report=str(report))
+
+    last = client.get("/api/schedule").get_json()["last_run"]
+    assert (last["jobs"], last["new"], last["report_url"]) == (18, 5, "/reports/jobs_x.html")

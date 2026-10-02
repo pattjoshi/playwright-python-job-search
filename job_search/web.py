@@ -26,6 +26,18 @@ from job_search.locations import LOCATION_CHOICES, normalize_location
 from job_search.models import Job, Profile
 from job_search.pipeline import SearchOptions, SearchResult, run
 from job_search.resume import SUPPORTED_SUFFIXES, read_resume_text
+from job_search.schedule import (
+    Schedule,
+    ScheduleError,
+    SystemScheduler,
+    clean_days,
+    delete_schedule,
+    load_schedule,
+    load_state,
+    options_to_dict,
+    parse_time,
+    save_schedule,
+)
 from job_search.scrapers import SCRAPERS
 from job_search.utils import SearchStopped
 
@@ -47,6 +59,7 @@ class SearchJob:
     sites: dict[str, dict] = field(default_factory=dict)  # site -> {"status", "found"}
     progress: dict | None = None  # {"stage", "done", "total"} for details/scoring
     funnel: list | None = None  # [[label, count], ...] jobs left after each filter
+    requested: dict[str, int] = field(default_factory=dict)  # jobs to show per site
     profile: dict | None = None
     error: str | None = None
     result: dict | None = None
@@ -66,6 +79,7 @@ class SearchJob:
             "sites": self.sites,
             "progress": self.progress,
             "funnel": self.funnel,
+            "requested": self.requested,
             "profile": self.profile,
             "error": self.error,
             "result": self.result,
@@ -117,7 +131,11 @@ class SearchManager:
         with self._lock:
             if self.running:
                 raise RuntimeError("A search is already running. Stop it or wait for it to finish.")
-            job = SearchJob(id=uuid.uuid4().hex[:12], sites={site: {"status": "waiting", "found": 0} for site in sites})
+            job = SearchJob(
+                id=uuid.uuid4().hex[:12],
+                sites={site: {"status": "waiting", "found": 0} for site in sites},
+                requested={site: options.results_per_site.get(site, options.results) for site in sites},
+            )
             self.jobs[job.id] = job
             self._current = job
         threading.Thread(target=self._run, args=(job, options), daemon=True).start()
@@ -167,9 +185,12 @@ def create_app(
     upload_dir: Path = Path("uploads"),
     runner=run,
     analyzer=None,
+    system_scheduler: SystemScheduler | None = None,
 ) -> Flask:
     settings = settings or load_settings()
     analyzer = analyzer or default_analyzer(settings)
+    data_dir = settings.history_path.parent
+    scheduler = system_scheduler or SystemScheduler(data_dir)
     manager = SearchManager(settings, output_dir, runner)
     history = JobHistory(settings.history_path)
     resumes: dict[str, dict] = {}  # resume_id -> {"path", "name", "profile"}
@@ -345,6 +366,72 @@ def create_app(
     def forget_history():
         forgotten = history.forget_seen()
         return jsonify({"forgotten": forgotten, "history": history.counts()})
+
+    def schedule_status() -> dict:
+        schedule = load_schedule(data_dir)
+        state = load_state(data_dir)
+        if state and state.get("report"):
+            try:
+                relative = Path(state["report"]).resolve().relative_to(output_dir.resolve())
+                state["report_url"] = f"/reports/{relative.as_posix()}"
+            except ValueError:
+                pass
+        summary = None
+        if schedule:
+            search = schedule.search
+            summary = {
+                "time": schedule.time,
+                "days": schedule.days,
+                "open_report": schedule.open_report,
+                "next_run": schedule.next_run().isoformat(timespec="minutes"),
+                "sites": search.get("results_per_site", {}),
+                "keywords": search.get("keywords", []),
+                "locations": search.get("locations", []),
+                "experience": search.get("experience"),
+                "hours": search.get("max_age_hours"),
+                "resume": Path(search.get("resume_path", "")).name,
+                "saved_at": schedule.saved_at,
+            }
+        return {"supported": scheduler.kind != "unsupported", "kind": scheduler.kind, "schedule": summary, "last_run": state}
+
+    @app.get("/api/schedule")
+    def get_schedule():
+        return jsonify(schedule_status())
+
+    @app.post("/api/schedule")
+    def set_schedule():
+        body = request.get_json(silent=True)
+        if not isinstance(body, dict):
+            return _error("Send the schedule as JSON.")
+        resume = resumes.get(str(body.get("resume_id", "")))
+        if resume is None:
+            return _error("Upload your resume first (or again, if the app was restarted).")
+        try:
+            parse_time(str(body.get("time", "")))
+            options, _sites = _search_options(body, resume)
+            schedule = Schedule(
+                time=str(body["time"]).strip(),
+                days=clean_days(body.get("days")),
+                open_report=bool(body.get("open_report", True)),
+                search=options_to_dict(options),
+            )
+        except ValueError as error:
+            return _error(str(error))
+        try:
+            scheduler.install(schedule)
+        except ScheduleError as error:
+            return _error(f"Couldn't set up the daily search: {error}", status=500)
+        save_schedule(data_dir, schedule)
+        return jsonify(schedule_status())
+
+    @app.delete("/api/schedule")
+    def remove_schedule():
+        try:
+            scheduler.remove()
+        except ScheduleError as error:
+            return _error(f"Couldn't remove the daily search: {error}", status=500)
+        delete_schedule(data_dir)
+        return jsonify(schedule_status())
 
     @app.get("/reports/<path:name>")
     def report(name: str):
