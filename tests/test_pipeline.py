@@ -1,5 +1,5 @@
 from job_search.models import Job
-from job_search.pipeline import dedupe, filter_recent, keyword_score
+from job_search.pipeline import dedupe, filter_recent, keyword_score, matched_skills, shortlist_per_site
 from job_search.utils import parse_relative_age
 
 
@@ -38,3 +38,15 @@ def test_parse_relative_age():
     assert parse_relative_age("Few Hours Ago") == 3
     assert parse_relative_age("") is None
     assert parse_relative_age("Reposted") is None
+
+
+def test_matched_skills_whole_words():
+    job = make_job(title="Python SDET", description="Playwright, pytest and JavaScript")
+    assert matched_skills(job, ["Python", "pytest", "Java", "Selenium"]) == ["Python", "pytest"]
+
+
+def test_shortlist_per_site_caps_each_site():
+    jobs = [make_job(str(i), source="linkedin") for i in range(5)] + [make_job("n1", source="naukri", company="Other")]
+    shortlist = shortlist_per_site(jobs, ["Python"], per_site=2)
+    assert [job.source for job in shortlist].count("linkedin") == 2
+    assert [job.source for job in shortlist].count("naukri") == 1

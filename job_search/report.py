@@ -15,6 +15,8 @@ COLUMNS = [
     ("Location", 28, lambda j: j.location),
     ("Posted", 16, lambda j: j.posted_text),
     ("Source", 10, lambda j: j.source),
+    ("Matching skills", 40, lambda j: ", ".join(j.matched_skills)),
+    ("Missing skills", 30, lambda j: ", ".join(j.missing_skills)),
     ("Why it matches", 70, lambda j: j.match_reason),
     ("Link", 50, lambda j: j.url),
 ]

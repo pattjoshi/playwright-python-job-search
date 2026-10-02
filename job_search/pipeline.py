@@ -10,6 +10,7 @@ from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import sync_playwright
 
 from job_search.config import Settings
+from job_search.html_report import write_html_report
 from job_search.llm import JobMatcherLLM
 from job_search.models import Job, Profile
 from job_search.report import write_reports
@@ -29,7 +30,8 @@ class SearchOptions:
     keywords: list[str] = field(default_factory=list)
     max_age_hours: int = 24
     max_pages: int = 3
-    top_n: int = 40
+    top_n: int = 40  # jobs per site to open and score
+    results_per_site: int = 10  # jobs per site shown in the HTML report
     use_llm: bool = True
     headless: bool = True
     output_dir: Path = Path("output")
@@ -38,7 +40,9 @@ class SearchOptions:
 @dataclass
 class SearchResult:
     profile: Profile
-    jobs: list[Job]
+    jobs: list[Job]  # every scored job, best first
+    top_by_site: dict[str, list[Job]]  # what the HTML report shows
+    html_path: Path
     xlsx_path: Path
     csv_path: Path
 
@@ -81,8 +85,7 @@ def run(options: SearchOptions, settings: Settings) -> SearchResult:
                 log.warning("No jobs found. Try --show-browser to see what the site returns, or broader --keywords.")
 
             terms = profile.skills + profile.target_titles
-            jobs.sort(key=lambda job: keyword_score(job, terms), reverse=True)
-            shortlist = jobs[: options.top_n]
+            shortlist = shortlist_per_site(jobs, terms, options.top_n)
             for number, job in enumerate(shortlist, start=1):
                 log.info("Fetching details %d/%d: %s at %s", number, len(shortlist), job.title, job.company)
                 try:
@@ -97,11 +100,27 @@ def run(options: SearchOptions, settings: Settings) -> SearchResult:
     else:
         for job in shortlist:
             job.score = keyword_score(job, terms)
+    for job in shortlist:
+        if not job.matched_skills:
+            job.matched_skills = matched_skills(job, profile.skills)
 
     shortlist.sort(key=lambda job: job.score if job.score is not None else -1, reverse=True)
+    top_by_site = {
+        site: [job for job in shortlist if job.source == site][: options.results_per_site] for site in options.sites
+    }
+
     stem = f"jobs_{datetime.now():%Y%m%d_%H%M}"
+    html_path = options.output_dir / f"{stem}.html"
+    write_html_report(profile, top_by_site, html_path, max_age_hours=options.max_age_hours)
     xlsx_path, csv_path = write_reports(shortlist, options.output_dir, stem)
-    return SearchResult(profile=profile, jobs=shortlist, xlsx_path=xlsx_path, csv_path=csv_path)
+    return SearchResult(
+        profile=profile,
+        jobs=shortlist,
+        top_by_site=top_by_site,
+        html_path=html_path,
+        xlsx_path=xlsx_path,
+        csv_path=csv_path,
+    )
 
 
 def collect_jobs(scrapers: dict[str, BaseScraper], queries: list[str], locations: list[str]) -> list[Job]:
@@ -141,12 +160,30 @@ def filter_recent(jobs: list[Job], max_age_hours: int) -> list[Job]:
     return [job for job in jobs if job.hours_ago is None or job.hours_ago <= max_age_hours]
 
 
+def shortlist_per_site(jobs: list[Job], terms: list[str], per_site: int) -> list[Job]:
+    """Pick each site's most promising jobs, so one busy board can't crowd out the others."""
+    ranked = sorted(jobs, key=lambda job: keyword_score(job, terms), reverse=True)
+    counts: dict[str, int] = {}
+    shortlist = []
+    for job in ranked:
+        if counts.get(job.source, 0) < per_site:
+            counts[job.source] = counts.get(job.source, 0) + 1
+            shortlist.append(job)
+    return shortlist
+
+
 def keyword_score(job: Job, terms: list[str]) -> int:
     """Cheap 0-100 relevance: share of the candidate's skills/titles mentioned in the job."""
-    terms = [term.lower() for term in terms if term.strip()]
+    terms = [term for term in terms if term.strip()]
     if not terms:
         return 0
+    return round(100 * len(matched_skills(job, terms)) / len(terms))
+
+
+def matched_skills(job: Job, skills: list[str]) -> list[str]:
+    """Skills from the list that the job's title or description mentions."""
     text = f"{job.title} {job.description}".lower()
     # Whole-word match so "java" doesn't count inside "javascript".
-    matched = sum(1 for term in terms if re.search(rf"(?<!\w){re.escape(term)}(?!\w)", text))
-    return round(100 * matched / len(terms))
+    return [
+        skill for skill in skills if skill.strip() and re.search(rf"(?<!\w){re.escape(skill.lower())}(?!\w)", text)
+    ]

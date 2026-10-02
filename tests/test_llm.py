@@ -39,7 +39,14 @@ def test_extract_profile():
 def test_score_jobs_batches_and_clamps():
     jobs = [Job("linkedin", str(i), f"Job {i}", "Co", "Pune", "u") for i in range(3)]
     replies = [
-        json.dumps({"results": [{"id": "linkedin:0", "score": 140, "reason": "great"}, {"id": "linkedin:1", "score": 40}]}),
+        json.dumps(
+            {
+                "results": [
+                    {"id": "linkedin:0", "score": 140, "reason": "great", "matched_skills": ["Python"], "missing_skills": ["Go"]},
+                    {"id": "linkedin:1", "score": 40},
+                ]
+            }
+        ),
         json.dumps({"results": [{"id": "unknown", "score": 90}]}),
     ]
     client = fake_client(*replies)
@@ -49,6 +56,7 @@ def test_score_jobs_batches_and_clamps():
 
     assert client.chat.completions.create.call_count == 2
     assert (jobs[0].score, jobs[0].match_reason) == (100, "great")
+    assert (jobs[0].matched_skills, jobs[0].missing_skills) == (["Python"], ["Go"])
     assert jobs[1].score == 40
     assert jobs[2].score is None
 

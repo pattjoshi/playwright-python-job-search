@@ -1,7 +1,8 @@
 # Playwright Python Job Search
 
 Give it your resume, and it finds jobs **posted in the last 24 hours** that match you,
-ranked by an AI match score, saved to Excel.
+ranked by an AI match score. Results open as an HTML page (top 10 per job site by default)
+showing each job's link, matching skills and missing skills. Every scored job is also saved to Excel.
 
 ```
 resume.pdf ─► OpenAI reads it ─► search phrases + location
@@ -13,7 +14,8 @@ resume.pdf ─► OpenAI reads it ─► search phrases + location
                de-duplicate ─► open top jobs ─► OpenAI scores each 0-100
                                         │
                                         ▼
-                     output/jobs_YYYYMMDD_HHMM.xlsx  (+ .csv)
+          output/jobs_YYYYMMDD_HHMM.html  (top N per site, opens automatically)
+          output/jobs_YYYYMMDD_HHMM.xlsx  (+ .csv, every scored job)
 ```
 
 | Board    | Status      | Login needed |
@@ -50,24 +52,27 @@ Useful options:
 
 | Option | What it does |
 |--------|--------------|
+| `--results 20` | Show the top 20 jobs per site in the HTML report (default 10) |
 | `--location "Bengaluru"` | Override the location the AI found in your resume |
 | `--keywords "SDET" "Python Developer"` | Override the search phrases |
 | `--hours 12` | Only jobs from the last 12 hours (default 24) |
-| `--top 20` | Open and score fewer jobs (faster, cheaper; default 40) |
+| `--top 20` | Jobs per site to open and score (faster, cheaper; default 40) |
+| `--no-open` | Don't open the HTML report in your browser when finished |
 | `--show-browser` | Watch Chrome do the work |
 | `--no-llm` | No OpenAI at all; rank by keyword overlap (needs `--keywords`) |
 
-Example output:
+When it finishes, the HTML report opens in your browser. Each job card shows the match score,
+a link to the job, **matching skills** (green), **missing skills**, and a one-line reason,
+ranked best first. The terminal shows the same list:
 
 ```
-Profile: QA automation engineer with 4 years of Python/Playwright experience.
-Skills:  Python, Playwright, Selenium, pytest, REST API testing
-
-Top matches (40 scored):
-  [ 92] SDET - Playwright - Globex (Pune, Maharashtra, India, 3 hours ago)
-        https://in.linkedin.com/jobs/view/...
+Linkedin - top 10:
+   1. [ 92] SDET - Playwright - Globex (Pune, Maharashtra, India, 2 hours ago)
+            Skills: Python, Playwright, pytest, REST API testing
+            https://in.linkedin.com/jobs/view/...
   ...
-Saved: output/jobs_20261002_0915.xlsx
+Report: output/jobs_20261002_0915.html
+All 40 scored jobs: output/jobs_20261002_0915.xlsx
 ```
 
 Cost: one OpenAI call to read the resume plus one call per 10 jobs scored. With a small model
@@ -85,6 +90,7 @@ job_search/
   scrapers/
     base.py       interface every job board implements
     linkedin.py   LinkedIn public job search
+  html_report.py  HTML page: top N jobs per site with skills and links
   report.py       Excel + CSV output
 tests/            offline tests (saved HTML pages, mocked OpenAI)
 ```

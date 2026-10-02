@@ -21,9 +21,12 @@ Return only JSON."""
 
 SCORING_PROMPT = """You are a recruiter screening jobs for one candidate.
 For each job, give a match score from 0 to 100 based on how well the candidate's skills,
-experience level and target roles fit the job, and a one-sentence reason (mention the
-key matching or missing skills). Be strict: 80+ only for strong fits.
-Return JSON: {"results": [{"id": "<job id>", "score": <int>, "reason": "<text>"}]}"""
+experience level and target roles fit the job, and a one-sentence reason. Be strict: 80+
+only for strong fits. Also list the candidate's skills that the job asks for
+("matched_skills") and up to 5 important skills the job wants that the candidate lacks
+("missing_skills"). Use short skill names like "Python" or "REST API testing".
+Return JSON: {"results": [{"id": "<job id>", "score": <int>, "reason": "<text>",
+"matched_skills": ["..."], "missing_skills": ["..."]}]}"""
 
 MAX_DESCRIPTION_CHARS = 1500
 
@@ -46,7 +49,7 @@ class JobMatcherLLM:
         )
 
     def score_jobs(self, profile: Profile, jobs: list[Job], batch_size: int = 10) -> None:
-        """Fill in job.score and job.match_reason in place."""
+        """Fill in score, reason and matched/missing skills on each job, in place."""
         candidate = json.dumps(
             {
                 "summary": profile.summary,
@@ -78,6 +81,8 @@ class JobMatcherLLM:
                 score = _float_or_none(result.get("score"))
                 job.score = None if score is None else max(0, min(100, round(score)))
                 job.match_reason = str(result.get("reason") or "")
+                job.matched_skills = _str_list(result.get("matched_skills"))
+                job.missing_skills = _str_list(result.get("missing_skills"))
 
     def _ask_json(self, system: str, user: str) -> dict:
         response = self.client.chat.completions.create(
