@@ -46,7 +46,7 @@ def test_run_writes_top_n_html(tmp_path, monkeypatch):
     monkeypatch.setattr(pipeline, "SCRAPERS", {"linkedin": FakeScraper})
     monkeypatch.setattr(pipeline, "JobMatcherLLM", FakeLLM)
     settings = Settings("key", "model", os.getenv("CHROMIUM_EXECUTABLE") or None)
-    options = SearchOptions(SAMPLE_RESUME, sites=["linkedin"], top_n=12, results_per_site=5, output_dir=tmp_path)
+    options = SearchOptions(SAMPLE_RESUME, sites=["linkedin"], top_n=12, results_per_site={"linkedin": 5}, output_dir=tmp_path)
 
     # Own thread: other tests keep a sync Playwright instance open on the main thread.
     with ThreadPoolExecutor(max_workers=1) as executor:

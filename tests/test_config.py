@@ -6,7 +6,7 @@ import job_search.config as config
 from job_search.cli import build_options, build_parser
 from job_search.config import Settings, load_settings
 
-ENV_NAMES = ["OPENAI_API_KEY", "OPENAI_MODEL", "RESUME", "LOCATION", "KEYWORDS", "SITES", "RESULTS", "HOURS", "TOP", "MAX_PAGES"]
+ENV_NAMES = ["RESULTS_LINKEDIN", "RESULTS_NAUKRI", "OPENAI_API_KEY", "OPENAI_MODEL", "RESUME", "LOCATION", "KEYWORDS", "SITES", "RESULTS", "HOURS", "TOP", "MAX_PAGES"]
 
 
 @pytest.fixture
@@ -67,9 +67,9 @@ def test_env_values_used_when_no_options_passed():
     assert options.resume_path == Path("cv.pdf")
     assert options.location == "Pune"
     assert options.keywords == ["SDET"]
-    assert options.results_per_site == 20
-    assert options.top_n == 20  # raised to at least the number of results shown
-    assert options.sites == ["linkedin"]
+    assert options.results == 20
+    assert options.top_n == 15
+    assert options.sites == ["linkedin", "naukri", "indeed"]
 
 
 def test_command_line_wins_over_env():
@@ -81,7 +81,7 @@ def test_command_line_wins_over_env():
         results=20,
     )
     assert options.resume_path == Path("other.pdf")
-    assert options.results_per_site == 5
+    assert options.results == 5
     assert options.location == "Delhi"
     assert options.keywords == ["QA Engineer"]
 
@@ -106,3 +106,30 @@ def test_no_llm_accepts_keywords_from_env():
 def test_zero_results_rejected():
     with pytest.raises(ValueError, match="--results must be at least 1"):
         options_for(["--results", "0"], resume=Path("cv.pdf"))
+
+
+def test_reads_results_per_site(env):
+    env.setenv("RESULTS_LINKEDIN", "20")
+    env.setenv("RESULTS_NAUKRI", "12")
+    assert load_settings().results_per_site == {"linkedin": 20, "naukri": 12}
+
+
+def test_results_per_site_from_env_and_command_line():
+    env_counts = {"linkedin": 20, "naukri": 12}
+    options = options_for([], resume=Path("cv.pdf"), results_per_site=env_counts)
+    assert (options.results, options.results_per_site) == (10, env_counts)
+
+    # SITE=N on the command line changes just that site.
+    options = options_for(["--results", "linkedin=5"], resume=Path("cv.pdf"), results_per_site=env_counts)
+    assert options.results_per_site == {"linkedin": 5, "naukri": 12}
+
+    # A plain number applies to every site for this run.
+    options = options_for(["--results", "3"], resume=Path("cv.pdf"), results_per_site=env_counts)
+    assert (options.results, options.results_per_site) == (3, {})
+
+
+def test_bad_results_values():
+    with pytest.raises(ValueError, match="SITE=NUMBER"):
+        options_for(["--results", "linkedin=many"], resume=Path("cv.pdf"))
+    with pytest.raises(ValueError, match="unknown site"):
+        options_for(["--results", "monster=5"], resume=Path("cv.pdf"))

@@ -21,8 +21,8 @@ resume.pdf ─► OpenAI reads it ─► search phrases + location
 | Board    | Status      | Login needed |
 |----------|-------------|--------------|
 | LinkedIn | ✅ working  | No (uses public job pages) |
-| Naukri   | 🔜 planned  | – |
-| Indeed   | 🔜 planned  | – |
+| Naukri   | ✅ new      | No |
+| Indeed   | ✅ new      | No (may show a "verify you are human" check; keep the browser visible to solve it) |
 
 ## Setup (one time)
 
@@ -42,7 +42,26 @@ cp .env.example .env        # Windows: copy .env.example .env
 Open `.env` and paste your OpenAI key into `OPENAI_API_KEY`. `.env` is git-ignored, so the key
 never gets committed.
 
-## Run it
+## Web UI (easiest)
+
+```bash
+python -m job_search.web
+```
+
+On Windows you can also just double-click **`start_ui.bat`**.
+
+Your browser opens <http://127.0.0.1:8000>:
+
+1. Drop in your resume.
+2. Tick the job sites and set **how many jobs to show from each** (e.g. LinkedIn 20, Naukri 12, Indeed 10).
+3. Press **Start search**.
+
+Keywords and location come from your resume automatically (you can override them under
+"More options"). The page shows live progress, then the ranked jobs per site with links,
+matching and missing skills. Your choices are remembered for next time. The app only runs on
+your own computer; press Ctrl+C in the terminal to stop it.
+
+## Command line
 
 ```bash
 python -m job_search --resume path/to/your_resume.pdf
@@ -74,6 +93,7 @@ Useful options:
 | Option | What it does |
 |--------|--------------|
 | `--results 20` | Show the top 20 jobs per site in the HTML report (default 10) |
+| `--results linkedin=20 naukri=12` | A different number for each site |
 | `--location "Bengaluru"` | Override the location the AI found in your resume |
 | `--keywords "SDET" "Python Developer"` | Override the search phrases |
 | `--hours 12` | Only jobs from the last 12 hours (default 24) |
@@ -111,8 +131,11 @@ job_search/
   scrapers/
     base.py       interface every job board implements
     linkedin.py   LinkedIn public job search
+    naukri.py     Naukri search (reads the JSON the page loads)
+    indeed.py     Indeed search (India site)
   html_report.py  HTML page: top N jobs per site with skills and links
   report.py       Excel + CSV output
+  web.py          local web UI (Flask) + static/index.html
 tests/            offline tests (saved HTML pages, mocked OpenAI)
 ```
 
@@ -143,7 +166,7 @@ Tests never touch the real sites. They use saved HTML in `tests/fixtures/` and a
 ## Roadmap
 
 1. ~~Foundation + LinkedIn + OpenAI scoring + Excel report~~
-2. Naukri (log in once, reuse the saved session)
-3. Indeed
+2. ~~Settings in .env~~
+3. ~~Naukri and Indeed, per-site result counts, web UI~~
 4. Remember already-seen jobs (SQLite) so each run shows only new ones
 5. Daily schedule + email / Telegram alert

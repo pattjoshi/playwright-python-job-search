@@ -1,0 +1,30 @@
+{
+  "noOfJobs": 2,
+  "jobDetails": [
+    {
+      "title": "Python Automation Engineer",
+      "jobId": "021025012345",
+      "companyName": "Acme Technologies",
+      "jdURL": "/job-listings-python-automation-engineer-acme-technologies-bengaluru-3-to-6-years-021025012345",
+      "footerPlaceholderLabel": "Few Hours Ago",
+      "placeholders": [
+        {"type": "experience", "label": "3-6 Yrs"},
+        {"type": "salary", "label": "Not disclosed"},
+        {"type": "location", "label": "Bengaluru"}
+      ],
+      "tagsAndSkills": "Python,Playwright,Selenium,API Testing",
+      "jobDescription": "<p>Build UI &amp; API automation with <b>Python</b>.</p>"
+    },
+    {
+      "title": "SDET",
+      "jobId": "021025067890",
+      "companyName": "Globex",
+      "jdURL": "https://www.naukri.com/job-listings-sdet-globex-pune-021025067890",
+      "footerPlaceholderLabel": "1 Day Ago",
+      "placeholders": [{"type": "location", "label": "Pune"}],
+      "tagsAndSkills": "",
+      "jobDescription": ""
+    },
+    {"title": "", "jobId": "broken"}
+  ]
+}

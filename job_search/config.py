@@ -26,6 +26,7 @@ class Settings:
     keywords: list[str] = field(default_factory=list)
     sites: list[str] = field(default_factory=list)  # empty = all boards
     results: int = 10
+    results_per_site: dict[str, int] = field(default_factory=dict)  # from RESULTS_<SITE>
     hours: int = 24
     top: int = 40
     max_pages: int = 3
@@ -46,6 +47,7 @@ def load_settings() -> Settings:
         keywords=_get_list("KEYWORDS"),
         sites=[site.lower() for site in _get_list("SITES")],
         results=_get_int("RESULTS", 10),
+        results_per_site=_get_results_per_site(),
         hours=_get_int("HOURS", 24),
         top=_get_int("TOP", 40),
         max_pages=_get_int("MAX_PAGES", 3),
@@ -60,6 +62,16 @@ def _get(name: str) -> str | None:
 def _get_list(name: str) -> list[str]:
     # Comma-separated, because search phrases contain spaces: "Python Developer, SDET"
     return [item.strip() for item in (_get(name) or "").split(",") if item.strip()]
+
+
+def _get_results_per_site() -> dict[str, int]:
+    # RESULTS_LINKEDIN=20, RESULTS_NAUKRI=12, ... (any site name works)
+    prefix = "RESULTS_"
+    return {
+        name[len(prefix) :].lower(): _get_int(name, 0)
+        for name in sorted(os.environ)
+        if name.upper().startswith(prefix) and _get(name) is not None
+    }
 
 
 def _get_int(name: str, default: int) -> int:

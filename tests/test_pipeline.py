@@ -47,6 +47,6 @@ def test_matched_skills_whole_words():
 
 def test_shortlist_per_site_caps_each_site():
     jobs = [make_job(str(i), source="linkedin") for i in range(5)] + [make_job("n1", source="naukri", company="Other")]
-    shortlist = shortlist_per_site(jobs, ["Python"], per_site=2)
+    shortlist = shortlist_per_site(jobs, ["Python"], {"linkedin": 2, "naukri": 5})
     assert [job.source for job in shortlist].count("linkedin") == 2
     assert [job.source for job in shortlist].count("naukri") == 1

@@ -2,6 +2,7 @@
 
 import logging
 import re
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -31,7 +32,8 @@ class SearchOptions:
     max_age_hours: int = 24
     max_pages: int = 3
     top_n: int = 40  # jobs per site to open and score
-    results_per_site: int = 10  # jobs per site shown in the HTML report
+    results: int = 10  # jobs per site shown in the report...
+    results_per_site: dict[str, int] = field(default_factory=dict)  # ...unless set for that site here
     use_llm: bool = True
     headless: bool = True
     output_dir: Path = Path("output")
@@ -47,7 +49,16 @@ class SearchResult:
     csv_path: Path
 
 
-def run(options: SearchOptions, settings: Settings) -> SearchResult:
+def results_for(options: SearchOptions, site: str) -> int:
+    return options.results_per_site.get(site, options.results)
+
+
+def run(
+    options: SearchOptions,
+    settings: Settings,
+    on_profile: Callable[[Profile, list[str], list[str]], None] | None = None,
+) -> SearchResult:
+    """Run a full search. on_profile(profile, queries, locations) fires once the resume is understood."""
     resume_text = read_resume_text(options.resume_path)
     log.info("Read %d characters from %s", len(resume_text), options.resume_path)
 
@@ -66,6 +77,8 @@ def run(options: SearchOptions, settings: Settings) -> SearchResult:
         raise ValueError("No search keywords found. Pass them with --keywords.")
     locations = [options.location] if options.location else (profile.locations[:2] or [DEFAULT_LOCATION])
     log.info("Searching %s for %s in %s", ", ".join(options.sites), queries, locations)
+    if on_profile:
+        on_profile(profile, queries, locations)
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(
@@ -75,7 +88,12 @@ def run(options: SearchOptions, settings: Settings) -> SearchResult:
         context = browser.new_context(locale="en-US")
         try:
             scrapers = {
-                site: SCRAPERS[site](context, max_pages=options.max_pages, max_age_hours=options.max_age_hours)
+                site: SCRAPERS[site](
+                    context,
+                    max_pages=options.max_pages,
+                    max_age_hours=options.max_age_hours,
+                    interactive=not options.headless,
+                )
                 for site in options.sites
             }
             jobs = collect_jobs(scrapers, queries, locations)
@@ -85,7 +103,9 @@ def run(options: SearchOptions, settings: Settings) -> SearchResult:
                 log.warning("No jobs found. Try --show-browser to see what the site returns, or broader --keywords.")
 
             terms = profile.skills + profile.target_titles
-            shortlist = shortlist_per_site(jobs, terms, options.top_n)
+            # Score at least as many jobs as each site will show.
+            limits = {site: max(options.top_n, results_for(options, site)) for site in options.sites}
+            shortlist = shortlist_per_site(jobs, terms, limits)
             for number, job in enumerate(shortlist, start=1):
                 log.info("Fetching details %d/%d: %s at %s", number, len(shortlist), job.title, job.company)
                 try:
@@ -106,7 +126,7 @@ def run(options: SearchOptions, settings: Settings) -> SearchResult:
 
     shortlist.sort(key=lambda job: job.score if job.score is not None else -1, reverse=True)
     top_by_site = {
-        site: [job for job in shortlist if job.source == site][: options.results_per_site] for site in options.sites
+        site: [job for job in shortlist if job.source == site][: results_for(options, site)] for site in options.sites
     }
 
     stem = f"jobs_{datetime.now():%Y%m%d_%H%M}"
@@ -160,13 +180,13 @@ def filter_recent(jobs: list[Job], max_age_hours: int) -> list[Job]:
     return [job for job in jobs if job.hours_ago is None or job.hours_ago <= max_age_hours]
 
 
-def shortlist_per_site(jobs: list[Job], terms: list[str], per_site: int) -> list[Job]:
-    """Pick each site's most promising jobs, so one busy board can't crowd out the others."""
+def shortlist_per_site(jobs: list[Job], terms: list[str], limits: Mapping[str, int]) -> list[Job]:
+    """Pick each site's most promising jobs (up to limits[site]), so one busy board can't crowd out the others."""
     ranked = sorted(jobs, key=lambda job: keyword_score(job, terms), reverse=True)
     counts: dict[str, int] = {}
     shortlist = []
     for job in ranked:
-        if counts.get(job.source, 0) < per_site:
+        if counts.get(job.source, 0) < limits.get(job.source, 0):
             counts[job.source] = counts.get(job.source, 0) + 1
             shortlist.append(job)
     return shortlist

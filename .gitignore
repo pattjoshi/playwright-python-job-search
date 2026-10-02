@@ -5,6 +5,7 @@ __pycache__/
 venv/
 .pytest_cache/
 output/
+uploads/
 resumes/
 *.pdf
 *.docx

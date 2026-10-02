@@ -22,7 +22,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--sites",
         nargs="+",
-        choices=sorted(SCRAPERS),
+        choices=list(SCRAPERS),
         help="Job boards to search (default: all) [.env: SITES]",
     )
     parser.add_argument(
@@ -36,7 +36,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--hours", type=int, help="Only jobs posted within this many hours (default 24) [.env: HOURS]")
     parser.add_argument("--max-pages", type=int, help="Result pages per search (default 3) [.env: MAX_PAGES]")
     parser.add_argument(
-        "--results", type=int, help="Jobs per site to show in the HTML report, best first (default 10) [.env: RESULTS]"
+        "--results",
+        nargs="+",
+        metavar="N|SITE=N",
+        help="Jobs to show per site, best first: '--results 15' for every site, or "
+        "'--results linkedin=20 naukri=12' (default 10) [.env: RESULTS, RESULTS_LINKEDIN, ...]",
     )
     parser.add_argument("--top", type=int, help="Jobs per site to open and score (default 40) [.env: TOP]")
     parser.add_argument("--no-llm", action="store_true", help="Skip OpenAI; rank by keyword overlap instead")
@@ -90,20 +94,32 @@ def build_options(args: argparse.Namespace, settings: Settings) -> SearchOptions
     if resume is None:
         raise ValueError("no resume given: pass --resume my_resume.pdf, or set RESUME=... in .env")
 
-    sites = pick(args.sites, settings.sites) or sorted(SCRAPERS)
+    sites = pick(args.sites, settings.sites) or list(SCRAPERS)
     unknown = [site for site in sites if site not in SCRAPERS]
     if unknown:
-        raise ValueError(f"unknown site(s) {', '.join(unknown)} in SITES; available: {', '.join(sorted(SCRAPERS))}")
+        raise ValueError(f"unknown site(s) {', '.join(unknown)} in SITES; available: {', '.join(SCRAPERS)}")
 
     keywords = pick(args.keywords, settings.keywords)
     if args.no_llm and not keywords:
         raise ValueError("--no-llm needs keywords (--keywords or KEYWORDS in .env), since there is no AI to read your resume")
 
-    results = pick(args.results, settings.results)
+    results, results_per_site = settings.results, dict(settings.results_per_site)
+    if args.results:
+        cli_results, cli_per_site = parse_results(args.results)
+        if cli_results is not None:
+            # A plain number on the command line applies to every site for this run.
+            results, results_per_site = cli_results, {}
+        results_per_site.update(cli_per_site)
+    unknown = [site for site in results_per_site if site not in SCRAPERS]
+    if unknown:
+        raise ValueError(f"unknown site(s) {', '.join(unknown)} in results; available: {', '.join(SCRAPERS)}")
+
     top = pick(args.top, settings.top)
     hours = pick(args.hours, settings.hours)
     max_pages = pick(args.max_pages, settings.max_pages)
-    for name, value in (("--results", results), ("--top", top), ("--hours", hours), ("--max-pages", max_pages)):
+    numbers = [("--results", results), ("--top", top), ("--hours", hours), ("--max-pages", max_pages)]
+    numbers += [(f"results for {site}", count) for site, count in results_per_site.items()]
+    for name, value in numbers:
         if value < 1:
             raise ValueError(f"{name} must be at least 1")
 
@@ -114,12 +130,29 @@ def build_options(args: argparse.Namespace, settings: Settings) -> SearchOptions
         keywords=keywords,
         max_age_hours=hours,
         max_pages=max_pages,
-        top_n=max(top, results),  # can't show more jobs than we score
-        results_per_site=results,
+        top_n=top,
+        results=results,
+        results_per_site=results_per_site,
         use_llm=not args.no_llm,
         headless=not args.show_browser,
         output_dir=args.output_dir,
     )
+
+
+def parse_results(values: list[str]) -> tuple[int | None, dict[str, int]]:
+    """Split ['15'] / ['linkedin=20', 'naukri=12'] into (all-sites count, per-site counts)."""
+    everywhere, per_site = None, {}
+    for value in values:
+        site, _, count = value.rpartition("=")
+        try:
+            number = int(count)
+        except ValueError:
+            raise ValueError(f"--results expects a number or SITE=NUMBER, got {value!r}") from None
+        if site:
+            per_site[site.strip().lower()] = number
+        else:
+            everywhere = number
+    return everywhere, per_site
 
 
 def print_summary(result) -> None:

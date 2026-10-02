@@ -22,11 +22,14 @@ class BaseScraper(ABC):
         max_pages: int = 3,
         max_age_hours: int = 24,
         delay_range: tuple[float, float] = (2.0, 5.0),
+        interactive: bool = False,
     ):
         self.context = context
         self.max_pages = max_pages
         self.max_age_hours = max_age_hours
         self.delay_range = delay_range
+        # True when the browser window is visible, so a person can solve a bot check.
+        self.interactive = interactive
         self._page: Page | None = None
 
     @property
@@ -41,6 +44,11 @@ class BaseScraper(ABC):
 
     def fetch_description(self, job: Job) -> None:
         """Fill in job.description. Boards that include it in search results can skip this."""
+
+    @property
+    def max_age_days(self) -> int:
+        """Boards that filter by whole days: 24h -> 1, 36h -> 2."""
+        return max(1, -(-self.max_age_hours // 24))
 
     def pause(self) -> None:
         """Wait a human-like random interval between requests to stay polite."""
