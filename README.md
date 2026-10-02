@@ -48,6 +48,27 @@ never gets committed.
 python -m job_search --resume path/to/your_resume.pdf
 ```
 
+### Save your defaults in `.env`
+
+Instead of typing options every day, set them once in `.env`:
+
+```ini
+RESUME=Omprakash_Resume.pdf
+LOCATION=Bengaluru
+KEYWORDS=Python Automation Engineer, SDET
+RESULTS=20
+```
+
+Then a daily run is just:
+
+```bash
+python -m job_search
+```
+
+Every `.env` setting matches a command-line option (`RESULTS` = `--results`, `LOCATION` =
+`--location`, and so on). An option typed on the command line wins for that run, e.g.
+`python -m job_search --results 5`. See `.env.example` for the full list with explanations.
+
 Useful options:
 
 | Option | What it does |
