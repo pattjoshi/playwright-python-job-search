@@ -13,6 +13,7 @@ from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
 
 from job_search.models import Job
+from job_search.locations import is_remote
 from job_search.scrapers.base import BaseScraper
 from job_search.utils import parse_relative_age
 
@@ -37,13 +38,18 @@ class LinkedInScraper(BaseScraper):
     def search(self, query: str, location: str) -> list[Job]:
         jobs: list[Job] = []
         for page_number in range(self.max_pages):
+            self.check_stop()
             params = {
                 "keywords": query,
-                "location": location,
+                "location": "India" if is_remote(location) else location,
                 "f_TPR": f"r{self.max_age_hours * 3600}",  # posted within N seconds
                 "sortBy": "DD",  # newest first
                 "start": page_number * PAGE_SIZE,
             }
+            if is_remote(location):
+                params["f_WT"] = "2"  # workplace type: remote
+            if self.experience:
+                params["f_E"] = ",".join(str(level) for level in experience_levels(*self.experience))
             url = f"{SEARCH_URL}?{urlencode(params)}"
             log.info("LinkedIn: %r in %r, page %d", query, location, page_number + 1)
 
@@ -74,6 +80,19 @@ class LinkedInScraper(BaseScraper):
         if description.count():
             job.description = description.inner_text().strip()
         self.pause()
+
+
+def experience_levels(min_years: int, max_years: int) -> list[int]:
+    """LinkedIn's experience filter codes covering a years range.
+
+    1 Internship, 2 Entry level, 3 Associate, 4 Mid-Senior level, 5 Director, 6 Executive.
+    """
+    bands = [(0, 0, {1, 2}), (1, 2, {2, 3}), (3, 5, {3, 4}), (6, 10, {4}), (11, 14, {4, 5}), (15, 99, {5, 6})]
+    levels: set[int] = set()
+    for low, high, codes in bands:
+        if low <= max_years and high >= min_years:
+            levels |= codes
+    return sorted(levels)
 
 
 def parse_search_results(page: Page) -> list[Job]:

@@ -6,7 +6,7 @@ import job_search.config as config
 from job_search.cli import build_options, build_parser
 from job_search.config import Settings, load_settings
 
-ENV_NAMES = ["RESULTS_LINKEDIN", "RESULTS_NAUKRI", "OPENAI_API_KEY", "OPENAI_MODEL", "RESUME", "LOCATION", "KEYWORDS", "SITES", "RESULTS", "HOURS", "TOP", "MAX_PAGES"]
+ENV_NAMES = ["RESULTS_LINKEDIN", "RESULTS_NAUKRI", "EXPERIENCE", "ONLY_NEW", "HISTORY_DB", "OPENAI_API_KEY", "OPENAI_MODEL", "RESUME", "LOCATION", "KEYWORDS", "SITES", "RESULTS", "HOURS", "TOP", "MAX_PAGES"]
 
 
 @pytest.fixture
@@ -27,7 +27,7 @@ def test_defaults_when_nothing_is_set(env):
 
 def test_reads_search_settings(env):
     env.setenv("RESUME", "C:/Users/me/resume.pdf")
-    env.setenv("LOCATION", "Bengaluru")
+    env.setenv("LOCATION", "Bengaluru, Remote")
     env.setenv("KEYWORDS", "Python Developer, SDET ,")
     env.setenv("SITES", "LinkedIn")
     env.setenv("RESULTS", "20")
@@ -36,7 +36,7 @@ def test_reads_search_settings(env):
     settings = load_settings()
 
     assert settings.resume == Path("C:/Users/me/resume.pdf")
-    assert settings.location == "Bengaluru"
+    assert settings.locations == ["Bengaluru", "Remote"]
     assert settings.keywords == ["Python Developer", "SDET"]
     assert settings.sites == ["linkedin"]
     assert (settings.results, settings.hours) == (20, 12)
@@ -46,7 +46,7 @@ def test_empty_and_quoted_values(env):
     env.setenv("LOCATION", "")
     env.setenv("RESUME", '"My Resume.pdf"')
     settings = load_settings()
-    assert settings.location is None
+    assert settings.locations == []
     assert settings.resume == Path("My Resume.pdf")
 
 
@@ -62,10 +62,10 @@ def options_for(argv, **settings):
 
 
 def test_env_values_used_when_no_options_passed():
-    options = options_for([], resume=Path("cv.pdf"), location="Pune", keywords=["SDET"], results=20, top=15)
+    options = options_for([], resume=Path("cv.pdf"), locations=["Pune"], keywords=["SDET"], results=20, top=15)
 
     assert options.resume_path == Path("cv.pdf")
-    assert options.location == "Pune"
+    assert options.locations == ["Pune"]
     assert options.keywords == ["SDET"]
     assert options.results == 20
     assert options.top_n == 15
@@ -74,15 +74,15 @@ def test_env_values_used_when_no_options_passed():
 
 def test_command_line_wins_over_env():
     options = options_for(
-        ["--resume", "other.pdf", "--results", "5", "--location", "Delhi", "--keywords", "QA Engineer"],
+        ["--resume", "other.pdf", "--results", "5", "--location", "Delhi", "Remote", "--keywords", "QA Engineer"],
         resume=Path("cv.pdf"),
-        location="Pune",
+        locations=["Pune"],
         keywords=["SDET"],
         results=20,
     )
     assert options.resume_path == Path("other.pdf")
     assert options.results == 5
-    assert options.location == "Delhi"
+    assert options.locations == ["Delhi", "Remote"]
     assert options.keywords == ["QA Engineer"]
 
 
@@ -133,3 +133,28 @@ def test_bad_results_values():
         options_for(["--results", "linkedin=many"], resume=Path("cv.pdf"))
     with pytest.raises(ValueError, match="unknown site"):
         options_for(["--results", "monster=5"], resume=Path("cv.pdf"))
+
+
+def test_experience_and_only_new_from_env(env):
+    env.setenv("EXPERIENCE", "1-2")
+    env.setenv("ONLY_NEW", "yes")
+    settings = load_settings()
+    assert settings.experience == (1, 2)
+    assert settings.only_new is True
+
+
+@pytest.mark.parametrize(("name", "value"), [("EXPERIENCE", "junior"), ("ONLY_NEW", "maybe")])
+def test_bad_experience_or_only_new_in_env(env, name, value):
+    env.setenv(name, value)
+    with pytest.raises(ValueError, match=f"{name} in .env"):
+        load_settings()
+
+
+def test_experience_and_only_new_options():
+    options = options_for(["--experience", "2 to 4", "--only-new"], resume=Path("cv.pdf"), experience=(0, 1))
+    assert options.experience == (2, 4)
+    assert options.only_new is True
+    options = options_for(["--no-only-new"], resume=Path("cv.pdf"), experience=(0, 1), only_new=True)
+    assert (options.experience, options.only_new) == ((0, 1), False)
+    with pytest.raises(ValueError, match="experience must look like"):
+        options_for(["--experience", "senior"], resume=Path("cv.pdf"))

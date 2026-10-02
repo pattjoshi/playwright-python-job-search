@@ -7,423 +7,890 @@
 <link rel="icon" href="data:,">
 <style>
 :root {
-  --bg: #f6f7f9; --card: #ffffff; --text: #1d2330; --muted: #5d6676; --border: #e2e5ea;
-  --accent: #0a66c2; --accent-text: #ffffff; --accent-soft: #e8f1fb;
-  --good-bg: #e3f4e8; --good: #17663a; --ok-bg: #fdf1dc; --ok: #8a5300;
-  --low-bg: #eceef2; --low: #4b5363; --chip-miss: #c9ced6;
-  --error-bg: #fdecec; --error: #a3221b; --input-bg: #ffffff;
+  --bg: #f4f6f9; --surface: #ffffff; --surface-2: #f8f9fb; --text: #18202c; --muted: #5b6575; --faint: #8a93a3;
+  --border: #e1e5eb; --border-strong: #c9d0da;
+  --accent: #0a66c2; --accent-hover: #0857a6; --accent-text: #ffffff; --accent-soft: #e8f1fb;
+  --good-bg: #e2f4e8; --good: #146136; --ok-bg: #fdf0d9; --ok: #865200; --low-bg: #eceef2; --low: #4b5363;
+  --danger: #b42318; --danger-soft: #fdeceb; --new: #6941c6; --new-soft: #f0ebfd;
+  --shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 1px 3px rgba(16, 24, 40, .06);
+  --radius: 12px;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #12151b; --card: #1b2029; --text: #e7eaf0; --muted: #9aa3b2; --border: #2c3340;
-    --accent: #5aa9ff; --accent-text: #0b1420; --accent-soft: #1c2a3b;
-    --good-bg: #173b26; --good: #7fdc9f; --ok-bg: #3d2f12; --ok: #f2c46b;
-    --low-bg: #262c37; --low: #b3bac6; --chip-miss: #3d4554;
-    --error-bg: #3b1716; --error: #ff9b94; --input-bg: #141820;
+    --bg: #0f1218; --surface: #181c24; --surface-2: #1d222c; --text: #e6e9ef; --muted: #9aa3b2; --faint: #6f7888;
+    --border: #2a303b; --border-strong: #3a4250;
+    --accent: #5aa9ff; --accent-hover: #7bbbff; --accent-text: #0a1320; --accent-soft: #1a2838;
+    --good-bg: #16362a; --good: #7fdc9f; --ok-bg: #3a2d12; --ok: #f2c46b; --low-bg: #262c37; --low: #b3bac6;
+    --danger: #ff8b80; --danger-soft: #3a1a18; --new: #b9a3ff; --new-soft: #2a2140;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4);
   }
 }
 * { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; background: var(--bg); color: var(--text);
-  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-main { max-width: 860px; margin: 0 auto; padding: 32px 16px 80px; }
-h1 { font-size: 26px; margin: 0 0 4px; }
-h2 { font-size: 16px; margin: 0 0 12px; }
-h3 { font-size: 18px; margin: 28px 0 12px; }
-.lead { color: var(--muted); margin: 0 0 24px; }
-.card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; margin-bottom: 14px; }
-.step { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
-  background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 700; margin-right: 8px; }
-
-/* Resume drop zone */
-.drop { display: block; border: 2px dashed var(--border); border-radius: 10px; padding: 26px 16px;
-  text-align: center; cursor: pointer; transition: border-color .15s, background .15s; }
-.drop:hover, .drop.over { border-color: var(--accent); background: var(--accent-soft); }
-.drop input { display: none; }
-.drop strong { display: block; font-size: 16px; }
-.drop span { color: var(--muted); font-size: 13px; }
-.drop.has-file strong { color: var(--accent); }
-
-/* Sites */
-.site { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--border); }
-.site:first-of-type { border-top: 0; padding-top: 0; }
-.site label.name { flex: 1; display: flex; align-items: center; gap: 10px; font-weight: 600; cursor: pointer; }
-.site .count { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
-.site.off .count { opacity: .45; }
-input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); }
-input[type=number], input[type=text], select {
-  font: inherit; color: var(--text); background: var(--input-bg); border: 1px solid var(--border);
-  border-radius: 8px; padding: 7px 10px; }
-input[type=number] { width: 76px; }
-input:focus-visible, select:focus-visible, button:focus-visible, summary:focus-visible, .drop:focus-within {
-  outline: 2px solid var(--accent); outline-offset: 2px; }
-
-details.more summary { cursor: pointer; font-weight: 600; }
-.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; margin-top: 14px; }
-.field label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
-.field input[type=text], .field select { width: 100%; }
-.check { display: flex; gap: 10px; align-items: flex-start; grid-column: 1 / -1; }
-.check small { display: block; color: var(--muted); }
-
-button.primary { width: 100%; font: inherit; font-weight: 700; font-size: 16px; padding: 12px;
-  border: 0; border-radius: 10px; background: var(--accent); color: var(--accent-text); cursor: pointer; }
-button.primary:disabled { opacity: .55; cursor: not-allowed; }
-.alert { border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; background: var(--error-bg); color: var(--error); }
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif; }
+button, input, select { font: inherit; color: inherit; }
 [hidden] { display: none !important; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-/* Progress */
-.status { display: flex; align-items: center; gap: 12px; font-weight: 600; }
-.spinner { width: 18px; height: 18px; border: 3px solid var(--accent-soft); border-top-color: var(--accent);
+/* ---------- Top bar ---------- */
+.topbar { position: sticky; top: 0; z-index: 20; background: var(--surface); border-bottom: 1px solid var(--border); }
+.topbar-inner { max-width: 1240px; margin: 0 auto; padding: 12px 20px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; }
+.brand-mark { width: 28px; height: 28px; border-radius: 8px; background: var(--accent); color: var(--accent-text);
+  display: grid; place-items: center; font-size: 15px; }
+.topbar .spacer { flex: 1; }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12px;
+  font-weight: 600; background: var(--low-bg); color: var(--low); }
+.pill .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.pill.running { background: var(--accent-soft); color: var(--accent); }
+.pill.done { background: var(--good-bg); color: var(--good); }
+.pill.error { background: var(--danger-soft); color: var(--danger); }
+.history-stats { color: var(--muted); font-size: 13px; }
+
+/* ---------- Layout ---------- */
+.layout { max-width: 1240px; margin: 0 auto; padding: 20px; display: grid; grid-template-columns: 400px minmax(0, 1fr);
+  gap: 20px; align-items: start; }
+.setup { display: flex; flex-direction: column; gap: 14px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.card-body { padding: 16px 18px; }
+.card-head { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; font-size: 14px; font-weight: 700; }
+.step { width: 22px; height: 22px; border-radius: 50%; background: var(--accent-soft); color: var(--accent);
+  display: grid; place-items: center; font-size: 12px; font-weight: 700; flex: none; }
+.step.done { background: var(--good-bg); color: var(--good); }
+
+.field + .field { margin-top: 14px; }
+.field-label { display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+  font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+.field-label .hint { font-weight: 400; color: var(--faint); font-size: 12px; }
+.help { color: var(--faint); font-size: 12px; margin-top: 5px; }
+
+/* ---------- Resume ---------- */
+.drop { display: block; border: 1.5px dashed var(--border-strong); border-radius: 10px; padding: 22px 14px;
+  text-align: center; cursor: pointer; background: var(--surface-2); transition: border-color .15s, background .15s; }
+.drop:hover, .drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.drop:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.drop input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.drop strong { display: block; font-size: 14px; }
+.drop span { color: var(--muted); font-size: 12px; }
+.resume-ready { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--border);
+  border-radius: 10px; background: var(--surface-2); }
+.file-icon { width: 34px; height: 40px; border-radius: 6px; background: var(--accent-soft); color: var(--accent);
+  display: grid; place-items: center; font-size: 11px; font-weight: 800; flex: none; }
+.resume-ready .meta { flex: 1; min-width: 0; }
+.resume-ready .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.resume-ready .sub { color: var(--muted); font-size: 12px; }
+.analyzing { display: flex; align-items: center; gap: 10px; color: var(--muted); padding: 12px 2px; }
+.profile-summary { margin-top: 12px; color: var(--muted); font-size: 13px; }
+
+/* ---------- Inputs ---------- */
+.input, .control { width: 100%; background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px;
+  padding: 7px 10px; min-height: 38px; }
+.input:focus, .control:focus-within { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+.control { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 5px 8px; cursor: text; }
+.control input { flex: 1; min-width: 90px; border: 0; outline: 0; background: transparent; padding: 3px 2px; }
+.tag { display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px 2px 9px; border-radius: 6px;
+  background: var(--accent-soft); color: var(--accent); font-weight: 600; font-size: 13px; }
+.tag button { border: 0; background: none; color: inherit; cursor: pointer; padding: 0 4px; border-radius: 4px;
+  font-size: 15px; line-height: 1; opacity: .75; }
+.tag button:hover { opacity: 1; background: rgba(127, 127, 127, .15); }
+
+.combo { position: relative; }
+.listbox { position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 4px); max-height: 260px; overflow: auto;
+  margin: 0; padding: 4px; list-style: none; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; box-shadow: 0 8px 24px rgba(16, 24, 40, .14); }
+.option { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; cursor: pointer; }
+.option .check { width: 16px; height: 16px; border: 1.5px solid var(--border-strong); border-radius: 4px; flex: none;
+  display: grid; place-items: center; font-size: 11px; color: var(--accent-text); }
+.option[aria-selected="true"] .check { background: var(--accent); border-color: var(--accent); }
+.option.active { background: var(--accent-soft); }
+.option .note { margin-left: auto; color: var(--faint); font-size: 12px; }
+.option-group { padding: 6px 10px 2px; color: var(--faint); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+
+.range { display: flex; align-items: center; gap: 8px; }
+.range input[type=number] { width: 74px; text-align: center; }
+.range .unit { color: var(--muted); }
+.inline-check { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; cursor: pointer; margin-left: auto; }
+input[type=checkbox] { accent-color: var(--accent); width: 16px; height: 16px; }
+
+.segmented { display: grid; grid-template-columns: repeat(4, 1fr); background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 9px; padding: 3px; gap: 3px; }
+.segmented button { border: 0; background: transparent; padding: 6px 4px; border-radius: 6px; cursor: pointer;
+  color: var(--muted); font-weight: 600; font-size: 13px; }
+.segmented button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+
+/* ---------- Sites ---------- */
+.site-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--border); }
+.site-row:first-child { border-top: 0; padding-top: 2px; }
+.site-row .site-name { flex: 1; font-weight: 600; }
+.site-row.off .site-name, .site-row.off .stepper { opacity: .45; }
+.stepper { display: inline-flex; align-items: center; border: 1px solid var(--border-strong); border-radius: 8px; overflow: hidden; }
+.stepper button { width: 30px; height: 32px; border: 0; background: var(--surface-2); cursor: pointer; font-size: 16px; color: var(--muted); }
+.stepper button:hover:not(:disabled) { color: var(--text); background: var(--accent-soft); }
+.stepper input { width: 46px; height: 32px; border: 0; border-inline: 1px solid var(--border); text-align: center;
+  background: var(--surface); -moz-appearance: textfield; }
+.stepper input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.stepper-label { color: var(--faint); font-size: 12px; }
+
+/* Switch */
+.switch { position: relative; width: 36px; height: 20px; flex: none; }
+.switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; z-index: 1; width: 100%; height: 100%; }
+.switch .track { position: absolute; inset: 0; border-radius: 999px; background: var(--border-strong); transition: background .15s; }
+.switch .track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%;
+  background: #fff; transition: transform .15s; box-shadow: 0 1px 2px rgba(0, 0, 0, .3); }
+.switch input:checked + .track { background: var(--accent); }
+.switch input:checked + .track::after { transform: translateX(16px); }
+.switch input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.option-row { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-top: 1px solid var(--border); }
+.option-row:first-child { border-top: 0; padding-top: 2px; }
+.option-row .text { flex: 1; }
+.option-row .title { font-weight: 600; }
+.option-row .desc { color: var(--muted); font-size: 12px; }
+details.advanced summary { cursor: pointer; color: var(--muted); font-weight: 600; font-size: 13px; padding: 8px 0 0; list-style: none; }
+details.advanced summary::-webkit-details-marker { display: none; }
+details.advanced summary::before { content: "▸ "; }
+details.advanced[open] summary::before { content: "▾ "; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+.link-button { border: 0; background: none; color: var(--accent); cursor: pointer; padding: 0; font-weight: 600; font-size: 13px; }
+.link-button:disabled { color: var(--faint); cursor: default; }
+
+/* Action footer */
+.actions { position: sticky; bottom: 12px; z-index: 10; box-shadow: 0 -2px 6px rgba(16, 24, 40, .06), 0 10px 28px rgba(16, 24, 40, .16); }
+.actions .card-body { display: flex; flex-direction: column; gap: 10px; }
+.estimate { color: var(--muted); font-size: 12px; }
+.estimate .tip { display: block; color: var(--ok); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 9px; padding: 10px 14px;
+  font-weight: 700; border: 1px solid transparent; cursor: pointer; text-decoration: none; }
+.btn-primary { background: var(--accent); color: var(--accent-text); width: 100%; font-size: 15px; }
+.btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+.btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+.btn-danger { background: var(--surface); color: var(--danger); border-color: var(--danger); width: 100%; font-size: 15px; }
+.btn-danger:hover:not(:disabled) { background: var(--danger-soft); }
+.btn-danger:disabled { opacity: .6; cursor: progress; }
+.btn-secondary { background: var(--surface); color: var(--text); border-color: var(--border-strong); padding: 7px 12px; font-size: 13px; }
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+.alert { border-radius: 10px; padding: 10px 12px; background: var(--danger-soft); color: var(--danger); font-size: 13px; }
+
+/* ---------- Main panel ---------- */
+.empty-state { padding: 48px 28px; text-align: center; }
+.empty-state h2 { margin: 0 0 6px; font-size: 20px; }
+.empty-state p { color: var(--muted); margin: 0 auto; max-width: 440px; }
+.how { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 28px; text-align: left; }
+.how div { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+.how b { display: block; margin-bottom: 2px; }
+.how span { color: var(--muted); font-size: 13px; }
+
+.spinner { width: 16px; height: 16px; border: 2.5px solid var(--accent-soft); border-top-color: var(--accent);
   border-radius: 50%; animation: spin .8s linear infinite; flex: none; }
 @keyframes spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
-.profile p { margin: 12px 0 6px; }
-.label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-right: 6px; }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.5s; } * { transition: none !important; } }
+
+.progress-head { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; }
+.progress-head .elapsed { margin-left: auto; color: var(--faint); font-weight: 500; font-size: 13px; font-variant-numeric: tabular-nums; }
+.stages { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 16px 0 4px; list-style: none; padding: 0; }
+.stages li { font-size: 12px; color: var(--faint); font-weight: 600; }
+.stages li::before { content: ""; display: block; height: 4px; border-radius: 4px; background: var(--border); margin-bottom: 6px; }
+.stages li.done { color: var(--good); }
+.stages li.done::before { background: var(--good); }
+.stages li.current { color: var(--accent); }
+.stages li.current::before { background: linear-gradient(90deg, var(--accent) var(--pct, 40%), var(--accent-soft) var(--pct, 40%)); }
+.site-status { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.site-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border);
+  font-size: 13px; background: var(--surface-2); }
+.site-chip .state { color: var(--faint); }
+.site-chip.running { border-color: var(--accent); }
+.site-chip.done .state { color: var(--good); }
+.site-chip.failed .state { color: var(--danger); }
+.found { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
 .chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 6px 0; }
-.chip { font-size: 13px; padding: 2px 10px; border-radius: 999px; }
+.label { font-size: 11px; font-weight: 700; color: var(--faint); text-transform: uppercase; letter-spacing: .05em; margin-right: 4px; }
+.chip { font-size: 12px; padding: 2px 9px; border-radius: 999px; }
 .chip.key { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 .chip.skill { background: var(--low-bg); color: var(--low); }
 .chip.have { background: var(--good-bg); color: var(--good); }
-.chip.miss { border: 1px solid var(--chip-miss); color: var(--muted); }
+.chip.miss { border: 1px solid var(--border-strong); color: var(--muted); }
 details.log { margin-top: 12px; }
-details.log summary { cursor: pointer; color: var(--muted); font-size: 13px; }
-details.log pre { max-height: 220px; overflow: auto; font-size: 12px; background: var(--bg); padding: 10px;
-  border-radius: 8px; white-space: pre-wrap; margin: 8px 0 0; }
+details.log summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+details.log pre { max-height: 220px; overflow: auto; font-size: 12px; background: var(--surface-2); padding: 10px;
+  border-radius: 8px; white-space: pre-wrap; margin: 8px 0 0; border: 1px solid var(--border); }
 
-/* Results */
-.result-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
-.links { display: flex; gap: 8px; flex-wrap: wrap; }
-.links a { font-weight: 600; color: var(--accent); text-decoration: none; border: 1px solid var(--border);
-  border-radius: 8px; padding: 6px 12px; background: var(--card); }
-.links a:hover { border-color: var(--accent); }
-ol.jobs { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
-.job { display: grid; grid-template-columns: 56px 1fr; gap: 14px; background: var(--card);
-  border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
-.rank { color: var(--muted); font-size: 12px; text-align: center; }
-.score { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; font-weight: 700; font-size: 17px; margin-bottom: 4px; }
+.results-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--border); }
+.results-head h2 { margin: 0; font-size: 16px; }
+.results-head .sub { color: var(--muted); font-size: 13px; }
+.results-head .spacer { flex: 1; }
+.tabs { display: flex; gap: 4px; padding: 10px 18px 0; border-bottom: 1px solid var(--border); overflow-x: auto; }
+.tab { border: 0; background: none; padding: 8px 12px; font-weight: 600; color: var(--muted); cursor: pointer;
+  border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+.tab .count { display: inline-block; min-width: 20px; padding: 0 6px; margin-left: 4px; border-radius: 999px; background: var(--low-bg);
+  color: var(--low); font-size: 12px; }
+.tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+.tab[aria-selected="true"] .count { background: var(--accent-soft); color: var(--accent); }
+.job-list { list-style: none; margin: 0; padding: 0; }
+.job { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 14px; padding: 16px 18px; border-top: 1px solid var(--border);
+  transition: opacity .2s; }
+.job:first-child { border-top: 0; }
+.job.applied { opacity: .6; }
+.score { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 16px; }
 .score.good { background: var(--good-bg); color: var(--good); }
 .score.ok { background: var(--ok-bg); color: var(--ok); }
 .score.low { background: var(--low-bg); color: var(--low); }
-.job .title { font-size: 17px; font-weight: 600; color: var(--accent); text-decoration: none; }
-.job .title:hover { text-decoration: underline; }
-.job .sub { color: var(--muted); margin: 2px 0 8px; }
-.job .reason { margin: 8px 0 0; }
-.empty { color: var(--muted); }
+.rank { text-align: center; color: var(--faint); font-size: 11px; margin-top: 4px; }
+.job-title { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.job-title a { font-size: 15px; font-weight: 700; color: var(--accent); text-decoration: none; }
+.job-title a:hover { text-decoration: underline; }
+.badge { font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; }
+.badge.new { background: var(--new-soft); color: var(--new); }
+.badge.site { background: var(--low-bg); color: var(--low); }
+.badge.applied { background: var(--good-bg); color: var(--good); }
+.job-meta { color: var(--muted); font-size: 13px; margin: 2px 0 6px; }
+.reason { margin: 6px 0 0; font-size: 13px; }
+.job-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.hidden-note { padding: 12px 18px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13px; display: flex; gap: 10px; }
+.empty-list { padding: 28px 18px; color: var(--muted); text-align: center; }
+
+@media (max-width: 960px) {
+  .layout { grid-template-columns: 1fr; }
+  .actions { position: static; }
+}
 @media (max-width: 560px) {
-  .grid { grid-template-columns: 1fr; }
+  .layout { padding: 12px 16px; }
+  .topbar-inner { padding: 10px 16px; }
+  .history-stats { display: none; }
+  .how { grid-template-columns: 1fr; }
+  .grid-2 { grid-template-columns: 1fr; }
   .job { grid-template-columns: 1fr; }
-  .rank { display: flex; gap: 10px; align-items: center; }
-  .site { flex-wrap: wrap; }
+  .job > div:first-child { display: flex; align-items: center; gap: 10px; }
+  .rank { margin: 0; }
+  .stages li { font-size: 11px; }
 }
 </style>
 </head>
 <body>
-<main>
-  <h1>Job Search</h1>
-  <p class="lead">Upload your resume. Keywords are picked from it automatically, then the latest matching jobs are ranked for you.</p>
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">J</span>Job Search</div>
+    <span class="pill" id="status-pill" aria-live="polite"><span class="dot"></span><span id="status-pill-text">Ready</span></span>
+    <span class="spacer"></span>
+    <span class="history-stats" id="history-stats"></span>
+  </div>
+</header>
 
-  <div class="alert" id="key-warning" hidden>OPENAI_API_KEY is not set. Add it to your <code>.env</code> file and restart the app.</div>
+<div class="layout">
+  <!-- ================= Setup ================= -->
+  <form class="setup" id="form" novalidate>
+    <div class="alert" id="key-warning" hidden>OPENAI_API_KEY is not set. Add it to your <code>.env</code> file and restart the app.</div>
 
-  <form id="form" novalidate>
-    <section class="card">
-      <h2><span class="step">1</span>Your resume</h2>
+    <section class="card"><div class="card-body">
+      <h2 class="card-head"><span class="step" id="step-resume">1</span>Resume</h2>
       <label class="drop" id="drop">
-        <input type="file" id="resume" name="resume" accept=".pdf,.docx,.txt,.md">
-        <strong id="drop-title">Drop your resume here or click to choose</strong>
+        <input type="file" id="resume" accept=".pdf,.docx,.txt,.md" aria-describedby="drop-hint">
+        <strong>Drop your resume here, or click to browse</strong>
         <span id="drop-hint">PDF, DOCX or TXT · stays on your computer</span>
       </label>
-    </section>
+      <div class="analyzing" id="analyzing" hidden><div class="spinner"></div>Reading your resume with AI…</div>
+      <div id="resume-ready" hidden>
+        <div class="resume-ready">
+          <div class="file-icon" id="file-ext">PDF</div>
+          <div class="meta"><div class="name" id="file-name"></div><div class="sub" id="file-sub"></div></div>
+          <button type="button" class="btn btn-secondary" id="replace-resume">Replace</button>
+        </div>
+        <p class="profile-summary" id="profile-summary"></p>
+      </div>
+      <div class="alert" id="resume-error" hidden style="margin-top: 10px"></div>
+    </div></section>
 
-    <section class="card">
-      <h2><span class="step">2</span>Job sites and how many jobs to show</h2>
+    <section class="card"><div class="card-body">
+      <h2 class="card-head"><span class="step">2</span>What to look for</h2>
+
+      <div class="field">
+        <div class="field-label"><label for="keyword-input">Keywords</label><span class="hint">From your resume · Enter to add</span></div>
+        <div class="control" id="keyword-control">
+          <input id="keyword-input" placeholder="e.g. Python Developer" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field-label"><label for="location-input" id="location-label">Locations</label><span class="hint">Empty = from your resume</span></div>
+        <div class="combo" id="location-combo">
+          <div class="control" id="location-control">
+            <input id="location-input" role="combobox" aria-expanded="false" aria-controls="location-list"
+                   aria-autocomplete="list" placeholder="Search cities or Remote" autocomplete="off">
+          </div>
+          <ul class="listbox" id="location-list" role="listbox" aria-multiselectable="true" aria-labelledby="location-label" hidden></ul>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field-label"><span id="exp-label">Experience</span>
+          <label class="inline-check"><input type="checkbox" id="exp-any"> Any</label></div>
+        <div class="range" role="group" aria-labelledby="exp-label">
+          <input class="input" type="number" id="exp-min" min="0" max="50" value="1" aria-label="Experience from (years)">
+          <span class="unit">to</span>
+          <input class="input" type="number" id="exp-max" min="0" max="50" value="3" aria-label="Experience to (years)">
+          <span class="unit">years</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <div class="field-label"><span id="hours-label">Posted within</span></div>
+        <div class="segmented" id="hours" role="group" aria-labelledby="hours-label">
+          <button type="button" data-hours="12">12 hours</button>
+          <button type="button" data-hours="24">24 hours</button>
+          <button type="button" data-hours="72">3 days</button>
+          <button type="button" data-hours="168">7 days</button>
+        </div>
+      </div>
+    </div></section>
+
+    <section class="card"><div class="card-body">
+      <h2 class="card-head"><span class="step">3</span>Job sites <span class="stepper-label" style="margin-left:auto;font-weight:500">Jobs to show</span></h2>
       <div id="sites"></div>
-    </section>
+    </div></section>
 
-    <section class="card">
-      <details class="more" id="more">
-        <summary>More options</summary>
-        <div class="grid">
-          <div class="field">
-            <label for="location">Location</label>
-            <input type="text" id="location" name="location" placeholder="Auto from resume">
-          </div>
-          <div class="field">
-            <label for="hours">Posted within</label>
-            <select id="hours" name="hours">
-              <option value="12">Last 12 hours</option>
-              <option value="24">Last 24 hours</option>
-              <option value="72">Last 3 days</option>
-              <option value="168">Last 7 days</option>
-            </select>
-          </div>
-          <div class="field" style="grid-column: 1 / -1">
-            <label for="keywords">Keywords (comma separated)</label>
-            <input type="text" id="keywords" name="keywords" placeholder="Auto from resume">
-          </div>
-          <label class="check">
-            <input type="checkbox" id="show_browser" name="show_browser">
-            <span>Show the browser while searching<small>Recommended for Naukri and Indeed: if they show a "verify you are human" check, you can solve it.</small></span>
-          </label>
+    <section class="card"><div class="card-body">
+      <h2 class="card-head"><span class="step">4</span>Options</h2>
+      <div class="option-row">
+        <div class="text"><div class="title">Only new jobs</div><div class="desc">Skip jobs shown in earlier searches</div></div>
+        <span class="switch"><input type="checkbox" id="only-new" aria-label="Only new jobs"><span class="track"></span></span>
+      </div>
+      <div class="option-row">
+        <div class="text"><div class="title">Show browser</div><div class="desc">Watch it work, and solve "verify you're human" checks on Naukri or Indeed</div></div>
+        <span class="switch"><input type="checkbox" id="show-browser" aria-label="Show browser"><span class="track"></span></span>
+      </div>
+      <details class="advanced">
+        <summary>Advanced</summary>
+        <div class="grid-2">
+          <div><div class="field-label"><label for="max-pages">Pages per search</label></div>
+            <input class="input" type="number" id="max-pages" min="1" max="10"></div>
+          <div><div class="field-label"><label for="top">Jobs to score per site</label></div>
+            <input class="input" type="number" id="top" min="5" max="200"></div>
+        </div>
+        <div class="help" style="margin-top:12px">
+          <span id="seen-count"></span>
+          <button type="button" class="link-button" id="forget-seen">Forget seen jobs</button>
         </div>
       </details>
-    </section>
+    </div></section>
 
-    <div class="alert" id="form-error" hidden></div>
-    <button type="submit" class="primary" id="start">Start search</button>
+    <section class="card actions"><div class="card-body">
+      <div class="estimate" id="estimate"></div>
+      <div class="alert" id="form-error" hidden></div>
+      <button type="submit" class="btn btn-primary" id="start" disabled>Start search</button>
+      <button type="button" class="btn btn-danger" id="stop" hidden>Stop search</button>
+    </div></section>
   </form>
 
-  <section class="card" id="progress" hidden style="margin-top: 20px">
-    <div class="status"><div class="spinner" id="spinner"></div><span id="status-text">Starting…</span></div>
-    <div class="profile" id="profile" hidden>
-      <p id="summary"></p>
-      <div class="chips" id="keyword-chips"></div>
-      <div class="chips" id="skill-chips"></div>
-    </div>
-    <div class="alert" id="run-error" hidden style="margin: 12px 0 0"></div>
-    <details class="log">
-      <summary>Show details</summary>
-      <pre id="log"></pre>
-    </details>
-  </section>
-
-  <section id="results" hidden>
-    <div class="result-bar" style="margin-top: 24px">
-      <strong id="results-summary"></strong>
-      <div class="links">
-        <a id="html-link" target="_blank" rel="noopener">Open full report</a>
-        <a id="excel-link">Download Excel</a>
+  <!-- ================= Results ================= -->
+  <main id="main">
+    <section class="card empty-state" id="empty-state">
+      <h2>Your matches will appear here</h2>
+      <p>Upload your resume and press Start. Jobs are ranked by how well they fit your skills and experience.</p>
+      <div class="how">
+        <div><b>1 · Resume</b><span>Keywords, skills and experience are read automatically.</span></div>
+        <div><b>2 · Search</b><span>LinkedIn, Naukri and Indeed, filtered to recent posts.</span></div>
+        <div><b>3 · Rank</b><span>Every job gets a match score with matching and missing skills.</span></div>
       </div>
-    </div>
-    <div id="site-results"></div>
-  </section>
-</main>
+    </section>
+
+    <section class="card" id="progress" hidden><div class="card-body">
+      <div class="progress-head" aria-live="polite">
+        <div class="spinner" id="spinner"></div><span id="progress-text">Starting…</span>
+        <span class="elapsed" id="elapsed"></span>
+      </div>
+      <ol class="stages" id="stages">
+        <li data-stage="resume">Resume</li><li data-stage="search">Search</li><li data-stage="details">Details</li>
+        <li data-stage="score">Scoring</li><li data-stage="report">Done</li>
+      </ol>
+      <div class="site-status" id="site-status"></div>
+      <div class="found" id="found" hidden>
+        <div class="chips" id="query-chips"></div>
+        <div class="chips" id="skill-chips"></div>
+      </div>
+      <div class="alert" id="run-error" hidden style="margin-top: 12px"></div>
+      <details class="log"><summary>Show log</summary><pre id="log"></pre></details>
+    </div></section>
+
+    <section class="card" id="results" hidden style="margin-top: 16px">
+      <div class="results-head">
+        <div><h2 id="results-title"></h2><div class="sub" id="results-sub"></div></div>
+        <span class="spacer"></span>
+        <a class="btn btn-secondary" id="html-link" target="_blank" rel="noopener">Open report</a>
+        <a class="btn btn-secondary" id="excel-link">Download Excel</a>
+      </div>
+      <div class="tabs" role="tablist" id="tabs"></div>
+      <ul class="job-list" id="job-list"></ul>
+    </section>
+  </main>
+</div>
 
 <script>
+"use strict";
 const $ = (id) => document.getElementById(id);
-const STORE_KEY = "job-search-ui";
-const POLL_MS = 1500;
-let config = null;
-let pollTimer = null;
+const STORE_KEY = "job-search-ui-v2";
+const POLL_MS = 1200;
+const STAGES = ["resume", "search", "details", "score", "report"];
+const STAGE_TEXT = { resume: "Preparing…", search: "Searching job sites…", details: "Reading job details…", score: "Scoring jobs against your resume…", report: "Building your report…" };
 
-function loadPrefs() {
-  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch { return {}; }
-}
-function savePrefs() {
-  const prefs = { sites: {}, hours: $("hours").value, show_browser: $("show_browser").checked,
-                  location: $("location").value, keywords: $("keywords").value };
-  for (const site of config.sites) {
-    prefs.sites[site.id] = { on: $(`site_${site.id}`).checked, results: $(`results_${site.id}`).value };
-  }
-  try { localStorage.setItem(STORE_KEY, JSON.stringify(prefs)); } catch { /* private mode: fine */ }
-}
+const state = {
+  config: null, resume: null, keywords: [], locations: [], hours: 24,
+  jobId: null, startedAt: null, timer: null, result: null, tab: "all", statuses: {},
+};
 
+/* ---------- helpers ---------- */
 function el(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);
   for (const [key, value] of Object.entries(attrs)) {
+    if (value === null || value === undefined || value === false) continue;
     if (key === "class") node.className = value;
     else if (key === "text") node.textContent = value;
-    else node.setAttribute(key, value);
+    else if (key.startsWith("on")) node.addEventListener(key.slice(2), value);
+    else node.setAttribute(key, value === true ? "" : value);
   }
-  for (const child of children) if (child) node.append(child);
+  for (const child of children.flat()) if (child) node.append(child);
   return node;
 }
-
-function buildSites(prefs) {
-  const box = $("sites");
-  box.replaceChildren();
-  for (const site of config.sites) {
-    const saved = (prefs.sites || {})[site.id] || {};
-    const on = saved.on ?? config.enabled_sites.includes(site.id);
-    const checkbox = el("input", { type: "checkbox", id: `site_${site.id}`, name: `site_${site.id}` });
-    checkbox.checked = on;
-    const count = el("input", { type: "number", id: `results_${site.id}`, name: `results_${site.id}`,
-                                min: "1", max: "100", value: saved.results || site.results,
-                                "aria-label": `Jobs to show from ${site.name}` });
-    const row = el("div", { class: "site" + (on ? "" : " off") },
-      el("label", { class: "name" }, checkbox, document.createTextNode(site.name)),
-      el("span", { class: "count" }, document.createTextNode("Jobs to show"), count));
-    checkbox.addEventListener("change", () => { row.classList.toggle("off", !checkbox.checked); count.disabled = !checkbox.checked; });
-    count.disabled = !on;
-    box.append(row);
+function showError(id, message) { $(id).textContent = message || ""; $(id).hidden = !message; }
+async function api(path, options = {}) {
+  const response = await fetch(path, options);
+  let body = {};
+  try { body = await response.json(); } catch { /* empty body */ }
+  if (!response.ok) throw new Error(body.error || `Request failed (${response.status})`);
+  return body;
+}
+function postJSON(path, data) {
+  return api(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+}
+function loadPrefs() { try { return JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch { return {}; } }
+function savePrefs() {
+  const prefs = { sites: {}, hours: state.hours, locations: state.locations, only_new: $("only-new").checked,
+    show_browser: $("show-browser").checked, max_pages: $("max-pages").value, top: $("top").value,
+    experience: $("exp-any").checked ? null : [$("exp-min").value, $("exp-max").value] };
+  for (const site of state.config.sites) {
+    prefs.sites[site.id] = { on: $(`site-${site.id}`).checked, results: $(`count-${site.id}`).value };
   }
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(prefs)); } catch { /* private mode */ }
 }
 
-function setupDrop() {
-  const drop = $("drop"), input = $("resume");
-  const show = () => {
-    const file = input.files[0];
-    drop.classList.toggle("has-file", !!file);
-    $("drop-title").textContent = file ? file.name : "Drop your resume here or click to choose";
-    $("drop-hint").textContent = file ? "Click to choose a different file" : "PDF, DOCX or TXT · stays on your computer";
-  };
-  input.addEventListener("change", show);
-  ["dragenter", "dragover"].forEach((type) => drop.addEventListener(type, (e) => { e.preventDefault(); drop.classList.add("over"); }));
-  ["dragleave", "drop"].forEach((type) => drop.addEventListener(type, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
-  drop.addEventListener("drop", (e) => {
-    if (e.dataTransfer.files.length) { input.files = e.dataTransfer.files; show(); }
+/* ---------- tag inputs (keywords + locations) ---------- */
+function renderTags(controlId, inputId, items, onRemove) {
+  const control = $(controlId), input = $(inputId);
+  control.querySelectorAll(".tag").forEach((tag) => tag.remove());
+  for (const item of items) {
+    control.insertBefore(el("span", { class: "tag" }, item,
+      el("button", { type: "button", "aria-label": `Remove ${item}`, text: "×", onclick: () => onRemove(item) })), input);
+  }
+}
+function setKeywords(list) {
+  state.keywords = [...new Set(list.map((k) => k.trim()).filter(Boolean))].slice(0, 8);
+  renderTags("keyword-control", "keyword-input", state.keywords, (k) => setKeywords(state.keywords.filter((x) => x !== k)));
+  updateEstimate();
+}
+function setupKeywords() {
+  const input = $("keyword-input");
+  const commit = () => { if (input.value.trim()) { setKeywords([...state.keywords, ...input.value.split(",")]); input.value = ""; } };
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === ",") { e.preventDefault(); commit(); }
+    else if (e.key === "Backspace" && !input.value && state.keywords.length) setKeywords(state.keywords.slice(0, -1));
+  });
+  input.addEventListener("blur", commit);
+  $("keyword-control").addEventListener("click", () => input.focus());
+}
+
+/* Location multi-select combobox */
+let activeOption = -1;
+function setLocations(list) {
+  state.locations = [...new Set(list.map((l) => l.trim()).filter(Boolean))].slice(0, 10);
+  renderTags("location-control", "location-input", state.locations, (l) => setLocations(state.locations.filter((x) => x !== l)));
+  renderLocationOptions();
+  updateEstimate();
+}
+function locationOptions() {
+  const query = $("location-input").value.trim().toLowerCase();
+  const choices = state.config.location_choices.filter((c) => c.toLowerCase().includes(query));
+  const exact = state.config.location_choices.some((c) => c.toLowerCase() === query) || state.locations.some((c) => c.toLowerCase() === query);
+  const custom = query && !exact ? [{ value: $("location-input").value.trim(), custom: true }] : [];
+  // Known cities first, so typing "hyd" + Enter picks Hyderabad; "Add …" is the fallback.
+  return [...choices.map((value) => ({ value })), ...custom];
+}
+function renderLocationOptions() {
+  const list = $("location-list");
+  if (list.hidden) return;
+  const options = locationOptions();
+  activeOption = Math.min(activeOption, options.length - 1);
+  list.replaceChildren();
+  if (!$("location-input").value.trim()) list.append(el("li", { class: "option-group", role: "presentation", text: "Popular in India" }));
+  options.forEach((option, index) => {
+    const selected = state.locations.includes(option.value);
+    list.append(el("li", {
+      class: "option" + (index === activeOption ? " active" : ""), role: "option", id: `loc-opt-${index}`,
+      "aria-selected": String(selected),
+      onmousedown: (e) => { e.preventDefault(); toggleLocation(option.value); },
+    }, el("span", { class: "check", text: selected ? "✓" : "" }),
+       option.custom ? `Add “${option.value}”` : option.value,
+       option.value === "Remote" ? el("span", { class: "note", text: "Work from home" }) : null));
+  });
+  if (!options.length) list.append(el("li", { class: "option-group", text: "No matches" }));
+  $("location-input").setAttribute("aria-activedescendant", activeOption >= 0 ? `loc-opt-${activeOption}` : "");
+}
+function toggleLocation(value) {
+  setLocations(state.locations.includes(value) ? state.locations.filter((l) => l !== value) : [...state.locations, value]);
+  $("location-input").value = "";
+  renderLocationOptions();
+}
+function openLocations(open) {
+  $("location-list").hidden = !open;
+  $("location-input").setAttribute("aria-expanded", String(open));
+  if (open) { activeOption = -1; renderLocationOptions(); }
+}
+function setupLocations() {
+  const input = $("location-input");
+  $("location-control").addEventListener("click", () => { input.focus(); openLocations(true); });
+  input.addEventListener("focus", () => openLocations(true));
+  input.addEventListener("blur", () => openLocations(false));
+  input.addEventListener("input", () => { openLocations(true); activeOption = 0; renderLocationOptions(); });
+  input.addEventListener("keydown", (e) => {
+    const options = locationOptions();
+    if (e.key === "ArrowDown") { e.preventDefault(); openLocations(true); activeOption = Math.min(activeOption + 1, options.length - 1); renderLocationOptions(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); activeOption = Math.max(activeOption - 1, 0); renderLocationOptions(); }
+    else if (e.key === "Enter") { e.preventDefault(); const option = options[Math.max(activeOption, 0)]; if (option) toggleLocation(option.value); }
+    else if (e.key === "Escape") { openLocations(false); }
+    else if (e.key === "Backspace" && !input.value && state.locations.length) setLocations(state.locations.slice(0, -1));
   });
 }
 
-function showError(id, message) {
-  $(id).textContent = message || "";
-  $(id).hidden = !message;
+/* ---------- sites, hours, experience ---------- */
+function buildSites(prefs) {
+  const box = $("sites");
+  box.replaceChildren();
+  for (const site of state.config.sites) {
+    const saved = (prefs.sites || {})[site.id] || {};
+    const on = saved.on ?? state.config.enabled_sites.includes(site.id);
+    const toggle = el("input", { type: "checkbox", id: `site-${site.id}`, "aria-label": `Search ${site.name}` });
+    toggle.checked = on;
+    const count = el("input", { type: "number", id: `count-${site.id}`, min: "1", max: "100", inputmode: "numeric",
+                                value: saved.results || site.results, "aria-label": `Jobs to show from ${site.name}` });
+    const step = (delta) => { count.value = Math.min(100, Math.max(1, (parseInt(count.value, 10) || 0) + delta)); updateEstimate(); };
+    const minus = el("button", { type: "button", "aria-label": `Fewer ${site.name} jobs`, text: "−", onclick: () => step(-1) });
+    const plus = el("button", { type: "button", "aria-label": `More ${site.name} jobs`, text: "+", onclick: () => step(1) });
+    const row = el("div", { class: "site-row" + (on ? "" : " off") },
+      el("span", { class: "switch" }, toggle, el("span", { class: "track" })),
+      el("label", { class: "site-name", for: `site-${site.id}`, text: site.name }),
+      el("span", { class: "stepper" }, minus, count, plus));
+    const sync = () => { row.classList.toggle("off", !toggle.checked); [count, minus, plus].forEach((x) => x.disabled = !toggle.checked); updateEstimate(); };
+    toggle.addEventListener("change", sync);
+    count.addEventListener("input", updateEstimate);
+    box.append(row);
+    sync();
+  }
+}
+function setHours(hours) {
+  state.hours = Number(hours);
+  for (const button of $("hours").querySelectorAll("button")) button.setAttribute("aria-pressed", String(Number(button.dataset.hours) === state.hours));
+}
+function setExperience(range) {
+  $("exp-any").checked = !range;
+  if (range) { $("exp-min").value = range[0]; $("exp-max").value = range[1]; }
+  syncExperience();
+}
+function syncExperience() {
+  const any = $("exp-any").checked;
+  $("exp-min").disabled = any; $("exp-max").disabled = any;
 }
 
+function chosenSites() {
+  const sites = {};
+  for (const site of state.config.sites) {
+    const toggle = $(`site-${site.id}`);  // rows may still be building
+    if (toggle && toggle.checked) sites[site.id] = parseInt($(`count-${site.id}`).value, 10);
+  }
+  return sites;
+}
+function updateEstimate() {
+  if (!state.config) return;
+  const sites = Object.keys(chosenSites()).length;
+  const keywords = state.keywords.length || 3;
+  const locations = state.locations.length || 1;
+  const pages = parseInt($("max-pages").value, 10) || 3;
+  const searches = sites * keywords * locations;
+  const minutes = Math.max(1, Math.round((searches * pages * 6 + sites * (parseInt($("top").value, 10) || 40) * 3) / 60));
+  $("estimate").replaceChildren(
+    sites ? `${searches} searches across ${sites} site${sites > 1 ? "s" : ""} · about ${minutes} min` : "Pick at least one job site",
+    sites && searches > 24 ? el("span", { class: "tip", text: "Tip: fewer keywords or cities makes it faster" }) : null);
+}
+
+/* ---------- resume ---------- */
+function setupResume() {
+  const drop = $("drop"), input = $("resume");
+  input.addEventListener("change", () => input.files[0] && analyze(input.files[0]));
+  ["dragenter", "dragover"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.add("over"); }));
+  ["dragleave", "drop"].forEach((t) => drop.addEventListener(t, (e) => { e.preventDefault(); drop.classList.remove("over"); }));
+  drop.addEventListener("drop", (e) => { if (e.dataTransfer.files[0]) analyze(e.dataTransfer.files[0]); });
+  $("replace-resume").addEventListener("click", () => { input.value = ""; input.click(); });
+}
+async function analyze(file) {
+  showError("resume-error", "");
+  $("drop").hidden = true; $("resume-ready").hidden = true; $("analyzing").hidden = false;
+  state.resume = null; updateStart();
+  const data = new FormData();
+  data.append("resume", file);
+  try {
+    const body = await api("/api/analyze", { method: "POST", body: data });
+    state.resume = body;
+    const profile = body.profile;
+    $("file-name").textContent = body.file_name;
+    $("file-ext").textContent = (body.file_name.split(".").pop() || "").toUpperCase().slice(0, 4);
+    const years = profile.years_experience != null ? `${+profile.years_experience.toFixed(1)} yrs experience` : "";
+    $("file-sub").textContent = [profile.current_title, years].filter(Boolean).join(" · ");
+    $("profile-summary").textContent = profile.summary || "";
+    $("step-resume").textContent = "✓"; $("step-resume").classList.add("done");
+    setKeywords(profile.keywords);
+    const prefs = loadPrefs();
+    if (!state.locations.length && profile.locations.length) setLocations(profile.locations);
+    if (!prefs.experience && body.suggested_experience) setExperience(body.suggested_experience);
+    $("resume-ready").hidden = false;
+  } catch (error) {
+    showError("resume-error", error.message);
+    $("drop").hidden = false;
+  } finally {
+    $("analyzing").hidden = true;
+    updateStart();
+  }
+}
+function updateStart() {
+  const running = !!state.jobId;
+  $("start").hidden = running; $("stop").hidden = !running;
+  $("start").disabled = !state.resume || !state.config.has_api_key;
+  $("start").textContent = state.resume ? "Start search" : "Upload your resume to start";
+}
+
+/* ---------- search ---------- */
 async function startSearch(event) {
   event.preventDefault();
   showError("form-error", "");
-  if (!$("resume").files[0]) return showError("form-error", "Choose your resume file first.");
+  const sites = chosenSites();
+  if (!Object.keys(sites).length) return showError("form-error", "Pick at least one job site.");
+  if (Object.values(sites).some((n) => !(n >= 1 && n <= 100))) return showError("form-error", "Jobs to show must be between 1 and 100.");
+  let experience = null;
+  if (!$("exp-any").checked) {
+    const low = parseInt($("exp-min").value, 10), high = parseInt($("exp-max").value, 10);
+    if (!(low >= 0 && high >= 0 && low <= 50 && high <= 50)) return showError("form-error", "Experience must be between 0 and 50 years.");
+    if (low > high) return showError("form-error", "Experience 'from' can't be more than 'to'.");
+    experience = [low, high];
+  }
   savePrefs();
-
-  const data = new FormData($("form"));
   $("start").disabled = true;
-  $("start").textContent = "Starting…";
   try {
-    const response = await fetch("/api/search", { method: "POST", body: data });
-    const body = await response.json();
-    if (!response.ok) throw new Error(body.error || "Could not start the search.");
+    const body = await postJSON("/api/search", {
+      resume_id: state.resume.resume_id, sites, keywords: state.keywords, locations: state.locations, experience,
+      hours: state.hours, only_new: $("only-new").checked, show_browser: $("show-browser").checked,
+      max_pages: parseInt($("max-pages").value, 10), top: parseInt($("top").value, 10),
+    });
     watch(body.id);
   } catch (error) {
     showError("form-error", error.message);
-    resetButton();
+    updateStart();
   }
 }
-
-function resetButton() {
-  $("start").disabled = false;
-  $("start").textContent = "Start search";
+async function stopSearch() {
+  if (!state.jobId) return;
+  $("stop").disabled = true; $("stop").textContent = "Stopping…";
+  try { await api(`/api/search/${state.jobId}/stop`, { method: "POST" }); } catch (error) { showError("form-error", error.message); }
 }
 
 function watch(jobId) {
-  $("progress").hidden = false;
-  $("results").hidden = true;
-  $("profile").hidden = true;
-  showError("run-error", "");
-  $("spinner").hidden = false;
-  $("start").disabled = true;
-  $("start").textContent = "Searching…";
-  $("progress").scrollIntoView({ behavior: "smooth", block: "start" });
-  clearTimeout(pollTimer);
-  poll(jobId);
+  state.jobId = jobId; state.startedAt = Date.now(); state.result = null;
+  $("empty-state").hidden = true; $("progress").hidden = false; $("results").hidden = true;
+  $("found").hidden = true; showError("run-error", ""); $("spinner").hidden = false;
+  $("stop").disabled = false; $("stop").textContent = "Stop search";
+  setPill("running", "Searching");
+  updateStart();
+  clearInterval(state.timer);
+  state.timer = setInterval(tickElapsed, 1000); tickElapsed();
+  if (window.matchMedia("(max-width: 960px)").matches) $("progress").scrollIntoView({ behavior: "smooth", block: "start" });
+  poll();
 }
-
-async function poll(jobId) {
+function tickElapsed() {
+  const s = Math.floor((Date.now() - state.startedAt) / 1000);
+  $("elapsed").textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+async function poll() {
+  const jobId = state.jobId;
+  if (!jobId) return;
   try {
-    const response = await fetch(`/api/search/${jobId}`);
-    if (!response.ok) throw new Error("Lost track of the search. Reload the page.");
-    render(await response.json());
-    if (lastStatus === "running") {
-      pollTimer = setTimeout(() => poll(jobId), POLL_MS);
-    }
+    const job = await api(`/api/search/${jobId}`);
+    if (jobId !== state.jobId) return;
+    renderJob(job);
+    if (job.status === "running" || job.status === "stopping") setTimeout(poll, POLL_MS);
+    else finish(job);
   } catch (error) {
-    showError("run-error", error.message);
-    $("spinner").hidden = true;
-    resetButton();
+    showError("run-error", `${error.message}. Is the app still running?`);
+    finish({ status: "error" });
   }
 }
-
-let lastStatus = null;
-function render(job) {
-  lastStatus = job.status;
-  const logBox = $("log");
-  const atBottom = logBox.scrollTop + logBox.clientHeight >= logBox.scrollHeight - 4;
-  logBox.textContent = job.logs.join("\n");
-  if (atBottom) logBox.scrollTop = logBox.scrollHeight;
-
-  if (job.profile) renderProfile(job.profile);
-
-  if (job.status === "running") {
-    const last = job.logs[job.logs.length - 1] || "";
-    $("status-text").textContent = !job.profile ? "Reading your resume with AI…" : statusFromLog(last);
-    return;
-  }
+function finish(job) {
+  state.jobId = null;
+  clearInterval(state.timer);
   $("spinner").hidden = true;
-  resetButton();
-  if (job.status === "error") {
-    $("status-text").textContent = "The search stopped";
-    showError("run-error", job.error);
+  updateStart();
+  refreshHistory();
+  if (job.status === "done") { setPill("done", "Done"); $("progress-text").textContent = "Search complete"; renderResults(job.result); }
+  else if (job.status === "stopped") { setPill("", "Stopped"); $("progress-text").textContent = "Search stopped"; }
+  else { setPill("error", "Error"); $("progress-text").textContent = "The search stopped with an error"; if (job.error) showError("run-error", job.error); }
+}
+function setPill(kind, text) { $("status-pill").className = "pill " + kind; $("status-pill-text").textContent = text; }
+
+function renderJob(job) {
+  const log = $("log");
+  const atBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 4;
+  log.textContent = job.logs.join("\n");
+  if (atBottom) log.scrollTop = log.scrollHeight;
+
+  const current = STAGES.indexOf(job.stage);
+  const pct = job.progress && job.progress.total ? Math.round((100 * job.progress.done) / job.progress.total) : 40;
+  for (const li of $("stages").children) {
+    const index = STAGES.indexOf(li.dataset.stage);
+    li.className = index < current || job.status === "done" ? "done" : index === current ? "current" : "";
+    li.style.setProperty("--pct", `${Math.max(8, pct)}%`);
+  }
+  let text = job.status === "stopping" ? "Stopping after the current step…" : STAGE_TEXT[job.stage] || "Working…";
+  if (job.progress && job.progress.total && job.status === "running") text += ` ${job.progress.done} of ${job.progress.total}`;
+  const checking = [...job.logs].reverse().find((line) => /bot check/i.test(line));
+  if (checking && job.stage === "search") text = "A site is asking to verify you're human — solve it in the browser window";
+  $("progress-text").textContent = text;
+
+  const names = Object.fromEntries(state.config.sites.map((s) => [s.id, s.name]));
+  const ordered = state.config.sites.map((s) => s.id).filter((id) => job.sites[id]).map((id) => [id, job.sites[id]]);
+  $("site-status").replaceChildren(...ordered.map(([site, info]) => {
+    const label = { waiting: "waiting", running: info.found ? `${info.found} found…` : "searching…", done: `${info.found} found ✓`, failed: "couldn't load" }[info.status] || info.status;
+    return el("span", { class: `site-chip ${info.status}` }, el("b", { text: names[site] || site }), el("span", { class: "state", text: label }));
+  }));
+
+  if (job.profile) {
+    $("found").hidden = false;
+    $("query-chips").replaceChildren(el("span", { class: "label", text: "Searching for" }),
+      ...job.profile.keywords.map((k) => el("span", { class: "chip key", text: k })),
+      el("span", { class: "label", text: "in" }), ...job.profile.locations.map((l) => el("span", { class: "chip key", text: l })));
+    $("skill-chips").replaceChildren(el("span", { class: "label", text: "Your skills" }),
+      ...job.profile.skills.slice(0, 14).map((s) => el("span", { class: "chip skill", text: s })));
+  }
+}
+
+/* ---------- results ---------- */
+function renderResults(result) {
+  state.result = result; state.tab = "all"; state.statuses = {};
+  const total = result.sites.reduce((sum, site) => sum + site.jobs.length, 0);
+  const fresh = result.sites.reduce((sum, site) => sum + site.jobs.filter((j) => j.is_new).length, 0);
+  $("results-title").textContent = `${total} best matches`;
+  $("results-sub").textContent = `${fresh} new · ${result.scored} jobs scored`;
+  $("html-link").href = result.html_report; $("excel-link").href = result.excel_report;
+  $("results").hidden = false;
+  renderTabs(); renderJobList();
+}
+function renderTabs() {
+  const tabs = [{ id: "all", name: "All", count: state.result.sites.reduce((n, s) => n + s.jobs.length, 0) },
+    ...state.result.sites.map((s) => ({ id: s.id, name: s.name, count: s.jobs.length }))];
+  $("tabs").replaceChildren(...tabs.map((tab) => el("button", {
+    type: "button", class: "tab", role: "tab", "aria-selected": String(state.tab === tab.id),
+    onclick: () => { state.tab = tab.id; renderTabs(); renderJobList(); },
+  }, tab.name, el("span", { class: "count", text: String(tab.count) }))));
+}
+function renderJobList() {
+  const names = Object.fromEntries(state.result.sites.map((s) => [s.id, s.name]));
+  let jobs = state.result.sites.filter((s) => state.tab === "all" || s.id === state.tab).flatMap((s) => s.jobs);
+  if (state.tab === "all") jobs = [...jobs].sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
+  const list = $("job-list");
+  list.replaceChildren();
+  if (!jobs.length) {
+    list.append(el("li", { class: "empty-list", text: "No matching jobs here. Try more locations, other keywords, a wider experience range or a longer time window." }));
     return;
   }
-  $("status-text").textContent = "Done";
-  renderResults(job.result);
+  jobs.forEach((job, index) => list.append(jobItem(job, index + 1, state.tab === "all" ? names[job.source] : null)));
 }
-
-function statusFromLog(line) {
-  const text = line.replace(/^\d\d:\d\d:\d\d\s+/, "");
-  if (/^Scoring/.test(text)) return "Scoring jobs against your resume…";
-  if (/^Fetching details/.test(text)) return "Reading job details… " + text.replace(/^Fetching details\s*/, "").split(":")[0];
-  if (/bot check/i.test(text)) return text;
-  const site = text.match(/^(LinkedIn|Naukri|Indeed):/);
-  return site ? `Searching ${site[1]}…` : "Searching job sites…";
-}
-
-function renderProfile(profile) {
-  $("profile").hidden = false;
-  $("summary").textContent = profile.summary || "";
-  const keyChips = $("keyword-chips");
-  keyChips.replaceChildren(el("span", { class: "label", text: "Searching for" }),
-    ...profile.keywords.map((k) => el("span", { class: "chip key", text: k })),
-    ...(profile.locations.length ? [el("span", { class: "label", text: "in" })] : []),
-    ...profile.locations.map((l) => el("span", { class: "chip key", text: l })));
-  const skillChips = $("skill-chips");
-  skillChips.hidden = !profile.skills.length;
-  skillChips.replaceChildren(el("span", { class: "label", text: "Your skills" }),
-    ...profile.skills.map((s) => el("span", { class: "chip skill", text: s })));
-}
-
-function renderResults(result) {
-  $("results").hidden = false;
-  const shown = result.sites.reduce((sum, site) => sum + site.jobs.length, 0);
-  $("results-summary").textContent = `${shown} best matches from ${result.scored} jobs scored`;
-  $("html-link").href = result.html_report;
-  $("excel-link").href = result.excel_report;
-
-  const box = $("site-results");
-  box.replaceChildren();
-  for (const site of result.sites) {
-    box.append(el("h3", { text: `${site.name} · top ${site.jobs.length}` }));
-    if (!site.jobs.length) {
-      box.append(el("p", { class: "empty", text: "No matching jobs found on this site in this time window." }));
-      continue;
-    }
-    box.append(el("ol", { class: "jobs" }, ...site.jobs.map((job, i) => jobCard(job, i + 1))));
+function jobKey(job) { return `${job.source}:${job.job_id}`; }
+function jobItem(job, rank, siteName) {
+  const status = state.statuses[jobKey(job)];
+  if (status === "hidden") {
+    return el("li", { class: "hidden-note" }, `Hidden “${job.title}”`,
+      el("button", { type: "button", class: "link-button", text: "Undo", onclick: () => setStatus(job, "seen") }));
   }
-}
-
-function jobCard(job, rank) {
   const safeUrl = /^https?:\/\//.test(job.url) ? job.url : "#";
   const band = job.score == null ? "low" : job.score >= 75 ? "good" : job.score >= 50 ? "ok" : "low";
-  const chips = (label, items, kind) => items.length
-    ? el("div", { class: "chips" }, el("span", { class: "label", text: label }), ...items.map((s) => el("span", { class: `chip ${kind}`, text: s })))
+  const chips = (label, items, kind) => items && items.length
+    ? el("div", { class: "chips" }, el("span", { class: "label", text: label }), items.map((s) => el("span", { class: `chip ${kind}`, text: s })))
     : null;
-  return el("li", { class: "job" },
-    el("div", { class: "rank" }, el("div", { class: `score ${band}`, text: job.score ?? "–" }), document.createTextNode(`#${rank}`)),
+  const applied = status === "applied";
+  return el("li", { class: "job" + (applied ? " applied" : "") },
+    el("div", {}, el("div", { class: `score ${band}`, title: "Match score", text: job.score ?? "–" }), el("div", { class: "rank", text: `#${rank}` })),
     el("div", {},
-      el("a", { class: "title", href: safeUrl, target: "_blank", rel: "noopener", text: job.title }),
-      el("div", { class: "sub", text: [job.company, job.location, job.posted_text].filter(Boolean).join(" · ") }),
+      el("div", { class: "job-title" },
+        el("a", { href: safeUrl, target: "_blank", rel: "noopener", text: job.title }),
+        job.is_new ? el("span", { class: "badge new", text: "New" }) : null,
+        applied ? el("span", { class: "badge applied", text: "Applied" }) : null,
+        siteName ? el("span", { class: "badge site", text: siteName }) : null),
+      el("div", { class: "job-meta", text: [job.company, job.location, job.experience, job.posted_text].filter(Boolean).join(" · ") }),
       chips("Matching", job.matched_skills, "have"),
       chips("Missing", job.missing_skills, "miss"),
-      job.match_reason ? el("p", { class: "reason", text: job.match_reason }) : null));
+      job.match_reason ? el("p", { class: "reason", text: job.match_reason }) : null,
+      el("div", { class: "job-actions" },
+        el("a", { class: "btn btn-secondary", href: safeUrl, target: "_blank", rel: "noopener", text: "View job ↗" }),
+        applied
+          ? el("button", { type: "button", class: "btn btn-secondary", text: "Undo applied", onclick: () => setStatus(job, "seen") })
+          : el("button", { type: "button", class: "btn btn-secondary", text: "✓ Mark applied", onclick: () => setStatus(job, "applied") }),
+        applied ? null : el("button", { type: "button", class: "btn btn-secondary", text: "Hide", onclick: () => setStatus(job, "hidden") }))));
+}
+async function setStatus(job, status) {
+  try {
+    const body = await postJSON("/api/jobs/status", { source: job.source, job_id: job.job_id, status, title: job.title, company: job.company, url: job.url });
+    state.statuses[jobKey(job)] = status;
+    renderJobList();
+    renderHistory(body.history);
+  } catch (error) { showError("run-error", error.message); }
 }
 
+/* ---------- history ---------- */
+function renderHistory(counts) {
+  if (!counts) return;
+  const parts = [];
+  if (counts.applied) parts.push(`${counts.applied} applied`);
+  if (counts.hidden) parts.push(`${counts.hidden} hidden`);
+  if (counts.seen) parts.push(`${counts.seen} seen`);
+  $("history-stats").textContent = parts.join(" · ");
+  $("seen-count").textContent = counts.seen ? `${counts.seen} jobs marked as seen. ` : "No seen jobs yet. ";
+  $("forget-seen").disabled = !counts.seen;
+}
+async function refreshHistory() {
+  try { renderHistory((await api("/api/config")).history); } catch { /* ignore */ }
+}
+
+/* ---------- init ---------- */
 async function init() {
-  const response = await fetch("/api/config");
-  config = await response.json();
-  const prefs = loadPrefs();
-  $("key-warning").hidden = config.has_api_key;
+  state.config = await api("/api/config");
+  const prefs = loadPrefs(), defaults = state.config.defaults;
+  $("key-warning").hidden = state.config.has_api_key;
   buildSites(prefs);
-  $("hours").value = prefs.hours || String(config.hours);
-  if (![...$("hours").options].some((o) => o.value === $("hours").value)) {
-    $("hours").append(el("option", { value: String(config.hours), text: `Last ${config.hours} hours` }));
-    $("hours").value = String(config.hours);
-  }
-  $("location").value = prefs.location ?? config.location;
-  $("keywords").value = prefs.keywords ?? config.keywords;
-  $("show_browser").checked = prefs.show_browser ?? true;
-  setupDrop();
-  $("form").addEventListener("submit", startSearch);
-  if (config.running_job) watch(config.running_job);
-}
+  setHours(prefs.hours || defaults.hours);
+  $("max-pages").value = prefs.max_pages || defaults.max_pages;
+  $("top").value = prefs.top || defaults.top;
+  $("only-new").checked = prefs.only_new ?? defaults.only_new;
+  $("show-browser").checked = prefs.show_browser ?? true;
+  setExperience(prefs.experience !== undefined ? prefs.experience : defaults.experience || [1, 3]);
+  setupKeywords(); setupLocations(); setupResume();
+  setKeywords(defaults.keywords || []);
+  setLocations(prefs.locations || defaults.locations || []);
+  renderHistory(state.config.history);
 
+  $("hours").addEventListener("click", (e) => { if (e.target.dataset.hours) setHours(e.target.dataset.hours); });
+  $("exp-any").addEventListener("change", syncExperience);
+  ["max-pages", "top"].forEach((id) => $(id).addEventListener("input", updateEstimate));
+  $("form").addEventListener("submit", startSearch);
+  $("stop").addEventListener("click", stopSearch);
+  $("forget-seen").addEventListener("click", async () => {
+    try { renderHistory((await api("/api/history/forget", { method: "POST" })).history); } catch (error) { showError("form-error", error.message); }
+  });
+  updateStart(); updateEstimate();
+  if (state.config.running_job) watch(state.config.running_job);
+}
 init().catch(() => showError("form-error", "Could not reach the job search app. Is it still running?"));
 </script>
 </body>

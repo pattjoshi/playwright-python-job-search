@@ -6,6 +6,7 @@ venv/
 .pytest_cache/
 output/
 uploads/
+data/
 resumes/
 *.pdf
 *.docx

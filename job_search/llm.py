@@ -2,6 +2,7 @@
 
 import json
 import logging
+from collections.abc import Callable
 
 from openai import OpenAI
 
@@ -22,7 +23,8 @@ Return only JSON."""
 SCORING_PROMPT = """You are a recruiter screening jobs for one candidate.
 For each job, give a match score from 0 to 100 based on how well the candidate's skills,
 experience level and target roles fit the job, and a one-sentence reason. Be strict: 80+
-only for strong fits. Also list the candidate's skills that the job asks for
+only for strong fits. If the candidate gives a wanted experience range (years), score jobs
+that clearly require experience outside that range low. Also list the candidate's skills that the job asks for
 ("matched_skills") and up to 5 important skills the job wants that the candidate lacks
 ("missing_skills"). Use short skill names like "Python" or "REST API testing".
 Return JSON: {"results": [{"id": "<job id>", "score": <int>, "reason": "<text>",
@@ -48,18 +50,31 @@ class JobMatcherLLM:
             summary=str(data.get("summary") or ""),
         )
 
-    def score_jobs(self, profile: Profile, jobs: list[Job], batch_size: int = 10) -> None:
-        """Fill in score, reason and matched/missing skills on each job, in place."""
-        candidate = json.dumps(
-            {
-                "summary": profile.summary,
-                "current_title": profile.current_title,
-                "target_titles": profile.target_titles,
-                "skills": profile.skills,
-                "years_experience": profile.years_experience,
-            }
-        )
+    def score_jobs(
+        self,
+        profile: Profile,
+        jobs: list[Job],
+        batch_size: int = 10,
+        experience: tuple[int, int] | None = None,
+        before_batch: Callable[[int, int], None] | None = None,
+    ) -> None:
+        """Fill in score, reason and matched/missing skills on each job, in place.
+
+        before_batch(done, total) runs before each request; it may raise to stop early.
+        """
+        candidate = {
+            "summary": profile.summary,
+            "current_title": profile.current_title,
+            "target_titles": profile.target_titles,
+            "skills": profile.skills,
+            "years_experience": profile.years_experience,
+        }
+        if experience:
+            candidate["wanted_experience_years"] = {"min": experience[0], "max": experience[1]}
+        candidate = json.dumps(candidate)
         for start in range(0, len(jobs), batch_size):
+            if before_batch:
+                before_batch(start, len(jobs))
             batch = jobs[start : start + batch_size]
             by_id = {_job_ref(job): job for job in batch}
             payload = [
@@ -68,6 +83,7 @@ class JobMatcherLLM:
                     "title": job.title,
                     "company": job.company,
                     "location": job.location,
+                    "experience": job.experience,
                     "description": job.description[:MAX_DESCRIPTION_CHARS],
                 }
                 for job in batch

@@ -38,9 +38,10 @@ class IndeedScraper(BaseScraper):
         jobs: list[Job] = []
         seen: set[str] = set()
         for page_number in range(self.max_pages):
+            self.check_stop()
             params = {
                 "q": query,
-                "l": location,
+                "l": location,  # Indeed understands "Remote" as a location
                 "fromage": self.max_age_days,  # posted within N days
                 "sort": "date",
                 "start": page_number * PAGE_STEP,

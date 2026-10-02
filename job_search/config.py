@@ -10,6 +10,8 @@ from pathlib import Path
 
 from dotenv import find_dotenv, load_dotenv
 
+from job_search.utils import parse_experience_option
+
 DEFAULT_MODEL = "gpt-5.4-mini"
 PROJECT_ENV = Path(__file__).resolve().parent.parent / ".env"
 
@@ -22,7 +24,7 @@ class Settings:
 
     # Search defaults
     resume: Path | None = None
-    location: str | None = None
+    locations: list[str] = field(default_factory=list)
     keywords: list[str] = field(default_factory=list)
     sites: list[str] = field(default_factory=list)  # empty = all boards
     results: int = 10
@@ -30,6 +32,9 @@ class Settings:
     hours: int = 24
     top: int = 40
     max_pages: int = 3
+    experience: tuple[int, int] | None = None
+    only_new: bool = False
+    history_path: Path = Path("data") / "history.sqlite3"
 
 
 def load_settings() -> Settings:
@@ -43,7 +48,7 @@ def load_settings() -> Settings:
         openai_model=_get("OPENAI_MODEL") or DEFAULT_MODEL,
         chromium_executable=_get("CHROMIUM_EXECUTABLE"),
         resume=Path(resume) if resume else None,
-        location=_get("LOCATION"),
+        locations=_get_list("LOCATION"),
         keywords=_get_list("KEYWORDS"),
         sites=[site.lower() for site in _get_list("SITES")],
         results=_get_int("RESULTS", 10),
@@ -51,6 +56,9 @@ def load_settings() -> Settings:
         hours=_get_int("HOURS", 24),
         top=_get_int("TOP", 40),
         max_pages=_get_int("MAX_PAGES", 3),
+        experience=_get_experience(),
+        only_new=_get_bool("ONLY_NEW"),
+        history_path=Path(_get("HISTORY_DB") or Path("data") / "history.sqlite3"),
     )
 
 
@@ -72,6 +80,25 @@ def _get_results_per_site() -> dict[str, int]:
         for name in sorted(os.environ)
         if name.upper().startswith(prefix) and _get(name) is not None
     }
+
+
+def _get_experience() -> tuple[int, int] | None:
+    value = _get("EXPERIENCE")
+    if value is None:
+        return None
+    try:
+        return parse_experience_option(value)
+    except ValueError as error:
+        raise ValueError(f"EXPERIENCE in .env: {error}") from None
+
+
+def _get_bool(name: str) -> bool:
+    value = (_get(name) or "").lower()
+    if value in ("", "0", "false", "no", "off"):
+        return False
+    if value in ("1", "true", "yes", "on"):
+        return True
+    raise ValueError(f"{name} in .env must be true or false, got {value!r}")
 
 
 def _get_int(name: str, default: int) -> int:

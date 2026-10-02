@@ -16,6 +16,7 @@ from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
 
 from job_search.models import Job
+from job_search.locations import is_remote
 from job_search.scrapers.base import BaseScraper
 from job_search.utils import parse_relative_age
 
@@ -31,6 +32,7 @@ COMPANY = "a.comp-name, .comp-name"
 LOCATION = ".locWdth, .location, .loc"
 POSTED = ".job-post-day, .type br + span, .jobTupleFooter span.fleft"
 SNIPPET = ".job-desc, .job-description"
+EXPERIENCE = ".expwdth, .exp-wrap, .experience"
 TAGS = "ul.tags-gt li, ul.tags li"
 
 
@@ -40,7 +42,8 @@ class NaukriScraper(BaseScraper):
     def search(self, query: str, location: str) -> list[Job]:
         jobs: list[Job] = []
         for page_number in range(1, self.max_pages + 1):
-            url = search_url(query, location, page_number, self.max_age_days)
+            self.check_stop()
+            url = search_url(query, location, page_number, self.max_age_days, self.experience)
             log.info("Naukri: %r in %r, page %d", query, location, page_number)
 
             page_jobs = self._load_page(url)
@@ -88,16 +91,24 @@ class NaukriScraper(BaseScraper):
         return True
 
 
-def search_url(query: str, location: str, page_number: int, days: int) -> str:
+def search_url(
+    query: str, location: str, page_number: int, days: int, experience: tuple[int, int] | None = None
+) -> str:
     # Naukri's own URL shape: /python-developer-jobs-in-bengaluru-2?k=...&l=...&jobAge=1
+    remote = is_remote(location)
     path = f"{_slug(query)}-jobs"
-    if location:
+    if location and not remote:
         path += f"-in-{_slug(location)}"
     if page_number > 1:
         path += f"-{page_number}"
-    params = {"k": query, "jobAge": days}
-    if location:
+    params: dict[str, str | int] = {"k": query, "jobAge": days}
+    if location and not remote:
         params["l"] = location
+    if remote:
+        params["wfhType"] = 2  # work from home / remote
+    if experience:
+        # Naukri matches jobs whose range includes this many years; the lower end keeps more results.
+        params["experience"] = experience[0]
     return f"{BASE_URL}/{path}?{urlencode(params)}"
 
 
@@ -133,6 +144,7 @@ def parse_api_jobs(data: dict) -> list[Job]:
                 posted_text=posted_text,
                 hours_ago=hours_ago,
                 description=description,
+                experience=placeholders.get("experience", ""),
             )
         )
     return jobs
@@ -167,6 +179,7 @@ def parse_search_results(page: Page) -> list[Job]:
                 posted_text=posted_text,
                 hours_ago=parse_relative_age(posted_text),
                 description=description,
+                experience=_text(card, EXPERIENCE),
             )
         )
     return jobs

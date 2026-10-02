@@ -1,4 +1,4 @@
-"""Local web UI: upload a resume, pick how many jobs per site, watch the search run.
+"""Local web UI: upload a resume, tune the search, watch it run, act on the results.
 
 Start it with:  python -m job_search.web   (then it opens http://127.0.0.1:8000)
 
@@ -7,6 +7,7 @@ It only listens on your own computer (127.0.0.1), never on the network.
 
 import argparse
 import logging
+import math
 import threading
 import uuid
 import webbrowser
@@ -18,11 +19,15 @@ from flask import Flask, abort, jsonify, request, send_from_directory
 from werkzeug.utils import secure_filename
 
 from job_search.config import Settings, load_settings
+from job_search.history import STATUSES, JobHistory
 from job_search.html_report import SITE_NAMES
+from job_search.llm import JobMatcherLLM
+from job_search.locations import LOCATION_CHOICES, normalize_location
 from job_search.models import Job, Profile
 from job_search.pipeline import SearchOptions, SearchResult, run
-from job_search.resume import SUPPORTED_SUFFIXES
+from job_search.resume import SUPPORTED_SUFFIXES, read_resume_text
 from job_search.scrapers import SCRAPERS
+from job_search.utils import SearchStopped
 
 log = logging.getLogger(__name__)
 
@@ -35,27 +40,49 @@ MAX_RESULTS = 100
 @dataclass
 class SearchJob:
     id: str
-    status: str = "running"  # running | done | error
+    status: str = "running"  # running | stopping | done | stopped | error
+    stage: str = "resume"  # resume | search | details | score | report
     started_at: str = field(default_factory=lambda: datetime.now().isoformat(timespec="seconds"))
     logs: list[str] = field(default_factory=list)
+    sites: dict[str, dict] = field(default_factory=dict)  # site -> {"status", "found"}
+    progress: dict | None = None  # {"stage", "done", "total"} for details/scoring
     profile: dict | None = None
     error: str | None = None
     result: dict | None = None
+    stop_event: threading.Event = field(default_factory=threading.Event)
+
+    @property
+    def active(self) -> bool:
+        return self.status in ("running", "stopping")
 
     def to_dict(self) -> dict:
         return {
             "id": self.id,
             "status": self.status,
+            "stage": self.stage,
             "started_at": self.started_at,
             "logs": self.logs[-MAX_LOG_LINES:],
+            "sites": self.sites,
+            "progress": self.progress,
             "profile": self.profile,
             "error": self.error,
             "result": self.result,
         }
 
+    def on_event(self, name: str, data: dict) -> None:
+        if name == "stage":
+            self.stage = data["stage"]
+            self.progress = None
+        elif name == "profile":
+            self.profile = profile_to_dict(data["profile"], data["queries"], data["locations"])
+        elif name == "site":
+            self.sites[data["site"]] = {"status": data["status"], "found": data["found"]}
+        elif name == "progress":
+            self.progress = data
+
 
 class _JobLogHandler(logging.Handler):
-    """Copies log lines from the search into the job, so the page can show progress."""
+    """Copies log lines from the search into the job, so the page can show details."""
 
     def __init__(self, job: SearchJob):
         super().__init__(level=logging.INFO)
@@ -76,21 +103,27 @@ class SearchManager:
         self.runner = runner
         self.jobs: dict[str, SearchJob] = {}
         self._lock = threading.Lock()
-        self._running: SearchJob | None = None
+        self._current: SearchJob | None = None
 
     @property
     def running(self) -> SearchJob | None:
-        return self._running if self._running and self._running.status == "running" else None
+        return self._current if self._current and self._current.active else None
 
-    def start(self, options: SearchOptions) -> SearchJob:
+    def start(self, options: SearchOptions, sites: list[str]) -> SearchJob:
         with self._lock:
             if self.running:
-                raise RuntimeError("A search is already running. Wait for it to finish.")
-            job = SearchJob(id=uuid.uuid4().hex[:12])
+                raise RuntimeError("A search is already running. Stop it or wait for it to finish.")
+            job = SearchJob(id=uuid.uuid4().hex[:12], sites={site: {"status": "waiting", "found": 0} for site in sites})
             self.jobs[job.id] = job
-            self._running = job
+            self._current = job
         threading.Thread(target=self._run, args=(job, options), daemon=True).start()
         return job
+
+    def stop(self, job: SearchJob) -> None:
+        if job.status == "running":
+            job.status = "stopping"
+            job.logs.append("Stopping…")
+            job.stop_event.set()
 
     def _run(self, job: SearchJob, options: SearchOptions) -> None:
         handler = _JobLogHandler(job)
@@ -98,15 +131,14 @@ class SearchManager:
         if package_logger.getEffectiveLevel() > logging.INFO:
             package_logger.setLevel(logging.INFO)
         package_logger.addHandler(handler)
-
-        def on_profile(profile: Profile, queries: list[str], locations: list[str]) -> None:
-            job.profile = profile_to_dict(profile, queries, locations)
-
         try:
-            result = self.runner(options, self.settings, on_profile=on_profile)
+            result = self.runner(options, self.settings, on_event=job.on_event, stop_event=job.stop_event)
             job.result = result_to_dict(result, self.output_dir)
             job.status = "done"
             job.logs.append("Done.")
+        except SearchStopped:
+            job.status = "stopped"
+            job.logs.append("Stopped.")
         except Exception as error:  # show any failure on the page instead of a silent stop
             log.exception("Search failed")
             job.error = str(error) or error.__class__.__name__
@@ -115,9 +147,29 @@ class SearchManager:
             package_logger.removeHandler(handler)
 
 
-def create_app(settings: Settings | None = None, output_dir: Path = Path("output"), upload_dir: Path = Path("uploads"), runner=run) -> Flask:
+def default_analyzer(settings: Settings):
+    def analyze(resume_path: Path) -> Profile:
+        if not settings.openai_api_key:
+            raise ValueError("OPENAI_API_KEY is not set. Add it to your .env file and restart the app.")
+        text = read_resume_text(resume_path)
+        return JobMatcherLLM(settings.openai_api_key, settings.openai_model).extract_profile(text)
+
+    return analyze
+
+
+def create_app(
+    settings: Settings | None = None,
+    output_dir: Path = Path("output"),
+    upload_dir: Path = Path("uploads"),
+    runner=run,
+    analyzer=None,
+) -> Flask:
     settings = settings or load_settings()
+    analyzer = analyzer or default_analyzer(settings)
     manager = SearchManager(settings, output_dir, runner)
+    history = JobHistory(settings.history_path)
+    resumes: dict[str, dict] = {}  # resume_id -> {"path", "name", "profile"}
+
     app = Flask(__name__, static_folder=None)
     app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_BYTES
     app.extensions["search_manager"] = manager
@@ -131,24 +183,33 @@ def create_app(settings: Settings | None = None, output_dir: Path = Path("output
         return jsonify(
             {
                 "sites": [
-                    {"id": site, "name": SITE_NAMES.get(site, site.title()), "results": settings.results_per_site.get(site, settings.results)}
+                    {
+                        "id": site,
+                        "name": SITE_NAMES.get(site, site.title()),
+                        "results": settings.results_per_site.get(site, settings.results),
+                    }
                     for site in SCRAPERS
                 ],
                 "enabled_sites": settings.sites or list(SCRAPERS),
-                "location": settings.location or "",
-                "keywords": ", ".join(settings.keywords),
-                "hours": settings.hours,
+                "location_choices": LOCATION_CHOICES,
+                "defaults": {
+                    "locations": settings.locations,
+                    "keywords": settings.keywords,
+                    "hours": settings.hours,
+                    "experience": list(settings.experience) if settings.experience else None,
+                    "only_new": settings.only_new,
+                    "max_pages": settings.max_pages,
+                    "top": settings.top,
+                },
                 "has_api_key": bool(settings.openai_api_key),
                 "running_job": manager.running.id if manager.running else None,
                 "resume_types": list(SUPPORTED_SUFFIXES),
+                "history": history.counts(),
             }
         )
 
-    @app.post("/api/search")
-    def start_search():
-        if not settings.openai_api_key:
-            return _error("OPENAI_API_KEY is not set. Add it to your .env file and restart the app.")
-
+    @app.post("/api/analyze")
+    def analyze():
         upload = request.files.get("resume")
         if upload is None or not upload.filename:
             return _error("Choose your resume file first.")
@@ -156,53 +217,123 @@ def create_app(settings: Settings | None = None, output_dir: Path = Path("output
         if suffix not in SUPPORTED_SUFFIXES:
             return _error(f"Resume must be one of: {', '.join(SUPPORTED_SUFFIXES)}")
 
-        sites, results_per_site = [], {}
-        for site in SCRAPERS:
-            if request.form.get(f"site_{site}") != "on":
-                continue
-            count = _form_int(f"results_{site}", default=10)
-            if count is None or not 1 <= count <= MAX_RESULTS:
-                return _error(f"Jobs to show for {SITE_NAMES.get(site, site)} must be between 1 and {MAX_RESULTS}.")
-            sites.append(site)
-            results_per_site[site] = count
-        if not sites:
-            return _error("Pick at least one job site.")
-
-        hours = _form_int("hours", default=settings.hours)
-        if hours is None or not 1 <= hours <= 24 * 30:
-            return _error("'Posted within' must be between 1 and 720 hours.")
-
         upload_dir.mkdir(parents=True, exist_ok=True)
-        resume_path = upload_dir / f"{datetime.now():%Y%m%d_%H%M%S}_{secure_filename(upload.filename) or 'resume' + suffix}"
-        upload.save(resume_path)
-
-        keywords = [k.strip() for k in request.form.get("keywords", "").split(",") if k.strip()]
-        options = SearchOptions(
-            resume_path=resume_path,
-            sites=sites,
-            location=request.form.get("location", "").strip() or None,
-            keywords=keywords,
-            max_age_hours=hours,
-            max_pages=settings.max_pages,
-            top_n=settings.top,
-            results=settings.results,
-            results_per_site=results_per_site,
-            use_llm=True,
-            headless=request.form.get("show_browser") != "on",
-            output_dir=output_dir,
-        )
+        safe_name = secure_filename(upload.filename) or f"resume{suffix}"
+        path = upload_dir / f"{datetime.now():%Y%m%d_%H%M%S}_{safe_name}"
+        upload.save(path)
         try:
-            job = manager.start(options)
+            profile = analyzer(path)
+        except Exception as error:  # unreadable file, OpenAI error, missing key...
+            log.warning("Could not read resume: %s", error)
+            return _error(f"Could not read your resume: {error}")
+
+        resume_id = uuid.uuid4().hex[:12]
+        resumes[resume_id] = {"path": path, "name": upload.filename, "profile": profile}
+        locations = []
+        for location in profile.locations:
+            city = normalize_location(location)
+            if city and city not in locations:
+                locations.append(city)
+        return jsonify(
+            {
+                "resume_id": resume_id,
+                "file_name": upload.filename,
+                "profile": profile_to_dict(profile, profile.search_queries or profile.target_titles, locations),
+                "suggested_experience": suggest_experience(profile.years_experience),
+            }
+        )
+
+    @app.post("/api/search")
+    def start_search():
+        if not settings.openai_api_key:
+            return _error("OPENAI_API_KEY is not set. Add it to your .env file and restart the app.")
+        body = request.get_json(silent=True)
+        if not isinstance(body, dict):
+            return _error("Send the search settings as JSON.")
+        resume = resumes.get(str(body.get("resume_id", "")))
+        if resume is None:
+            return _error("Upload your resume first (or again, if the app was restarted).")
+
+        try:
+            options, sites = _search_options(body, resume)
+        except ValueError as error:
+            return _error(str(error))
+        try:
+            job = manager.start(options, sites)
         except RuntimeError as error:
             return _error(str(error), status=409)
         return jsonify({"id": job.id}), 202
 
+    def _search_options(body: dict, resume: dict) -> tuple[SearchOptions, list[str]]:
+        site_counts = body.get("sites")
+        if not isinstance(site_counts, dict) or not site_counts:
+            raise ValueError("Pick at least one job site.")
+        results_per_site = {}
+        for site, count in site_counts.items():
+            if site not in SCRAPERS:
+                raise ValueError(f"Unknown job site: {site}")
+            name = SITE_NAMES.get(site, site)
+            results_per_site[site] = _int(count, f"Jobs to show for {name}", 1, MAX_RESULTS)
+        sites = [site for site in SCRAPERS if site in results_per_site]
+
+        experience = body.get("experience")
+        if experience is not None:
+            if not (isinstance(experience, list) and len(experience) == 2):
+                raise ValueError("Experience must be a 'from' and a 'to' number of years.")
+            low = _int(experience[0], "Experience from", 0, 50)
+            high = _int(experience[1], "Experience to", 0, 50)
+            if low > high:
+                raise ValueError("Experience 'from' can't be more than 'to'.")
+            experience = (low, high)
+
+        return (
+            SearchOptions(
+                resume_path=resume["path"],
+                sites=sites,
+                locations=_str_list(body.get("locations"), "locations", max_items=10),
+                keywords=_str_list(body.get("keywords"), "keywords", max_items=8),
+                experience=experience,
+                max_age_hours=_int(body.get("hours", settings.hours), "Posted within (hours)", 1, 24 * 30),
+                max_pages=_int(body.get("max_pages", settings.max_pages), "Pages per search", 1, 10),
+                top_n=_int(body.get("top", settings.top), "Jobs to score per site", 5, 200),
+                results=settings.results,
+                results_per_site=results_per_site,
+                only_new=bool(body.get("only_new", False)),
+                history_path=settings.history_path,
+                profile=resume["profile"],
+                use_llm=True,
+                headless=not body.get("show_browser", True),
+                output_dir=output_dir,
+            ),
+            sites,
+        )
+
     @app.get("/api/search/<job_id>")
     def search_status(job_id: str):
-        job = manager.jobs.get(job_id)
-        if job is None:
-            abort(404)
+        return jsonify(_job(job_id).to_dict())
+
+    @app.post("/api/search/<job_id>/stop")
+    def stop_search(job_id: str):
+        job = _job(job_id)
+        manager.stop(job)
         return jsonify(job.to_dict())
+
+    @app.post("/api/jobs/status")
+    def set_job_status():
+        body = request.get_json(silent=True) or {}
+        source, job_id, status = (str(body.get(key, "")) for key in ("source", "job_id", "status"))
+        if source not in SCRAPERS or not job_id or status not in STATUSES:
+            return _error(f"Need a known source, a job_id and a status ({', '.join(STATUSES)}).")
+        history.set_status(
+            source, job_id, status,
+            title=str(body.get("title", ""))[:300], company=str(body.get("company", ""))[:200], url=str(body.get("url", ""))[:1000],
+        )
+        return jsonify({"ok": True, "history": history.counts()})
+
+    @app.post("/api/history/forget")
+    def forget_history():
+        forgotten = history.forget_seen()
+        return jsonify({"forgotten": forgotten, "history": history.counts()})
 
     @app.get("/reports/<path:name>")
     def report(name: str):
@@ -212,7 +343,20 @@ def create_app(settings: Settings | None = None, output_dir: Path = Path("output
     def too_large(_error):
         return _error(f"Resume file is too big (max {MAX_UPLOAD_BYTES // (1024 * 1024)} MB).", status=413)
 
+    def _job(job_id: str) -> SearchJob:
+        job = manager.jobs.get(job_id)
+        if job is None:
+            abort(404)
+        return job
+
     return app
+
+
+def suggest_experience(years: float | None) -> list[int] | None:
+    """A sensible starting range around the resume's experience: 4 years -> [3, 5]."""
+    if years is None or years < 0:
+        return None
+    return [max(0, math.floor(years) - 1), min(50, math.ceil(years) + 1)]
 
 
 def profile_to_dict(profile: Profile, queries: list[str], locations: list[str]) -> dict:
@@ -229,11 +373,14 @@ def profile_to_dict(profile: Profile, queries: list[str], locations: list[str]) 
 def job_to_dict(job: Job) -> dict:
     return {
         "source": job.source,
+        "job_id": job.job_id,
         "title": job.title,
         "company": job.company,
         "location": job.location,
         "url": job.url,
         "posted_text": job.posted_text,
+        "experience": job.experience,
+        "is_new": job.is_new,
         "score": job.score,
         "match_reason": job.match_reason,
         "matched_skills": job.matched_skills,
@@ -256,14 +403,29 @@ def result_to_dict(result: SearchResult, output_dir: Path) -> dict:
     }
 
 
-def _form_int(name: str, default: int) -> int | None:
-    value = request.form.get(name, "").strip()
-    if not value:
-        return default
+def _int(value, label: str, low: int, high: int) -> int:
     try:
-        return int(value)
-    except ValueError:
-        return None
+        number = int(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"{label} must be a whole number.") from None
+    if not low <= number <= high:
+        raise ValueError(f"{label} must be between {low} and {high}.")
+    return number
+
+
+def _str_list(value, label: str, max_items: int) -> list[str]:
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise ValueError(f"{label} must be a list.")
+    items = []
+    for item in value:
+        text = " ".join(str(item).split())[:80]
+        if text and text not in items:
+            items.append(text)
+    if len(items) > max_items:
+        raise ValueError(f"Use at most {max_items} {label}.")
+    return items
 
 
 def _error(message: str, status: int = 400):
@@ -282,7 +444,7 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         app = create_app()
-    except ValueError as error:  # e.g. a bad number in .env
+    except ValueError as error:  # e.g. a bad value in .env
         logging.error("%s", error)
         return 1
 

@@ -32,6 +32,8 @@ class Job:
     match_reason: str = ""
     matched_skills: list[str] = field(default_factory=list)
     missing_skills: list[str] = field(default_factory=list)
+    experience: str = ""  # as the board shows it, e.g. "2-5 Yrs"
+    is_new: bool = True  # False if shown in an earlier search
 
     @property
     def dedupe_key(self) -> str:

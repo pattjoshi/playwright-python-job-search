@@ -47,7 +47,7 @@ def test_write_reports(tmp_path):
     sheet = load_workbook(xlsx_path).active
     assert sheet["A1"].value == "Score"
     assert sheet["A2"].value == 88
-    assert sheet["J2"].hyperlink.target == "https://example.com/1"
+    assert sheet["K2"].hyperlink.target == "https://example.com/1"
     lines = csv_path.read_text(encoding="utf-8-sig").splitlines()
     assert lines[0].startswith("Score,Title")
     assert lines[2].startswith(",QA,Globex")

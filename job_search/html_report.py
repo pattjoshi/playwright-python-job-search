@@ -49,6 +49,8 @@ ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
 .chip.have { background: var(--good-bg); color: var(--good); }
 .chip.miss { border: 1px solid var(--chip-miss); color: var(--muted); }
 .chip.skill { background: var(--low-bg); color: var(--low); }
+.new { font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: var(--ok-bg); color: var(--ok);
+  margin-left: 6px; vertical-align: middle; }
 .reason { margin: 8px 0 10px; }
 .open { display: inline-block; font-weight: 600; color: var(--accent); text-decoration: none; }
 .open:hover { text-decoration: underline; }
@@ -112,7 +114,8 @@ def _site_section(site: str, jobs: list[Job]) -> str:
 def _job_card(rank: int, job: Job) -> str:
     url = _safe_url(job.url)
     score = "–" if job.score is None else str(job.score)
-    details = " · ".join(escape(part) for part in (job.company, job.location, job.posted_text) if part)
+    details = " · ".join(escape(part) for part in (job.company, job.location, job.experience, job.posted_text) if part)
+    new_badge = '<span class="new">New</span>' if job.is_new else ""
     matched = _chips("Matching", job.matched_skills, "have")
     missing = _chips("Missing", job.missing_skills, "miss")
     reason = f'<p class="reason">{escape(job.match_reason)}</p>' if job.match_reason else ""
@@ -120,7 +123,7 @@ def _job_card(rank: int, job: Job) -> str:
 <li class="job">
   <div class="rank"><div class="score {_score_band(job.score)}">{score}</div>#{rank}</div>
   <div>
-    <a class="title" href="{url}" target="_blank" rel="noopener">{escape(job.title)}</a>
+    <a class="title" href="{url}" target="_blank" rel="noopener">{escape(job.title)}</a>{new_badge}
     <div class="sub">{details}</div>
     {matched}{missing}{reason}
     <a class="open" href="{url}" target="_blank" rel="noopener">View job &rarr;</a>

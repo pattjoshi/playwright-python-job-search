@@ -2,6 +2,7 @@
 
 import logging
 import re
+import threading
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -11,29 +12,39 @@ from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import sync_playwright
 
 from job_search.config import Settings
+from job_search.history import JobHistory
 from job_search.html_report import write_html_report
 from job_search.llm import JobMatcherLLM
+from job_search.locations import normalize_location
 from job_search.models import Job, Profile
 from job_search.report import write_reports
 from job_search.resume import read_resume_text
 from job_search.scrapers import SCRAPERS, BaseScraper
+from job_search.utils import SearchStopped, experience_matches, parse_experience
 
 log = logging.getLogger(__name__)
 
 DEFAULT_LOCATION = "India"
+
+# on_event(name, data) lets a UI follow along. Names: "stage", "profile", "site", "progress".
+EventCallback = Callable[[str, dict], None]
 
 
 @dataclass
 class SearchOptions:
     resume_path: Path
     sites: list[str] = field(default_factory=lambda: list(SCRAPERS))
-    location: str | None = None
+    locations: list[str] = field(default_factory=list)  # empty = from the resume; may include "Remote"
     keywords: list[str] = field(default_factory=list)
+    experience: tuple[int, int] | None = None  # wanted years, e.g. (1, 2)
     max_age_hours: int = 24
     max_pages: int = 3
     top_n: int = 40  # jobs per site to open and score
     results: int = 10  # jobs per site shown in the report...
     results_per_site: dict[str, int] = field(default_factory=dict)  # ...unless set for that site here
+    only_new: bool = False  # hide jobs shown in earlier searches
+    history_path: Path | None = None  # where seen/applied/hidden jobs are remembered; None = don't
+    profile: Profile | None = None  # already-extracted resume profile (skips that AI call)
     use_llm: bool = True
     headless: bool = True
     output_dir: Path = Path("output")
@@ -56,29 +67,46 @@ def results_for(options: SearchOptions, site: str) -> int:
 def run(
     options: SearchOptions,
     settings: Settings,
-    on_profile: Callable[[Profile, list[str], list[str]], None] | None = None,
+    on_event: EventCallback | None = None,
+    stop_event: threading.Event | None = None,
 ) -> SearchResult:
-    """Run a full search. on_profile(profile, queries, locations) fires once the resume is understood."""
-    resume_text = read_resume_text(options.resume_path)
-    log.info("Read %d characters from %s", len(resume_text), options.resume_path)
+    """Run a full search. Raises SearchStopped if stop_event gets set."""
+    stop_event = stop_event or threading.Event()
 
+    def emit(name: str, **data) -> None:
+        if on_event:
+            on_event(name, data)
+
+    def check_stop() -> None:
+        if stop_event.is_set():
+            raise SearchStopped()
+
+    emit("stage", stage="resume")
     llm = None
     if options.use_llm:
         if not settings.openai_api_key:
             raise ValueError("OPENAI_API_KEY is not set. Add it to .env, or run with --no-llm and --keywords.")
         llm = JobMatcherLLM(settings.openai_api_key, settings.openai_model)
+    if options.profile:
+        profile = options.profile
+    elif llm:
+        resume_text = read_resume_text(options.resume_path)
+        log.info("Read %d characters from %s", len(resume_text), options.resume_path)
         log.info("Reading resume with %s", settings.openai_model)
         profile = llm.extract_profile(resume_text)
     else:
+        read_resume_text(options.resume_path)  # still fail early on an unreadable file
         profile = Profile(target_titles=list(options.keywords), search_queries=list(options.keywords))
+    check_stop()
 
     queries = options.keywords or profile.search_queries[:3] or profile.target_titles[:3]
     if not queries:
         raise ValueError("No search keywords found. Pass them with --keywords.")
-    locations = [options.location] if options.location else (profile.locations[:2] or [DEFAULT_LOCATION])
+    locations = options.locations or _resume_locations(profile)
     log.info("Searching %s for %s in %s", ", ".join(options.sites), queries, locations)
-    if on_profile:
-        on_profile(profile, queries, locations)
+    emit("profile", profile=profile, queries=queries, locations=locations)
+
+    history = JobHistory(options.history_path) if options.history_path else None
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(
@@ -93,20 +121,31 @@ def run(
                     max_pages=options.max_pages,
                     max_age_hours=options.max_age_hours,
                     interactive=not options.headless,
+                    experience=options.experience,
+                    stop_event=stop_event,
                 )
                 for site in options.sites
             }
-            jobs = collect_jobs(scrapers, queries, locations)
+            emit("stage", stage="search")
+            jobs = collect_jobs(scrapers, queries, locations, emit)
             jobs = filter_recent(dedupe(jobs), options.max_age_hours)
             log.info("%d unique jobs posted in the last %dh", len(jobs), options.max_age_hours)
+            if history:
+                before = len(jobs)
+                jobs = history.filter(jobs, only_new=options.only_new)
+                if before != len(jobs):
+                    log.info("Skipped %d jobs you already saw, applied to or hid", before - len(jobs))
             if not jobs:
-                log.warning("No jobs found. Try --show-browser to see what the site returns, or broader --keywords.")
+                log.warning("No jobs found. Try broader keywords, more locations or a longer time window.")
 
             terms = profile.skills + profile.target_titles
             # Score at least as many jobs as each site will show.
             limits = {site: max(options.top_n, results_for(options, site)) for site in options.sites}
             shortlist = shortlist_per_site(jobs, terms, limits)
+            emit("stage", stage="details")
             for number, job in enumerate(shortlist, start=1):
+                check_stop()
+                emit("progress", stage="details", done=number - 1, total=len(shortlist))
                 log.info("Fetching details %d/%d: %s at %s", number, len(shortlist), job.title, job.company)
                 try:
                     scrapers[job.source].fetch_description(job)
@@ -115,8 +154,19 @@ def run(
         finally:
             browser.close()
 
+    if options.experience:
+        before = len(shortlist)
+        shortlist = filter_experience(shortlist, options.experience)
+        if before != len(shortlist):
+            log.info("Skipped %d jobs outside %d-%d years of experience", before - len(shortlist), *options.experience)
+
+    emit("stage", stage="score")
     if llm:
-        llm.score_jobs(profile, shortlist)
+        def before_batch(done: int, total: int) -> None:
+            check_stop()
+            emit("progress", stage="score", done=done, total=total)
+
+        llm.score_jobs(profile, shortlist, experience=options.experience, before_batch=before_batch)
     else:
         for job in shortlist:
             job.score = keyword_score(job, terms)
@@ -124,12 +174,15 @@ def run(
         if not job.matched_skills:
             job.matched_skills = matched_skills(job, profile.skills)
 
+    emit("stage", stage="report")
     shortlist.sort(key=lambda job: job.score if job.score is not None else -1, reverse=True)
     top_by_site = {
         site: [job for job in shortlist if job.source == site][: results_for(options, site)] for site in options.sites
     }
+    if history:
+        history.record_seen([job for jobs in top_by_site.values() for job in jobs])
 
-    stem = f"jobs_{datetime.now():%Y%m%d_%H%M}"
+    stem = f"jobs_{datetime.now():%Y%m%d_%H%M%S}"
     html_path = options.output_dir / f"{stem}.html"
     write_html_report(profile, top_by_site, html_path, max_age_hours=options.max_age_hours)
     xlsx_path, csv_path = write_reports(shortlist, options.output_dir, stem)
@@ -143,20 +196,42 @@ def run(
     )
 
 
-def collect_jobs(scrapers: dict[str, BaseScraper], queries: list[str], locations: list[str]) -> list[Job]:
+def _resume_locations(profile: Profile) -> list[str]:
+    locations: list[str] = []
+    for location in profile.locations:
+        city = normalize_location(location)
+        if city and city not in locations:
+            locations.append(city)
+    return locations[:2] or [DEFAULT_LOCATION]
+
+
+def collect_jobs(
+    scrapers: dict[str, BaseScraper],
+    queries: list[str],
+    locations: list[str],
+    emit: Callable[..., None] = lambda *args, **kwargs: None,
+) -> list[Job]:
     jobs: list[Job] = []
-    for scraper in scrapers.values():
+    for site, scraper in scrapers.items():
+        emit("site", site=site, status="running", found=0)
+        found_here, failures, searches = 0, 0, 0
         for query in queries:
             for location in locations:
+                searches += 1
                 try:
                     found = scraper.search(query, location)
                 except PlaywrightError as error:
                     # One board failing (timeout, block) shouldn't kill the whole run.
                     log.warning("%s search %r/%r failed: %s", scraper.name, query, location, error)
+                    failures += 1
                     continue
                 log.info("%s: %d jobs for %r in %r", scraper.name, len(found), query, location)
                 jobs.extend(found)
+                found_here += len(found)
+                emit("site", site=site, status="running", found=found_here)
                 scraper.pause()
+        status = "failed" if failures == searches else "done"
+        emit("site", site=site, status=status, found=found_here)
     return jobs
 
 
@@ -173,6 +248,16 @@ def dedupe(jobs: list[Job]) -> list[Job]:
         seen_keys.add(job.dedupe_key)
         unique.append(job)
     return unique
+
+
+def filter_experience(jobs: list[Job], wanted: tuple[int, int]) -> list[Job]:
+    """Drop jobs whose stated experience can't overlap the wanted range. Unknown experience is kept."""
+    kept = []
+    for job in jobs:
+        job_range = parse_experience(job.experience) or parse_experience(job.description)
+        if experience_matches(job_range, wanted):
+            kept.append(job)
+    return kept
 
 
 def filter_recent(jobs: list[Job], max_age_hours: int) -> list[Job]:

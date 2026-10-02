@@ -2,12 +2,13 @@
 
 import logging
 import random
-import time
+import threading
 from abc import ABC, abstractmethod
 
 from playwright.sync_api import BrowserContext, Page
 
 from job_search.models import Job
+from job_search.utils import SearchStopped
 
 log = logging.getLogger(__name__)
 
@@ -23,6 +24,8 @@ class BaseScraper(ABC):
         max_age_hours: int = 24,
         delay_range: tuple[float, float] = (2.0, 5.0),
         interactive: bool = False,
+        experience: tuple[int, int] | None = None,
+        stop_event: threading.Event | None = None,
     ):
         self.context = context
         self.max_pages = max_pages
@@ -30,6 +33,9 @@ class BaseScraper(ABC):
         self.delay_range = delay_range
         # True when the browser window is visible, so a person can solve a bot check.
         self.interactive = interactive
+        # Wanted years of experience (min, max), for boards that can filter by it.
+        self.experience = experience
+        self.stop_event = stop_event or threading.Event()
         self._page: Page | None = None
 
     @property
@@ -51,5 +57,10 @@ class BaseScraper(ABC):
         return max(1, -(-self.max_age_hours // 24))
 
     def pause(self) -> None:
-        """Wait a human-like random interval between requests to stay polite."""
-        time.sleep(random.uniform(*self.delay_range))
+        """Wait a human-like random interval between requests to stay polite. Stops early on Stop."""
+        if self.stop_event.wait(random.uniform(*self.delay_range)):
+            raise SearchStopped()
+
+    def check_stop(self) -> None:
+        if self.stop_event.is_set():
+            raise SearchStopped()

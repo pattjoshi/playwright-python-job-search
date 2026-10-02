@@ -52,14 +52,19 @@ On Windows you can also just double-click **`start_ui.bat`**.
 
 Your browser opens <http://127.0.0.1:8000>:
 
-1. Drop in your resume.
-2. Tick the job sites and set **how many jobs to show from each** (e.g. LinkedIn 20, Naukri 12, Indeed 10).
-3. Press **Start search**.
+1. **Drop in your resume.** It's read right away: keywords, your city and a matching
+   experience range are filled in for you.
+2. **Adjust anything:** keywords (add/remove), **locations** (pick several Indian tech cities
+   and/or **Remote**, or type any city), **experience** (e.g. 1 to 2 years, or Any), how recent
+   the posts should be, and **how many jobs to show from each site** (e.g. LinkedIn 20,
+   Naukri 12, Indeed 10).
+3. Press **Start search**. Watch each step and site live; press **Stop** any time.
+4. Results come in tabs per site, best match first, each with a link, match score, matching
+   and missing skills. Click **Mark applied** or **Hide** and that job never shows up again.
+   Turn on **Only new jobs** to skip anything you were shown before.
 
-Keywords and location come from your resume automatically (you can override them under
-"More options"). The page shows live progress, then the ranked jobs per site with links,
-matching and missing skills. Your choices are remembered for next time. The app only runs on
-your own computer; press Ctrl+C in the terminal to stop it.
+Your choices are remembered for next time. The app only runs on your own computer; press
+Ctrl+C in the terminal to stop it.
 
 ## Command line
 
@@ -94,7 +99,9 @@ Useful options:
 |--------|--------------|
 | `--results 20` | Show the top 20 jobs per site in the HTML report (default 10) |
 | `--results linkedin=20 naukri=12` | A different number for each site |
-| `--location "Bengaluru"` | Override the location the AI found in your resume |
+| `--location Pune Remote` | Where to search (several allowed, "Remote" included) |
+| `--experience 1-2` | Years of experience you want |
+| `--only-new` | Skip jobs shown in earlier searches |
 | `--keywords "SDET" "Python Developer"` | Override the search phrases |
 | `--hours 12` | Only jobs from the last 12 hours (default 24) |
 | `--top 20` | Jobs per site to open and score (faster, cheaper; default 40) |
@@ -168,5 +175,5 @@ Tests never touch the real sites. They use saved HTML in `tests/fixtures/` and a
 1. ~~Foundation + LinkedIn + OpenAI scoring + Excel report~~
 2. ~~Settings in .env~~
 3. ~~Naukri and Indeed, per-site result counts, web UI~~
-4. Remember already-seen jobs (SQLite) so each run shows only new ones
+4. ~~Remember seen jobs, only-new mode, applied/hide, experience filter, multi-location, stop~~
 5. Daily schedule + email / Telegram alert

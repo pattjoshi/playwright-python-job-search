@@ -10,6 +10,7 @@ from openai import OpenAIError
 from job_search.config import Settings, load_settings
 from job_search.pipeline import SearchOptions, run
 from job_search.scrapers import SCRAPERS
+from job_search.utils import parse_experience_option
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -26,7 +27,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="Job boards to search (default: all) [.env: SITES]",
     )
     parser.add_argument(
-        "--location", help="Override the location found in your resume, e.g. 'Bengaluru' [.env: LOCATION]"
+        "--location",
+        dest="locations",
+        nargs="+",
+        help="Where to search, e.g. --location Pune Bengaluru Remote (default: from your resume) [.env: LOCATION]",
+    )
+    parser.add_argument(
+        "--experience", help="Years of experience wanted, e.g. '1-2' or '3' [.env: EXPERIENCE]"
+    )
+    parser.add_argument(
+        "--only-new",
+        action=argparse.BooleanOptionalAction,
+        help="Only show jobs not shown in earlier searches [.env: ONLY_NEW]",
     )
     parser.add_argument(
         "--keywords",
@@ -103,6 +115,8 @@ def build_options(args: argparse.Namespace, settings: Settings) -> SearchOptions
     if args.no_llm and not keywords:
         raise ValueError("--no-llm needs keywords (--keywords or KEYWORDS in .env), since there is no AI to read your resume")
 
+    experience = parse_experience_option(args.experience) if args.experience else settings.experience
+
     results, results_per_site = settings.results, dict(settings.results_per_site)
     if args.results:
         cli_results, cli_per_site = parse_results(args.results)
@@ -126,8 +140,11 @@ def build_options(args: argparse.Namespace, settings: Settings) -> SearchOptions
     return SearchOptions(
         resume_path=resume,
         sites=sites,
-        location=pick(args.location, settings.location),
+        locations=pick(args.locations, settings.locations),
         keywords=keywords,
+        experience=experience,
+        only_new=pick(args.only_new, settings.only_new),
+        history_path=settings.history_path,
         max_age_hours=hours,
         max_pages=max_pages,
         top_n=top,

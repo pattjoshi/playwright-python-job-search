@@ -14,6 +14,7 @@ COLUMNS = [
     ("Company", 28, lambda j: j.company),
     ("Location", 28, lambda j: j.location),
     ("Posted", 16, lambda j: j.posted_text),
+    ("Experience", 12, lambda j: j.experience),
     ("Source", 10, lambda j: j.source),
     ("Matching skills", 40, lambda j: ", ".join(j.matched_skills)),
     ("Missing skills", 30, lambda j: ", ".join(j.missing_skills)),
