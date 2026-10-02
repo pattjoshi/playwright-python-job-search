@@ -18,6 +18,8 @@ from pathlib import Path
 from flask import Flask, abort, jsonify, request, send_from_directory
 from werkzeug.utils import secure_filename
 
+from job_search.cache import Cache, resume_key
+from job_search.cleanup import cleanup
 from job_search.config import Settings, load_settings
 from job_search.history import STATUSES, JobHistory
 from job_search.html_report import SITE_NAMES
@@ -39,6 +41,7 @@ from job_search.schedule import (
     save_schedule,
 )
 from job_search.scrapers import SCRAPERS
+from job_search.session import SessionStore
 from job_search.utils import SearchStopped
 
 log = logging.getLogger(__name__)
@@ -55,6 +58,7 @@ class SearchJob:
     status: str = "running"  # running | stopping | done | stopped | error
     stage: str = "resume"  # resume | search | details | score | report
     started_at: str = field(default_factory=lambda: datetime.now().isoformat(timespec="seconds"))
+    finished_at: str | None = None
     logs: list[str] = field(default_factory=list)
     sites: dict[str, dict] = field(default_factory=dict)  # site -> {"status", "found"}
     progress: dict | None = None  # {"stage", "done", "total"} for details/scoring
@@ -75,6 +79,7 @@ class SearchJob:
             "status": self.status,
             "stage": self.stage,
             "started_at": self.started_at,
+            "finished_at": self.finished_at,
             "logs": self.logs[-MAX_LOG_LINES:],
             "sites": self.sites,
             "progress": self.progress,
@@ -115,10 +120,11 @@ class _JobLogHandler(logging.Handler):
 class SearchManager:
     """Runs one search at a time in a background thread (one browser is plenty)."""
 
-    def __init__(self, settings: Settings, output_dir: Path, runner=run):
+    def __init__(self, settings: Settings, output_dir: Path, runner=run, session: SessionStore | None = None):
         self.settings = settings
         self.output_dir = output_dir
         self.runner = runner
+        self.session = session
         self.jobs: dict[str, SearchJob] = {}
         self._lock = threading.Lock()
         self._current: SearchJob | None = None
@@ -167,14 +173,28 @@ class SearchManager:
             job.status = "error"
         finally:
             package_logger.removeHandler(handler)
+            job.finished_at = datetime.now().isoformat(timespec="seconds")
+            if self.session:
+                try:
+                    # Kept so a page reload (or app restart) shows this search again.
+                    self.session.save_last_job({**job.to_dict(), "logs": job.logs[-100:]})
+                except Exception:
+                    log.exception("Couldn't save the session")
 
 
 def default_analyzer(settings: Settings):
     def analyze(resume_path: Path) -> Profile:
         if not settings.openai_api_key:
             raise ValueError("OPENAI_API_KEY is not set. Add it to your .env file and restart the app.")
-        text = read_resume_text(resume_path)
-        return JobMatcherLLM(settings.openai_api_key, settings.openai_model).extract_profile(text)
+        # The same resume file (by content) is only sent to the AI once.
+        cache = Cache(settings.cache_path)
+        key = resume_key(resume_path, settings.openai_model)
+        profile = cache.get_profile(key)
+        if profile is None:
+            text = read_resume_text(resume_path)
+            profile = JobMatcherLLM(settings.openai_api_key, settings.openai_model).extract_profile(text)
+            cache.save_profile(key, profile)
+        return profile
 
     return analyze
 
@@ -191,9 +211,17 @@ def create_app(
     analyzer = analyzer or default_analyzer(settings)
     data_dir = settings.history_path.parent
     scheduler = system_scheduler or SystemScheduler(data_dir)
-    manager = SearchManager(settings, output_dir, runner)
+    try:
+        cleanup(settings.keep_days, data_dir, upload_dir, output_dir, settings.cache_path)
+    except Exception:  # housekeeping must never stop the app from starting
+        log.exception("Cleanup failed")
+    session = SessionStore(data_dir)
+    manager = SearchManager(settings, output_dir, runner, session)
     history = JobHistory(settings.history_path)
     resumes: dict[str, dict] = {}  # resume_id -> {"path", "name", "profile"}
+    saved = session.resume()
+    if saved:  # the resume from before a restart still works without uploading it again
+        resumes[saved["resume_id"]] = {"path": saved["path"], "name": saved["file_name"], "profile": saved["profile"]}
 
     app = Flask(__name__, static_folder=None)
     app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_BYTES
@@ -225,6 +253,7 @@ def create_app(
                     "only_new": settings.only_new,
                     "max_pages": settings.max_pages,
                     "top": settings.top,
+                    "parallel_sites": settings.parallel_sites,
                 },
                 "has_api_key": bool(settings.openai_api_key),
                 "running_job": manager.running.id if manager.running else None,
@@ -254,19 +283,38 @@ def create_app(
 
         resume_id = uuid.uuid4().hex[:12]
         resumes[resume_id] = {"path": path, "name": upload.filename, "profile": profile}
-        locations = []
-        for location in profile.locations:
-            city = normalize_location(location)
-            if city and city not in locations:
-                locations.append(city)
-        return jsonify(
-            {
-                "resume_id": resume_id,
-                "file_name": upload.filename,
-                "profile": profile_to_dict(profile, profile.search_queries or profile.target_titles, locations),
-                "suggested_experience": suggest_experience(profile.years_experience),
-            }
-        )
+        suggested = suggest_experience(profile.years_experience)
+        session.save_resume(resume_id, path, upload.filename, profile, suggested)
+        return jsonify(resume_to_dict(resume_id, upload.filename, profile, suggested))
+
+    @app.get("/api/session")
+    def get_session():
+        """What the page showed before a reload: the resume and the last search."""
+        data = session.load()
+        saved = session.resume()
+        resume = resume_to_dict(saved["resume_id"], saved["file_name"], saved["profile"], saved.get("suggested_experience")) if saved else None
+        last_job = data.get("last_job")
+        if last_job and last_job.get("result"):
+            # Show jobs you marked applied/hidden since then as such.
+            jobs = [
+                Job(j["source"], j["job_id"], j.get("title", ""), "", "", "")
+                for site in last_job["result"]["sites"] for j in site["jobs"]
+            ]
+            statuses = history.statuses(jobs)
+            for site in last_job["result"]["sites"]:
+                for j in site["jobs"]:
+                    j["status"] = statuses.get((j["source"], j["job_id"]))
+        return jsonify({"resume": resume, "last_job": last_job})
+
+    @app.post("/api/session/clear")
+    def clear_session():
+        if manager.running:
+            return _error("Stop the running search before clearing.", status=409)
+        saved = session.load().get("resume")
+        if saved:
+            resumes.pop(saved.get("resume_id"), None)
+        session.clear()
+        return jsonify({"resume": None, "last_job": None})
 
     @app.post("/api/search")
     def start_search():
@@ -325,6 +373,9 @@ def create_app(
                 results_per_site=results_per_site,
                 only_new=bool(body.get("only_new", False)),
                 history_path=settings.history_path,
+                cache_path=settings.cache_path,
+                parallel_sites=settings.parallel_sites,
+                origin="web",
                 profile=resume["profile"],
                 use_llm=True,
                 headless=not body.get("show_browser", True),
@@ -361,6 +412,21 @@ def create_app(
         if status not in STATUSES:
             return _error(f"status must be one of {', '.join(STATUSES)}")
         return jsonify({"jobs": history.list_jobs(status), "history": history.counts()})
+
+    @app.get("/api/runs")
+    def list_runs():
+        runs = history.list_runs(limit=50)
+        for item in runs:
+            report = item.get("report")
+            item["report_url"] = None
+            if report:
+                try:
+                    relative = Path(report).resolve().relative_to(output_dir.resolve())
+                    if (output_dir / relative).exists():
+                        item["report_url"] = f"/reports/{relative.as_posix()}"
+                except ValueError:
+                    pass
+        return jsonify({"runs": runs, "costs_configured": settings.price_input is not None and settings.price_output is not None})
 
     @app.post("/api/history/forget")
     def forget_history():
@@ -457,6 +523,20 @@ def suggest_experience(years: float | None) -> list[int] | None:
     return [max(0, math.floor(years) - 1), min(50, math.ceil(years) + 1)]
 
 
+def resume_to_dict(resume_id: str, file_name: str, profile: Profile, suggested_experience) -> dict:
+    locations = []
+    for location in profile.locations:
+        city = normalize_location(location)
+        if city and city not in locations:
+            locations.append(city)
+    return {
+        "resume_id": resume_id,
+        "file_name": file_name,
+        "profile": profile_to_dict(profile, profile.search_queries or profile.target_titles, locations),
+        "suggested_experience": suggested_experience,
+    }
+
+
 def profile_to_dict(profile: Profile, queries: list[str], locations: list[str]) -> dict:
     return {
         "summary": profile.summary,
@@ -490,12 +570,22 @@ def result_to_dict(result: SearchResult, output_dir: Path) -> dict:
     def report_url(path: Path) -> str:
         return f"/reports/{path.resolve().relative_to(output_dir.resolve()).as_posix()}"
 
+    stats = result.stats
     return {
         "sites": [
             {"id": site, "name": SITE_NAMES.get(site, site.title()), "jobs": [job_to_dict(job) for job in jobs]}
             for site, jobs in result.top_by_site.items()
         ],
         "scored": len(result.jobs),
+        "stats": {
+            "duration_s": stats.duration_s,
+            "ai_calls": stats.usage.calls,
+            "tokens": stats.usage.input_tokens + stats.usage.output_tokens,
+            "cached_tokens": stats.usage.cached_tokens,
+            "cost_usd": stats.cost_usd,
+            "scores_reused": stats.scores_reused,
+            "descriptions_reused": stats.descriptions_reused,
+        },
         "html_report": report_url(result.html_path),
         "excel_report": report_url(result.xlsx_path),
     }

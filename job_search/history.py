@@ -6,6 +6,7 @@ Statuses:
   hidden   you clicked "Hide"     -> never shown again
 """
 
+import json
 import sqlite3
 import threading
 from datetime import datetime
@@ -15,6 +16,7 @@ from job_search.models import Job
 
 STATUSES = ("seen", "applied", "hidden")
 DEFAULT_PATH = Path("data") / "history.sqlite3"
+MAX_RUNS = 200  # run history keeps the newest runs only
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS jobs (
@@ -27,7 +29,14 @@ CREATE TABLE IF NOT EXISTS jobs (
     first_seen  TEXT NOT NULL,
     updated_at  TEXT NOT NULL,
     PRIMARY KEY (source, job_id)
-)
+);
+CREATE TABLE IF NOT EXISTS runs (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    started_at  TEXT NOT NULL,
+    origin      TEXT NOT NULL,   -- web | daily | cli
+    status      TEXT NOT NULL,   -- done | stopped | error
+    data        TEXT NOT NULL    -- JSON: settings, funnel, sites, timings, tokens, cost, error...
+);
 """
 
 
@@ -37,7 +46,7 @@ class JobHistory:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
         with self._connect() as db:
-            db.execute(_SCHEMA)
+            db.executescript(_SCHEMA)
 
     def _connect(self) -> sqlite3.Connection:
         # A fresh connection per call keeps this safe to use from the web server's threads.
@@ -105,6 +114,22 @@ class JobHistory:
                 (status, limit),
             ).fetchall()
         return [dict(row) for row in rows]
+
+    def record_run(self, started_at: str, origin: str, status: str, data: dict) -> None:
+        with self._lock, self._connect() as db:
+            db.execute(
+                "INSERT INTO runs (started_at, origin, status, data) VALUES (?, ?, ?, ?)",
+                (started_at, origin, status, json.dumps(data, default=str)),
+            )
+            db.execute("DELETE FROM runs WHERE id NOT IN (SELECT id FROM runs ORDER BY id DESC LIMIT ?)", (MAX_RUNS,))
+
+    def list_runs(self, limit: int = 50) -> list[dict]:
+        """Newest first: {"id", "started_at", "origin", "status", **data}."""
+        with self._lock, self._connect() as db:
+            rows = db.execute(
+                "SELECT id, started_at, origin, status, data FROM runs ORDER BY id DESC LIMIT ?", (limit,)
+            ).fetchall()
+        return [{"id": r[0], "started_at": r[1], "origin": r[2], "status": r[3], **json.loads(r[4])} for r in rows]
 
     def counts(self) -> dict[str, int]:
         with self._lock, self._connect() as db:

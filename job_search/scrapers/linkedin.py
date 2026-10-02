@@ -9,7 +9,6 @@ import logging
 import re
 from urllib.parse import urlencode
 
-from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
 
 from job_search.models import Job
@@ -53,15 +52,10 @@ class LinkedInScraper(BaseScraper):
             url = f"{SEARCH_URL}?{urlencode(params)}"
             log.info("LinkedIn: %r in %r, page %d", query, location, page_number + 1)
 
-            try:
-                response = self.page.goto(url, wait_until="domcontentloaded")
-            except PlaywrightError as error:
-                # Chromium raises (instead of returning) for some error pages, e.g. an empty 429.
-                log.warning("LinkedIn request failed (%s); keeping %d jobs found so far", error.message.splitlines()[0], len(jobs))
-                break
+            response = self.goto(url)
             if response is None or not response.ok:
                 status = response.status if response else "no response"
-                log.warning("LinkedIn returned %s; stopping this search (429 means slow down)", status)
+                log.warning("LinkedIn: couldn't load results (%s); keeping %d jobs found so far", status, len(jobs))
                 break
 
             page_jobs = parse_search_results(self.page)
@@ -72,7 +66,7 @@ class LinkedInScraper(BaseScraper):
         return jobs
 
     def fetch_description(self, job: Job) -> None:
-        response = self.page.goto(DETAIL_URL.format(job_id=job.job_id), wait_until="domcontentloaded")
+        response = self.goto(DETAIL_URL.format(job_id=job.job_id))
         if response is None or not response.ok:
             log.warning("Could not load LinkedIn job %s (%s)", job.job_id, response.status if response else "-")
             return

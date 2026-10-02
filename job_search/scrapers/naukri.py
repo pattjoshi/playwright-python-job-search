@@ -38,6 +38,7 @@ TAGS = "ul.tags-gt li, ul.tags li"
 
 class NaukriScraper(BaseScraper):
     name = "naukri"
+    combine_locations = True  # Naukri searches "Pune, Bengaluru" in one go
 
     def search(self, query: str, location: str) -> list[Job]:
         jobs: list[Job] = []
@@ -96,14 +97,16 @@ def search_url(
 ) -> str:
     # Naukri's own URL shape: /python-developer-jobs-in-bengaluru-2?k=...&l=...&jobAge=1
     remote = is_remote(location)
+    cities = [] if remote else [city.strip() for city in location.split(",") if city.strip()]
     path = f"{_slug(query)}-jobs"
-    if location and not remote:
-        path += f"-in-{_slug(location)}"
+    if cities:
+        # Several cities: /python-developer-jobs-in-pune-bengaluru?l=Pune, Bengaluru
+        path += "-in-" + "-".join(_slug(city) for city in cities)
     if page_number > 1:
         path += f"-{page_number}"
     params: dict[str, str | int] = {"k": query, "jobAge": days}
-    if location and not remote:
-        params["l"] = location
+    if cities:
+        params["l"] = ", ".join(cities)
     if remote:
         params["wfhType"] = 2  # work from home / remote
     if experience:

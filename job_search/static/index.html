@@ -48,6 +48,7 @@ button, input, select { font: inherit; color: inherit; }
 .pill.error { background: var(--danger-soft); color: var(--danger); }
 .history-stats { color: var(--muted); font-size: 13px; }
 .my-jobs-btn { display: inline-flex; align-items: center; gap: 8px; }
+.saved-note { color: var(--good); font-size: 12px; margin-top: 8px; }
 .my-jobs-btn .counts { color: var(--muted); font-weight: 500; }
 
 /* Funnel: jobs left after each filter */
@@ -55,7 +56,7 @@ button, input, select { font: inherit; color: inherit; }
 .funnel-step { white-space: nowrap; }
 .funnel-step b { color: var(--text); font-variant-numeric: tabular-nums; }
 .funnel .arrow { color: var(--faint); }
-.hint { margin-top: 10px; padding: 9px 12px; border-radius: 8px; background: var(--ok-bg); color: var(--ok); font-size: 13px; }
+.funnel-hint { margin-top: 10px; padding: 9px 12px; border-radius: 8px; background: var(--ok-bg); color: var(--ok); font-size: 13px; }
 
 /* My jobs side panel */
 dialog.sheet { margin: 0 0 0 auto; height: 100%; max-height: 100%; width: min(460px, 100%); max-width: 100%; padding: 0; border: 0;
@@ -73,6 +74,13 @@ dialog.sheet::backdrop { background: rgba(15, 18, 24, .45); }
 .sheet-list a { font-weight: 700; color: var(--accent); text-decoration: none; }
 .sheet-list a:hover { text-decoration: underline; }
 .sheet-list .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.run-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.run-status { font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; }
+.run-status.done { background: var(--good-bg); color: var(--good); }
+.run-status.stopped { background: var(--low-bg); color: var(--low); }
+.run-status.error { background: var(--danger-soft); color: var(--danger); }
+.run-error { color: var(--danger); font-size: 12px; margin-top: 4px; }
+.sheet-note { padding: 10px 18px; color: var(--faint); font-size: 12px; border-bottom: 1px solid var(--border); }
 
 /* ---------- Layout ---------- */
 .layout { max-width: 1240px; margin: 0 auto; padding: 20px; display: grid; grid-template-columns: 400px minmax(0, 1fr);
@@ -316,6 +324,8 @@ details.log pre { max-height: 220px; overflow: auto; font-size: 12px; background
     <div class="brand"><span class="brand-mark" aria-hidden="true">J</span>Job Search</div>
     <span class="pill" id="status-pill" aria-live="polite"><span class="dot"></span><span id="status-pill-text">Ready</span></span>
     <span class="spacer"></span>
+    <button type="button" class="btn btn-secondary" id="clear-session" hidden
+            title="Remove the resume, keywords and results from this page">Clear</button>
     <button type="button" class="btn btn-secondary my-jobs-btn" id="my-jobs-open" aria-haspopup="dialog">
       My jobs <span class="counts" id="history-stats"></span></button>
   </div>
@@ -341,6 +351,7 @@ details.log pre { max-height: 220px; overflow: auto; font-size: 12px; background
           <button type="button" class="btn btn-secondary" id="replace-resume">Replace</button>
         </div>
         <p class="profile-summary" id="profile-summary"></p>
+        <p class="saved-note" id="resume-restored" hidden>✓ Restored from your last session · no upload or AI call needed</p>
       </div>
       <div class="alert" id="resume-error" hidden style="margin-top: 10px"></div>
     </div></section>
@@ -473,7 +484,7 @@ details.log pre { max-height: 220px; overflow: auto; font-size: 12px; background
       </ol>
       <div class="site-status" id="site-status"></div>
       <div class="funnel" id="funnel" hidden aria-label="Jobs kept after each filter"></div>
-      <div class="hint" id="funnel-hint" hidden></div>
+      <div class="funnel-hint" id="funnel-hint" hidden></div>
       <div class="found" id="found" hidden>
         <div class="chips" id="query-chips"></div>
         <div class="chips" id="skill-chips"></div>
@@ -510,6 +521,7 @@ details.log pre { max-height: 220px; overflow: auto; font-size: 12px; background
 "use strict";
 const $ = (id) => document.getElementById(id);
 const STORE_KEY = "job-search-ui-v2";
+const SESSION_KEY = "job-search-session";  // keywords you edited; cleared by "Clear"
 const POLL_MS = 1200;
 const STAGES = ["resume", "search", "details", "score", "report"];
 const STAGE_TEXT = { resume: "Preparing…", search: "Searching job sites…", details: "Reading job details…", score: "Scoring jobs against your resume…", report: "Building your report…" };
@@ -566,7 +578,11 @@ function renderTags(controlId, inputId, items, onRemove) {
 function setKeywords(list) {
   state.keywords = [...new Set(list.map((k) => k.trim()).filter(Boolean))].slice(0, 8);
   renderTags("keyword-control", "keyword-input", state.keywords, (k) => setKeywords(state.keywords.filter((x) => x !== k)));
+  try { localStorage.setItem(SESSION_KEY, JSON.stringify({ keywords: state.keywords })); } catch { /* private mode */ }
   updateEstimate();
+}
+function savedKeywords() {
+  try { return (JSON.parse(localStorage.getItem(SESSION_KEY)) || {}).keywords || null; } catch { return null; }
 }
 function setupKeywords() {
   const input = $("keyword-input");
@@ -690,15 +706,24 @@ function chosenSites() {
 }
 function updateEstimate() {
   if (!state.config) return;
-  const sites = Object.keys(chosenSites()).length;
+  const chosen = Object.keys(chosenSites());
   const keywords = state.keywords.length || 3;
-  const locations = state.locations.length || 1;
+  const remote = state.locations.includes("Remote") ? 1 : 0;
+  const cities = Math.max(state.locations.length - remote, state.locations.length ? 0 : 1);
   const pages = parseInt($("max-pages").value, 10) || 3;
-  const searches = sites * keywords * locations;
-  const minutes = Math.max(1, Math.round((searches * pages * 6 + sites * (parseInt($("top").value, 10) || 40) * 3) / 60));
+  const top = parseInt($("top").value, 10) || 40;
+  // Naukri searches all cities in one request; the others search city by city.
+  const searchesFor = (site) => keywords * (site === "naukri" ? Math.min(cities, 1) + remote : cities + remote);
+  const perSite = chosen.map(searchesFor);
+  const searches = perSite.reduce((a, b) => a + b, 0);
+  const siteMinutes = perSite.map((n) => (n * pages * 6 + top * 3) / 60);
+  const parallel = state.config.defaults.parallel_sites !== false;
+  const minutes = Math.max(1, Math.round(parallel ? Math.max(0, ...siteMinutes) : siteMinutes.reduce((a, b) => a + b, 0)));
+  const sites = chosen.length;
+  const together = parallel && sites > 1 ? " (sites run at the same time)" : "";
   $("estimate").replaceChildren(
-    sites ? `${searches} searches across ${sites} site${sites > 1 ? "s" : ""} · about ${minutes} min` : "Pick at least one job site",
-    ...(sites && searches > 24 ? [el("span", { class: "tip", text: "Tip: fewer keywords or cities makes it faster" })] : []));
+    sites ? `${searches} searches across ${sites} site${sites > 1 ? "s" : ""} · about ${minutes} min${together}` : "Pick at least one job site",
+    ...(sites && Math.max(0, ...perSite) > 12 ? [el("span", { class: "tip", text: "Tip: fewer keywords or cities makes it faster" })] : []));
 }
 
 /* ---------- resume ---------- */
@@ -718,19 +743,11 @@ async function analyze(file) {
   data.append("resume", file);
   try {
     const body = await api("/api/analyze", { method: "POST", body: data });
-    state.resume = body;
-    const profile = body.profile;
-    $("file-name").textContent = body.file_name;
-    $("file-ext").textContent = (body.file_name.split(".").pop() || "").toUpperCase().slice(0, 4);
-    const years = profile.years_experience != null ? `${+profile.years_experience.toFixed(1)} yrs experience` : "";
-    $("file-sub").textContent = [profile.current_title, years].filter(Boolean).join(" · ");
-    $("profile-summary").textContent = profile.summary || "";
-    $("step-resume").textContent = "✓"; $("step-resume").classList.add("done");
-    setKeywords(profile.keywords);
+    showResume(body, false);
+    setKeywords(body.profile.keywords);
     const prefs = loadPrefs();
-    if (!state.locations.length && profile.locations.length) setLocations(profile.locations);
+    if (!state.locations.length && body.profile.locations.length) setLocations(body.profile.locations);
     if (!prefs.experience && body.suggested_experience) setExperience(body.suggested_experience);
-    $("resume-ready").hidden = false;
   } catch (error) {
     showError("resume-error", error.message);
     $("drop").hidden = false;
@@ -739,7 +756,22 @@ async function analyze(file) {
     updateStart();
   }
 }
+function showResume(body, restored) {
+  state.resume = body;
+  const profile = body.profile;
+  $("file-name").textContent = body.file_name;
+  $("file-ext").textContent = (body.file_name.split(".").pop() || "").toUpperCase().slice(0, 4);
+  const years = profile.years_experience != null ? `${+profile.years_experience.toFixed(1)} yrs experience` : "";
+  $("file-sub").textContent = [profile.current_title, years].filter(Boolean).join(" · ");
+  $("profile-summary").textContent = profile.summary || "";
+  $("resume-restored").hidden = !restored;
+  $("step-resume").textContent = "✓"; $("step-resume").classList.add("done");
+  $("drop").hidden = true; $("analyzing").hidden = true; $("resume-ready").hidden = false;
+}
+
 function updateStart() {
+  $("clear-session").hidden = !state.resume && !state.result && $("progress").hidden;
+  $("clear-session").disabled = !!state.jobId;
   $("daily-save").disabled = !state.resume || !state.config.has_api_key;
   const running = !!state.jobId;
   $("start").hidden = running; $("stop").hidden = !running;
@@ -826,6 +858,7 @@ function finish(job) {
   if (job.status === "done") { setPill("done", "Done"); $("progress-text").textContent = "Search complete"; renderResults(job.result); }
   else if (job.status === "stopped") { setPill("", "Stopped"); $("progress-text").textContent = "Search stopped"; }
   else { setPill("error", "Error"); $("progress-text").textContent = "The search stopped with an error"; if (job.error) showError("run-error", job.error); }
+  updateStart();  // again, now that results may be showing (enables "Clear")
 }
 function setPill(kind, text) { $("status-pill").className = "pill " + kind; $("status-pill-text").textContent = text; }
 
@@ -883,12 +916,13 @@ function renderFunnel(job) {
   if (!wanted || scored >= wanted) return;
   let worst = null;
   for (let i = 1; i < steps.length; i++) {
+    if (steps[i][0] === "unique") continue;  // removing duplicates is never the problem
     const drop = steps[i - 1][1] - steps[i][1];
     if (!worst || drop > worst.drop) worst = { drop, label: steps[i][0] };
   }
   const advice = {
     "posted in": "a longer time window", "yrs": "a wider experience range (or Any)", "new": "turning off “Only new jobs”",
-    "unique": "more keywords or locations", "checked": "a higher “Jobs to score per site” (Advanced)",
+"checked": "a higher “Jobs to score per site” (Advanced)",
   };
   const key = Object.keys(advice).find((k) => worst && worst.label.includes(k));
   if (worst && worst.drop > 0 && key) {
@@ -900,14 +934,36 @@ function renderFunnel(job) {
 /* ---------- results ---------- */
 function renderResults(result) {
   state.result = result; state.tab = "all"; state.statuses = {};
+  for (const site of result.sites) {
+    for (const job of site.jobs) if (job.status && job.status !== "seen") state.statuses[jobKey(job)] = job.status;
+  }
   const total = result.sites.reduce((sum, site) => sum + site.jobs.length, 0);
   const fresh = result.sites.reduce((sum, site) => sum + site.jobs.filter((j) => j.is_new).length, 0);
   $("results-title").textContent = `${total} best matches`;
-  $("results-sub").textContent = `${fresh} new · ${result.scored} jobs scored`;
+  $("results-sub").textContent = [`${fresh} new`, `${result.scored} jobs scored`, ...statsParts(result.stats)].join(" · ");
   $("html-link").href = result.html_report; $("excel-link").href = result.excel_report;
   $("results").hidden = false;
   renderTabs(); renderJobList();
 }
+function formatDuration(seconds) {
+  const s = Math.round(seconds || 0);
+  return s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s`;
+}
+function formatTokens(n) {
+  return n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : String(n || 0);
+}
+function formatCost(usd) {
+  if (usd == null) return null;
+  return usd < 0.01 ? `~$${usd.toFixed(4)}` : `~$${usd.toFixed(2)}`;
+}
+function statsParts(stats) {
+  if (!stats) return [];
+  const parts = [formatDuration(stats.duration_s)];
+  if (stats.tokens) parts.push(`${formatTokens(stats.tokens)} AI tokens` + (formatCost(stats.cost_usd) ? ` (${formatCost(stats.cost_usd)})` : ""));
+  if (stats.scores_reused) parts.push(`${stats.scores_reused} scores reused`);
+  return parts;
+}
+
 function renderTabs() {
   const tabs = [{ id: "all", name: "All", count: state.result.sites.reduce((n, s) => n + s.jobs.length, 0) },
     ...state.result.sites.map((s) => ({ id: s.id, name: s.name, count: s.jobs.length }))];
@@ -1062,8 +1118,9 @@ async function openMyJobs(tab) {
   await loadMyJobs();
 }
 async function loadMyJobs() {
-  const tabs = [["applied", "Applied"], ["hidden", "Hidden"]];
+  const tabs = [["applied", "Applied"], ["hidden", "Hidden"], ["runs", "Search history"]];
   const counts = state.history || {};
+  if (myJobs.tab === "runs") return loadRuns(tabs);
   $("my-jobs-tabs").replaceChildren(...tabs.map(([id, name]) => el("button", {
     type: "button", class: "tab", role: "tab", "aria-selected": String(myJobs.tab === id),
     onclick: () => openMyJobs(id),
@@ -1102,12 +1159,102 @@ async function loadMyJobs() {
   }
 }
 
+async function loadRuns(tabs) {
+  $("my-jobs-tabs").replaceChildren(...tabs.map(([id, name]) => el("button", {
+    type: "button", class: "tab", role: "tab", "aria-selected": String(myJobs.tab === id), onclick: () => openMyJobs(id),
+  }, name, id === "runs" ? null : el("span", { class: "count", text: String((state.history || {})[id] || 0) }))));
+  const list = $("my-jobs-list");
+  list.replaceChildren(el("li", { class: "empty-list", text: "Loading…" }));
+  try {
+    const body = await api("/api/runs");
+    const names = Object.fromEntries(state.config.sites.map((s) => [s.id, s.name]));
+    list.replaceChildren();
+    if (!body.costs_configured) {
+      list.append(el("li", { class: "sheet-note", text: "Tip: set OPENAI_PRICE_INPUT and OPENAI_PRICE_OUTPUT in .env to see an estimated cost per run." }));
+    }
+    if (!body.runs.length) {
+      list.append(el("li", { class: "empty-list", text: "No searches yet. Every search (from here or the daily search) shows up here." }));
+      return;
+    }
+    for (const r of body.runs) {
+      const when = new Date(r.started_at).toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+      const runSites = r.sites || {};
+      const order = [...state.config.sites.map((s) => s.id), ...Object.keys(runSites)];
+      const sites = [...new Set(order)].filter((id) => runSites[id]).map((id) =>
+        `${names[id] || id} ${runSites[id].status === "failed" ? "✕" : runSites[id].found}`).join(" · ");
+      const usage = r.usage || {};
+      const tokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
+      const details = [formatDuration(r.duration_s), sites,
+        r.status === "done" ? `${r.shown} shown (${r.new} new)` : null,
+        tokens ? `${formatTokens(tokens)} tokens${formatCost(r.cost_usd) ? " " + formatCost(r.cost_usd) : ""}` : null,
+        r.scores_reused ? `${r.scores_reused} reused` : null].filter(Boolean).join(" · ");
+      const funnel = (r.funnel || []).map(([label, count]) => `${count} ${label}`).join(" → ");
+      list.append(el("li", {},
+        el("div", { class: "meta" },
+          el("div", { class: "run-head" }, el("b", { text: when }),
+            el("span", { class: `run-status ${r.status}`, text: r.status }),
+            el("span", { class: "badge site", text: r.origin === "daily" ? "Daily" : r.origin === "web" ? "Manual" : "Command line" })),
+          el("div", { class: "sub", text: details }),
+          funnel ? el("div", { class: "sub", text: funnel }) : null,
+          r.error ? el("div", { class: "run-error", text: r.error }) : null),
+        r.report_url ? el("a", { class: "btn btn-secondary", href: r.report_url, target: "_blank", rel: "noopener", text: "Report" }) : null));
+    }
+  } catch (error) {
+    list.replaceChildren(el("li", { class: "empty-list", text: error.message }));
+  }
+}
+
 async function refreshHistory() {
   try { renderHistory((await api("/api/config")).history); } catch { /* ignore */ }
 }
 
+/* ---------- saved session (survives reloads and restarts) ---------- */
+function showSavedJob(job) {
+  // A finished search from before the reload: show it as it ended, without polling.
+  $("empty-state").hidden = true; $("progress").hidden = false;
+  showError("run-error", "");
+  renderJob(job);
+  const seconds = job.started_at && job.finished_at ? (new Date(job.finished_at) - new Date(job.started_at)) / 1000 : 0;
+  $("elapsed").textContent = seconds ? formatDuration(seconds) : "";
+  const when = job.finished_at ? new Date(job.finished_at).toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "";
+  finish(job);
+  if (when) $("progress-text").textContent += ` · ${when}`;
+}
+
+async function restoreSession() {
+  const saved = await api("/api/session");
+  if (saved.resume) {
+    showResume(saved.resume, true);
+    setKeywords(state.keptKeywords ?? saved.resume.profile.keywords);
+  }
+  if (saved.last_job && !state.config.running_job) showSavedJob(saved.last_job);
+  updateStart();
+}
+
+async function clearSession() {
+  if (!window.confirm("Clear the resume, keywords and results from this page?\n\nYour settings, applied/hidden jobs, search history and daily search are kept.")) return;
+  try {
+    await api("/api/session/clear", { method: "POST" });
+  } catch (error) {
+    return showError("form-error", error.message);
+  }
+  try { localStorage.removeItem(SESSION_KEY); } catch { /* private mode */ }
+  state.resume = null; state.result = null; state.statuses = {};
+  setKeywords([]);
+  try { localStorage.removeItem(SESSION_KEY); } catch { /* setKeywords saved an empty list */ }
+  $("resume").value = "";
+  $("drop").hidden = false; $("resume-ready").hidden = true; $("analyzing").hidden = true;
+  $("step-resume").textContent = "1"; $("step-resume").classList.remove("done");
+  $("progress").hidden = true; $("results").hidden = true; $("empty-state").hidden = false;
+  showError("resume-error", ""); showError("form-error", ""); showError("run-error", "");
+  setPill("", "Ready");
+  updateStart();
+}
+
 /* ---------- init ---------- */
 async function init() {
+  // Read before anything below writes the keyword list.
+  state.keptKeywords = savedKeywords();
   state.config = await api("/api/config");
   const prefs = loadPrefs(), defaults = state.config.defaults;
   $("key-warning").hidden = state.config.has_api_key;
@@ -1119,7 +1266,7 @@ async function init() {
   $("show-browser").checked = prefs.show_browser ?? true;
   setExperience(prefs.experience !== undefined ? prefs.experience : defaults.experience || [1, 3]);
   setupKeywords(); setupLocations(); setupResume();
-  setKeywords(defaults.keywords || []);
+  setKeywords(state.keptKeywords ?? defaults.keywords ?? []);
   setLocations(prefs.locations || defaults.locations || []);
   renderHistory(state.config.history);
 
@@ -1138,7 +1285,9 @@ async function init() {
   $("forget-seen").addEventListener("click", async () => {
     try { renderHistory((await api("/api/history/forget", { method: "POST" })).history); } catch (error) { showError("form-error", error.message); }
   });
+  $("clear-session").addEventListener("click", clearSession);
   updateStart(); updateEstimate();
+  try { await restoreSession(); } catch { /* nothing saved yet */ }
   if (state.config.running_job) watch(state.config.running_job);
 }
 init().catch(() => showError("form-error", "Could not reach the job search app. Is it still running?"));

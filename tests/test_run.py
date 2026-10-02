@@ -45,9 +45,13 @@ class FakeLLM:
     def extract_profile(self, resume_text):
         return Profile(skills=["Python", "Playwright"], search_queries=["Python Engineer"], locations=["Pune, Maharashtra"])
 
-    def score_jobs(self, profile, jobs, experience=None, before_batch=None):
-        if before_batch:
-            before_batch(0, len(jobs))
+    calls = 0
+
+    def score_jobs(self, profile, jobs, experience=None, progress=None):
+        FakeLLM.calls += 1
+        FakeLLM.scored = [job.job_id for job in jobs]
+        if progress:
+            progress(0, len(jobs))
         for job in jobs:
             job.score = 100 - int(job.job_id)
             job.missing_skills = ["Docker"]

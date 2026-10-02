@@ -88,7 +88,7 @@ def options_to_dict(options: SearchOptions) -> dict:
 def options_from_dict(data: dict) -> SearchOptions:
     known = {f.name for f in fields(SearchOptions)}
     values = {key: value for key, value in data.items() if key in known}
-    for key in ("resume_path", "output_dir", "history_path"):
+    for key in ("resume_path", "output_dir", "history_path", "cache_path"):
         if values.get(key):
             values[key] = Path(values[key])
     if values.get("experience"):
