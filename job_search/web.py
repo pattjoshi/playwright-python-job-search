@@ -46,6 +46,7 @@ class SearchJob:
     logs: list[str] = field(default_factory=list)
     sites: dict[str, dict] = field(default_factory=dict)  # site -> {"status", "found"}
     progress: dict | None = None  # {"stage", "done", "total"} for details/scoring
+    funnel: list | None = None  # [[label, count], ...] jobs left after each filter
     profile: dict | None = None
     error: str | None = None
     result: dict | None = None
@@ -64,6 +65,7 @@ class SearchJob:
             "logs": self.logs[-MAX_LOG_LINES:],
             "sites": self.sites,
             "progress": self.progress,
+            "funnel": self.funnel,
             "profile": self.profile,
             "error": self.error,
             "result": self.result,
@@ -79,6 +81,8 @@ class SearchJob:
             self.sites[data["site"]] = {"status": data["status"], "found": data["found"]}
         elif name == "progress":
             self.progress = data
+        elif name == "funnel":
+            self.funnel = [list(step) for step in data["steps"]]
 
 
 class _JobLogHandler(logging.Handler):
@@ -329,6 +333,13 @@ def create_app(
             title=str(body.get("title", ""))[:300], company=str(body.get("company", ""))[:200], url=str(body.get("url", ""))[:1000],
         )
         return jsonify({"ok": True, "history": history.counts()})
+
+    @app.get("/api/history")
+    def list_history():
+        status = request.args.get("status", "applied")
+        if status not in STATUSES:
+            return _error(f"status must be one of {', '.join(STATUSES)}")
+        return jsonify({"jobs": history.list_jobs(status), "history": history.counts()})
 
     @app.post("/api/history/forget")
     def forget_history():

@@ -26,7 +26,7 @@ log = logging.getLogger(__name__)
 
 DEFAULT_LOCATION = "India"
 
-# on_event(name, data) lets a UI follow along. Names: "stage", "profile", "site", "progress".
+# on_event(name, data) lets a UI follow along. Names: "stage", "profile", "site", "progress", "funnel".
 EventCallback = Callable[[str, dict], None]
 
 
@@ -128,15 +128,23 @@ def run(
             }
             emit("stage", stage="search")
             jobs = collect_jobs(scrapers, queries, locations, emit)
-            jobs = filter_recent(dedupe(jobs), options.max_age_hours)
-            log.info("%d unique jobs posted in the last %dh", len(jobs), options.max_age_hours)
+            # How many jobs survive each step, so a short result list can be explained.
+            funnel = [("found", len(jobs))]
+            jobs = dedupe(jobs)
+            funnel.append(("unique", len(jobs)))
+            jobs = filter_recent(jobs, options.max_age_hours)
+            funnel.append((f"posted in {options.max_age_hours}h", len(jobs)))
             if history:
-                before = len(jobs)
                 jobs = history.filter(jobs, only_new=options.only_new)
-                if before != len(jobs):
-                    log.info("Skipped %d jobs you already saw, applied to or hid", before - len(jobs))
+                funnel.append(("new" if options.only_new else "not applied/hidden", len(jobs)))
+            if options.experience:
+                # Boards that state experience (e.g. Naukri "2-5 Yrs") can be checked before scoring.
+                jobs = filter_experience(jobs, options.experience, use_description=False)
+                funnel.append((f"match {options.experience[0]}-{options.experience[1]} yrs", len(jobs)))
+            log.info("Jobs kept at each step: %s", " → ".join(f"{count} {label}" for label, count in funnel))
+            emit("funnel", steps=list(funnel))
             if not jobs:
-                log.warning("No jobs found. Try broader keywords, more locations or a longer time window.")
+                log.warning("No jobs left. Try broader keywords, more locations, a wider experience range or a longer time window.")
 
             terms = profile.skills + profile.target_titles
             # Score at least as many jobs as each site will show.
@@ -154,11 +162,14 @@ def run(
         finally:
             browser.close()
 
+    funnel.append(("checked", len(shortlist)))
     if options.experience:
         before = len(shortlist)
         shortlist = filter_experience(shortlist, options.experience)
         if before != len(shortlist):
-            log.info("Skipped %d jobs outside %d-%d years of experience", before - len(shortlist), *options.experience)
+            log.info("Skipped %d jobs whose description asks for experience outside %d-%d years", before - len(shortlist), *options.experience)
+    funnel.append(("scored", len(shortlist)))
+    emit("funnel", steps=list(funnel))
 
     emit("stage", stage="score")
     if llm:
@@ -250,11 +261,16 @@ def dedupe(jobs: list[Job]) -> list[Job]:
     return unique
 
 
-def filter_experience(jobs: list[Job], wanted: tuple[int, int]) -> list[Job]:
-    """Drop jobs whose stated experience can't overlap the wanted range. Unknown experience is kept."""
+def filter_experience(jobs: list[Job], wanted: tuple[int, int], use_description: bool = True) -> list[Job]:
+    """Drop jobs whose stated experience can't overlap the wanted range. Unknown experience is kept.
+
+    use_description=False only trusts the board's own experience field (before details are fetched).
+    """
     kept = []
     for job in jobs:
-        job_range = parse_experience(job.experience) or parse_experience(job.description)
+        job_range = parse_experience(job.experience)
+        if job_range is None and use_description:
+            job_range = parse_experience(job.description)
         if experience_matches(job_range, wanted):
             kept.append(job)
     return kept

@@ -111,3 +111,17 @@ def test_indeed_fetch_description(browser):
 
     assert job.description == "Own our Playwright test suite."
     context.close()
+
+
+def test_naukri_label_wins_over_old_created_date():
+    # A job reposted today: label says "Just Now" but createdDate is 30 days old.
+    old = 1_000 * 60 * 60 * 24 * 30
+    import time as _time
+
+    data = {"jobDetails": [{"title": "SDET", "jobId": "1234567", "footerPlaceholderLabel": "Just Now",
+                            "createdDate": _time.time() * 1000 - old}]}
+    assert parse_api_jobs(data)[0].hours_ago == 0
+
+    # No usable label: fall back to createdDate.
+    data["jobDetails"][0]["footerPlaceholderLabel"] = ""
+    assert round(parse_api_jobs(data)[0].hours_ago) == 720

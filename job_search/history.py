@@ -93,6 +93,19 @@ class JobHistory:
                 (source, job_id, title, company, url, status, now, now),
             )
 
+    def list_jobs(self, status: str, limit: int = 500) -> list[dict]:
+        """Jobs with this status, most recently changed first."""
+        if status not in STATUSES:
+            raise ValueError(f"status must be one of {', '.join(STATUSES)}")
+        with self._lock, self._connect() as db:
+            db.row_factory = sqlite3.Row
+            rows = db.execute(
+                """SELECT source, job_id, title, company, url, status, first_seen, updated_at
+                   FROM jobs WHERE status = ? ORDER BY updated_at DESC, rowid DESC LIMIT ?""",
+                (status, limit),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
     def counts(self) -> dict[str, int]:
         with self._lock, self._connect() as db:
             rows = db.execute("SELECT status, COUNT(*) FROM jobs GROUP BY status").fetchall()

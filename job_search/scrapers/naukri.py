@@ -123,10 +123,12 @@ def parse_api_jobs(data: dict) -> list[Job]:
 
         placeholders = {p.get("type"): p.get("label", "") for p in item.get("placeholders") or [] if isinstance(p, dict)}
         posted_text = item.get("footerPlaceholderLabel") or ""
+        # Prefer Naukri's own label ("Few Hours Ago"): createdDate is the *original* posting date,
+        # so reposted jobs that Naukri's freshness filter rightly returns would look weeks old.
+        hours_ago = parse_relative_age(posted_text)
         created = item.get("createdDate")
-        hours_ago = (now_ms - created) / 3_600_000 if isinstance(created, (int, float)) and created > 0 else None
-        if hours_ago is None:
-            hours_ago = parse_relative_age(posted_text)
+        if hours_ago is None and isinstance(created, (int, float)) and created > 0:
+            hours_ago = (now_ms - created) / 3_600_000
 
         skills = item.get("tagsAndSkills") or ""
         description = _strip_html(item.get("jobDescription") or "")

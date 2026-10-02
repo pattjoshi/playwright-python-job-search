@@ -100,3 +100,22 @@ def test_linkedin_experience_levels():
 def test_naukri_url_with_remote_and_experience():
     url = search_url("Python Developer", "Remote", 1, 1, (2, 4))
     assert url == "https://www.naukri.com/python-developer-jobs?k=Python+Developer&jobAge=1&wfhType=2&experience=2"
+
+
+def test_history_list_jobs(tmp_path):
+    history = JobHistory(tmp_path / "h.sqlite3")
+    history.set_status("naukri", "1", "applied", title="SDET", company="Acme", url="https://example.com/1")
+    history.set_status("linkedin", "2", "applied", title="QA", company="Globex")
+    history.set_status("linkedin", "3", "hidden", title="Dev")
+
+    applied = history.list_jobs("applied")
+    assert [job["job_id"] for job in applied] == ["2", "1"]  # most recent first
+    assert applied[1]["title"] == "SDET" and applied[1]["company"] == "Acme"
+    assert [job["job_id"] for job in history.list_jobs("hidden")] == ["3"]
+    with pytest.raises(ValueError):
+        history.list_jobs("loved")
+
+
+def test_filter_experience_board_field_only():
+    jobs = [job("a", experience="8-12 Yrs"), job("b", description="Needs 7+ years")]
+    assert [j.job_id for j in filter_experience(jobs, (1, 2), use_description=False)] == ["b"]

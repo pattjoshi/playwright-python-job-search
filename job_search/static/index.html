@@ -47,6 +47,31 @@ button, input, select { font: inherit; color: inherit; }
 .pill.done { background: var(--good-bg); color: var(--good); }
 .pill.error { background: var(--danger-soft); color: var(--danger); }
 .history-stats { color: var(--muted); font-size: 13px; }
+.my-jobs-btn { display: inline-flex; align-items: center; gap: 8px; }
+.my-jobs-btn .counts { color: var(--muted); font-weight: 500; }
+
+/* Funnel: jobs left after each filter */
+.funnel { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-top: 12px; font-size: 12px; color: var(--muted); }
+.funnel .step b { color: var(--text); font-variant-numeric: tabular-nums; }
+.funnel .arrow { color: var(--faint); }
+.hint { margin-top: 10px; padding: 9px 12px; border-radius: 8px; background: var(--ok-bg); color: var(--ok); font-size: 13px; }
+
+/* My jobs side panel */
+dialog.sheet { margin: 0 0 0 auto; height: 100%; max-height: 100%; width: min(460px, 100%); max-width: 100%; padding: 0; border: 0;
+  border-left: 1px solid var(--border); background: var(--surface); color: var(--text); box-shadow: -12px 0 32px rgba(16, 24, 40, .18); }
+dialog.sheet::backdrop { background: rgba(15, 18, 24, .45); }
+.sheet-inner { display: flex; flex-direction: column; height: 100%; }
+.sheet-head { display: flex; align-items: center; gap: 10px; padding: 16px 18px; border-bottom: 1px solid var(--border); }
+.sheet-head h2 { margin: 0; font-size: 16px; flex: 1; }
+.icon-btn { border: 0; background: none; cursor: pointer; font-size: 22px; line-height: 1; color: var(--muted); padding: 2px 8px; border-radius: 6px; }
+.icon-btn:hover { background: var(--surface-2); color: var(--text); }
+.sheet .tabs { padding-top: 6px; }
+.sheet-list { list-style: none; margin: 0; padding: 0; overflow: auto; flex: 1; }
+.sheet-list li { display: flex; gap: 12px; align-items: flex-start; padding: 12px 18px; border-bottom: 1px solid var(--border); }
+.sheet-list .meta { flex: 1; min-width: 0; }
+.sheet-list a { font-weight: 700; color: var(--accent); text-decoration: none; }
+.sheet-list a:hover { text-decoration: underline; }
+.sheet-list .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
 
 /* ---------- Layout ---------- */
 .layout { max-width: 1240px; margin: 0 auto; padding: 20px; display: grid; grid-template-columns: 400px minmax(0, 1fr);
@@ -256,7 +281,7 @@ details.log pre { max-height: 220px; overflow: auto; font-size: 12px; background
 @media (max-width: 560px) {
   .layout { padding: 12px 16px; }
   .topbar-inner { padding: 10px 16px; }
-  .history-stats { display: none; }
+  .my-jobs-btn .counts { display: none; }
   .how { grid-template-columns: 1fr; }
   .grid-2 { grid-template-columns: 1fr; }
   .job { grid-template-columns: 1fr; }
@@ -272,7 +297,8 @@ details.log pre { max-height: 220px; overflow: auto; font-size: 12px; background
     <div class="brand"><span class="brand-mark" aria-hidden="true">J</span>Job Search</div>
     <span class="pill" id="status-pill" aria-live="polite"><span class="dot"></span><span id="status-pill-text">Ready</span></span>
     <span class="spacer"></span>
-    <span class="history-stats" id="history-stats"></span>
+    <button type="button" class="btn btn-secondary my-jobs-btn" id="my-jobs-open" aria-haspopup="dialog">
+      My jobs <span class="counts" id="history-stats"></span></button>
   </div>
 </header>
 
@@ -403,6 +429,8 @@ details.log pre { max-height: 220px; overflow: auto; font-size: 12px; background
         <li data-stage="score">Scoring</li><li data-stage="report">Done</li>
       </ol>
       <div class="site-status" id="site-status"></div>
+      <div class="funnel" id="funnel" hidden aria-label="Jobs kept after each filter"></div>
+      <div class="hint" id="funnel-hint" hidden></div>
       <div class="found" id="found" hidden>
         <div class="chips" id="query-chips"></div>
         <div class="chips" id="skill-chips"></div>
@@ -423,6 +451,17 @@ details.log pre { max-height: 220px; overflow: auto; font-size: 12px; background
     </section>
   </main>
 </div>
+
+<dialog class="sheet" id="my-jobs" aria-labelledby="my-jobs-title">
+  <div class="sheet-inner">
+    <div class="sheet-head">
+      <h2 id="my-jobs-title">My jobs</h2>
+      <button type="button" class="icon-btn" id="my-jobs-close" aria-label="Close">×</button>
+    </div>
+    <div class="tabs" role="tablist" id="my-jobs-tabs"></div>
+    <ul class="sheet-list" id="my-jobs-list"></ul>
+  </div>
+</dialog>
 
 <script>
 "use strict";
@@ -616,7 +655,7 @@ function updateEstimate() {
   const minutes = Math.max(1, Math.round((searches * pages * 6 + sites * (parseInt($("top").value, 10) || 40) * 3) / 60));
   $("estimate").replaceChildren(
     sites ? `${searches} searches across ${sites} site${sites > 1 ? "s" : ""} · about ${minutes} min` : "Pick at least one job site",
-    sites && searches > 24 ? el("span", { class: "tip", text: "Tip: fewer keywords or cities makes it faster" }) : null);
+    ...(sites && searches > 24 ? [el("span", { class: "tip", text: "Tip: fewer keywords or cities makes it faster" })] : []));
 }
 
 /* ---------- resume ---------- */
@@ -686,6 +725,7 @@ async function startSearch(event) {
       hours: state.hours, only_new: $("only-new").checked, show_browser: $("show-browser").checked,
       max_pages: parseInt($("max-pages").value, 10), top: parseInt($("top").value, 10),
     });
+    state.requested = sites;
     watch(body.id);
   } catch (error) {
     showError("form-error", error.message);
@@ -720,6 +760,7 @@ async function poll() {
   try {
     const job = await api(`/api/search/${jobId}`);
     if (jobId !== state.jobId) return;
+    job.requested = state.requested;
     renderJob(job);
     if (job.status === "running" || job.status === "stopping") setTimeout(poll, POLL_MS);
     else finish(job);
@@ -766,6 +807,8 @@ function renderJob(job) {
     return el("span", { class: `site-chip ${info.status}` }, el("b", { text: names[site] || site }), el("span", { class: "state", text: label }));
   }));
 
+  renderFunnel(job);
+
   if (job.profile) {
     $("found").hidden = false;
     $("query-chips").replaceChildren(el("span", { class: "label", text: "Searching for" }),
@@ -773,6 +816,36 @@ function renderJob(job) {
       el("span", { class: "label", text: "in" }), ...job.profile.locations.map((l) => el("span", { class: "chip key", text: l })));
     $("skill-chips").replaceChildren(el("span", { class: "label", text: "Your skills" }),
       ...job.profile.skills.slice(0, 14).map((s) => el("span", { class: "chip skill", text: s })));
+  }
+}
+
+function renderFunnel(job) {
+  const steps = job.funnel || [];
+  $("funnel").hidden = !steps.length;
+  $("funnel").replaceChildren(...steps.flatMap(([label, count], i) => [
+    ...(i ? [el("span", { class: "arrow", "aria-hidden": "true", text: "→" })] : []),
+    el("span", { class: "step" }, el("b", { text: String(count) }), ` ${label}`)]));
+
+  // Explain a short list: which filter removed the most?
+  const hint = $("funnel-hint");
+  hint.hidden = true;
+  if (job.status !== "done" || steps.length < 3) return;
+  const wanted = Object.values(job.requested || {}).reduce((a, b) => a + b, 0);
+  const scored = steps[steps.length - 1][1];
+  if (!wanted || scored >= wanted) return;
+  let worst = null;
+  for (let i = 1; i < steps.length; i++) {
+    const drop = steps[i - 1][1] - steps[i][1];
+    if (!worst || drop > worst.drop) worst = { drop, label: steps[i][0] };
+  }
+  const advice = {
+    "posted in": "a longer time window", "yrs": "a wider experience range (or Any)", "new": "turning off “Only new jobs”",
+    "unique": "more keywords or locations", "checked": "a higher “Jobs to score per site” (Advanced)",
+  };
+  const key = Object.keys(advice).find((k) => worst && worst.label.includes(k));
+  if (worst && worst.drop > 0 && key) {
+    hint.textContent = `Only ${scored} jobs made it through. The “${worst.label}” step removed ${worst.drop}. For more results, try ${advice[key]}.`;
+    hint.hidden = false;
   }
 }
 
@@ -851,14 +924,61 @@ async function setStatus(job, status) {
 /* ---------- history ---------- */
 function renderHistory(counts) {
   if (!counts) return;
+  state.history = counts;
   const parts = [];
   if (counts.applied) parts.push(`${counts.applied} applied`);
   if (counts.hidden) parts.push(`${counts.hidden} hidden`);
-  if (counts.seen) parts.push(`${counts.seen} seen`);
-  $("history-stats").textContent = parts.join(" · ");
+  $("history-stats").textContent = parts.length ? `· ${parts.join(" · ")}` : "";
   $("seen-count").textContent = counts.seen ? `${counts.seen} jobs marked as seen. ` : "No seen jobs yet. ";
   $("forget-seen").disabled = !counts.seen;
 }
+const myJobs = { tab: "applied" };
+async function openMyJobs(tab) {
+  myJobs.tab = tab || myJobs.tab;
+  if (!$("my-jobs").open) $("my-jobs").showModal();
+  await loadMyJobs();
+}
+async function loadMyJobs() {
+  const tabs = [["applied", "Applied"], ["hidden", "Hidden"]];
+  const counts = state.history || {};
+  $("my-jobs-tabs").replaceChildren(...tabs.map(([id, name]) => el("button", {
+    type: "button", class: "tab", role: "tab", "aria-selected": String(myJobs.tab === id),
+    onclick: () => openMyJobs(id),
+  }, name, el("span", { class: "count", text: String(counts[id] || 0) }))));
+  const list = $("my-jobs-list");
+  list.replaceChildren(el("li", { class: "empty-list", text: "Loading…" }));
+  try {
+    const body = await api(`/api/history?status=${myJobs.tab}`);
+    renderHistory(body.history);
+    $("my-jobs-tabs").querySelectorAll(".count").forEach((c, i) => c.textContent = String(body.history[tabs[i][0]] || 0));
+    const names = Object.fromEntries(state.config.sites.map((s) => [s.id, s.name]));
+    list.replaceChildren();
+    if (!body.jobs.length) {
+      list.append(el("li", { class: "empty-list", text: myJobs.tab === "applied"
+        ? "No applied jobs yet. Click “Mark applied” on a job to track it here."
+        : "No hidden jobs." }));
+      return;
+    }
+    for (const job of body.jobs) {
+      const when = new Date(job.updated_at).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+      const safeUrl = /^https?:\/\//.test(job.url) ? job.url : null;
+      list.append(el("li", {},
+        el("div", { class: "meta" },
+          safeUrl ? el("a", { href: safeUrl, target: "_blank", rel: "noopener", text: job.title || "Untitled job" })
+                  : el("b", { text: job.title || "Untitled job" }),
+          el("div", { class: "sub", text: [job.company, names[job.source] || job.source, `${myJobs.tab === "applied" ? "applied" : "hidden"} ${when}`].filter(Boolean).join(" · ") })),
+        el("button", { type: "button", class: "btn btn-secondary", text: "Undo", onclick: async () => {
+          await postJSON("/api/jobs/status", { source: job.source, job_id: job.job_id, status: "seen" });
+          delete state.statuses[`${job.source}:${job.job_id}`];
+          if (state.result) renderJobList();
+          loadMyJobs();
+        } })));
+    }
+  } catch (error) {
+    list.replaceChildren(el("li", { class: "empty-list", text: error.message }));
+  }
+}
+
 async function refreshHistory() {
   try { renderHistory((await api("/api/config")).history); } catch { /* ignore */ }
 }
@@ -885,6 +1005,9 @@ async function init() {
   ["max-pages", "top"].forEach((id) => $(id).addEventListener("input", updateEstimate));
   $("form").addEventListener("submit", startSearch);
   $("stop").addEventListener("click", stopSearch);
+  $("my-jobs-open").addEventListener("click", () => openMyJobs("applied"));
+  $("my-jobs-close").addEventListener("click", () => $("my-jobs").close());
+  $("my-jobs").addEventListener("click", (e) => { if (e.target === $("my-jobs")) $("my-jobs").close(); });
   $("forget-seen").addEventListener("click", async () => {
     try { renderHistory((await api("/api/history/forget", { method: "POST" })).history); } catch (error) { showError("form-error", error.message); }
   });

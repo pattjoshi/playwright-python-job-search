@@ -33,6 +33,7 @@ class FakeRunner:
     def __call__(self, options, settings, on_event=None, stop_event=None):
         self.options = options
         on_event("stage", {"stage": "search"})
+        on_event("funnel", {"steps": [("found", 169), ("unique", 120), ("scored", 3)]})
         on_event("site", {"site": "linkedin", "status": "running", "found": 0})
         if self.block:
             # Wait until the test releases us or presses Stop.
@@ -170,6 +171,7 @@ def test_search_runs_with_all_settings(make_client):
     assert state["stage"] == "search"
     assert state["sites"]["linkedin"] == {"status": "running", "found": 0}
     assert state["sites"]["naukri"] == {"status": "waiting", "found": 0}
+    assert state["funnel"] == [["found", 169], ["unique", 120], ["scored", 3]]
     assert state["profile"]["keywords"] == ["SDET"]
     assert any("LinkedIn" in line for line in state["logs"])
     sites = {site["id"]: site for site in state["result"]["sites"]}
@@ -280,3 +282,15 @@ def test_unknown_job_and_report_paths(make_client):
 @pytest.mark.parametrize(("years", "expected"), [(4, [3, 5]), (0.5, [0, 2]), (0, [0, 1]), (None, None)])
 def test_suggest_experience(years, expected):
     assert suggest_experience(years) == expected
+
+
+def test_list_history(make_client):
+    client, _ = make_client()
+    client.post("/api/jobs/status", json={"source": "naukri", "job_id": "9", "status": "applied", "title": "SDET", "url": "https://x.y/9"})
+
+    body = client.get("/api/history?status=applied").get_json()
+
+    assert [job["title"] for job in body["jobs"]] == ["SDET"]
+    assert body["history"]["applied"] == 1
+    assert client.get("/api/history?status=hidden").get_json()["jobs"] == []
+    assert client.get("/api/history?status=loved").status_code == 400
