@@ -5,6 +5,10 @@ Upload your resume and get the **latest jobs that fit you**, ranked by an AI mat
 drives a real browser (Playwright) through LinkedIn, Naukri and Indeed, and OpenAI reads your resume
 and scores each job.
 
+
+https://github.com/user-attachments/assets/533608e4-3862-4822-bb7c-f1f81f2b237c
+
+
 ![Job Search overview](docs/screenshots/00-overview.png)
 
 > Screenshots in this guide use sample data.
