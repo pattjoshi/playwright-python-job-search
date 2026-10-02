@@ -8,6 +8,8 @@ and scores each job.
 ![Job Search overview](docs/screenshots/00-overview.png)
 
 > Screenshots in this guide use sample data.
+>
+> **New here?** Follow [QUICKSTART.md](QUICKSTART.md): every step from installing Python to your first search.
 
 **What it does for you**
 
