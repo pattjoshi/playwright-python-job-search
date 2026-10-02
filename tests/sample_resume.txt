@@ -1,0 +1,5 @@
+Asha Kumar
+QA Automation Engineer - Bengaluru, India
+
+Experience: 4 years building test automation with Python, Playwright, Selenium and pytest.
+Skills: Python, Playwright, Selenium, pytest, REST API testing, Jenkins, Git, SQL

@@ -1,0 +1,47 @@
+"""Common interface every job-board scraper implements."""
+
+import logging
+import random
+import time
+from abc import ABC, abstractmethod
+
+from playwright.sync_api import BrowserContext, Page
+
+from job_search.models import Job
+
+log = logging.getLogger(__name__)
+
+
+class BaseScraper(ABC):
+    #: Short id used on the command line and in reports, e.g. "linkedin".
+    name: str = ""
+
+    def __init__(
+        self,
+        context: BrowserContext,
+        max_pages: int = 3,
+        max_age_hours: int = 24,
+        delay_range: tuple[float, float] = (2.0, 5.0),
+    ):
+        self.context = context
+        self.max_pages = max_pages
+        self.max_age_hours = max_age_hours
+        self.delay_range = delay_range
+        self._page: Page | None = None
+
+    @property
+    def page(self) -> Page:
+        if self._page is None or self._page.is_closed():
+            self._page = self.context.new_page()
+        return self._page
+
+    @abstractmethod
+    def search(self, query: str, location: str) -> list[Job]:
+        """Return jobs for one query/location, using the board's own date filter."""
+
+    def fetch_description(self, job: Job) -> None:
+        """Fill in job.description. Boards that include it in search results can skip this."""
+
+    def pause(self) -> None:
+        """Wait a human-like random interval between requests to stay polite."""
+        time.sleep(random.uniform(*self.delay_range))
