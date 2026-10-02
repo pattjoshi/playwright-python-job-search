@@ -18,6 +18,8 @@ from pathlib import Path
 from flask import Flask, abort, jsonify, request, send_from_directory
 from werkzeug.utils import secure_filename
 
+from job_search.cache import Cache, resume_key
+from job_search.cleanup import cleanup
 from job_search.config import Settings, load_settings
 from job_search.history import STATUSES, JobHistory
 from job_search.html_report import SITE_NAMES
@@ -173,8 +175,15 @@ def default_analyzer(settings: Settings):
     def analyze(resume_path: Path) -> Profile:
         if not settings.openai_api_key:
             raise ValueError("OPENAI_API_KEY is not set. Add it to your .env file and restart the app.")
-        text = read_resume_text(resume_path)
-        return JobMatcherLLM(settings.openai_api_key, settings.openai_model).extract_profile(text)
+        # The same resume file (by content) is only sent to the AI once.
+        cache = Cache(settings.cache_path)
+        key = resume_key(resume_path, settings.openai_model)
+        profile = cache.get_profile(key)
+        if profile is None:
+            text = read_resume_text(resume_path)
+            profile = JobMatcherLLM(settings.openai_api_key, settings.openai_model).extract_profile(text)
+            cache.save_profile(key, profile)
+        return profile
 
     return analyze
 
@@ -191,6 +200,10 @@ def create_app(
     analyzer = analyzer or default_analyzer(settings)
     data_dir = settings.history_path.parent
     scheduler = system_scheduler or SystemScheduler(data_dir)
+    try:
+        cleanup(settings.keep_days, data_dir, upload_dir, output_dir, settings.cache_path)
+    except Exception:  # housekeeping must never stop the app from starting
+        log.exception("Cleanup failed")
     manager = SearchManager(settings, output_dir, runner)
     history = JobHistory(settings.history_path)
     resumes: dict[str, dict] = {}  # resume_id -> {"path", "name", "profile"}
@@ -325,6 +338,7 @@ def create_app(
                 results_per_site=results_per_site,
                 only_new=bool(body.get("only_new", False)),
                 history_path=settings.history_path,
+                cache_path=settings.cache_path,
                 profile=resume["profile"],
                 use_llm=True,
                 headless=not body.get("show_browser", True),

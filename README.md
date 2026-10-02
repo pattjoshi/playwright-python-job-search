@@ -172,6 +172,21 @@ pytest
 
 Tests never touch the real sites. They use saved HTML in `tests/fixtures/` and a fake OpenAI client.
 
+## Speed, cost and cleanup
+
+- **Repeat runs are cheap.** Job descriptions, AI scores and the AI's reading of your resume are
+  saved in `data/cache.sqlite3`. A job opened or scored before isn't opened or scored again (scores
+  are redone automatically if your resume, experience range or model changes).
+- **Faster pages.** Images, fonts and media aren't downloaded (styles too when the browser is hidden).
+- **Fewer requests.** Naukri searches several cities in one go.
+- **Parallel scoring.** Up to 4 AI scoring batches run at once.
+- **Reliable.** Strict JSON schemas for AI replies; automatic retries when OpenAI or a job site says
+  "too many requests"; a site that keeps failing is skipped for the rest of the run instead of
+  slowing everything down.
+- **Cleanup.** Uploaded resumes, reports and cached data older than `KEEP_DAYS` (default 30; `0` = keep
+  forever) are deleted when the web app starts and after each daily run. Your job history, the
+  resume used by the daily search and the last daily report are never deleted.
+
 ## Good to know
 
 - **Be polite.** The tool waits 2-5 seconds between requests and reads only a few pages. If

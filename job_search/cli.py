@@ -145,6 +145,7 @@ def build_options(args: argparse.Namespace, settings: Settings) -> SearchOptions
         experience=experience,
         only_new=pick(args.only_new, settings.only_new),
         history_path=settings.history_path,
+        cache_path=settings.cache_path,
         max_age_hours=hours,
         max_pages=max_pages,
         top_n=top,

@@ -8,14 +8,15 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
+from playwright.sync_api import BrowserContext, Route, sync_playwright
 from playwright.sync_api import Error as PlaywrightError
-from playwright.sync_api import sync_playwright
 
+from job_search.cache import Cache, profile_key, resume_key
 from job_search.config import Settings
 from job_search.history import JobHistory
 from job_search.html_report import write_html_report
-from job_search.llm import JobMatcherLLM
-from job_search.locations import normalize_location
+from job_search.llm import SCORING_PROMPT, JobMatcherLLM
+from job_search.locations import is_remote, normalize_location
 from job_search.models import Job, Profile
 from job_search.report import write_reports
 from job_search.resume import read_resume_text
@@ -25,6 +26,8 @@ from job_search.utils import SearchStopped, experience_matches, parse_experience
 log = logging.getLogger(__name__)
 
 DEFAULT_LOCATION = "India"
+# Never needed to read job listings; skipping them makes every page load faster.
+BLOCKED_RESOURCES = {"image", "media", "font"}
 
 # on_event(name, data) lets a UI follow along. Names: "stage", "profile", "site", "progress", "funnel".
 EventCallback = Callable[[str, dict], None]
@@ -44,6 +47,8 @@ class SearchOptions:
     results_per_site: dict[str, int] = field(default_factory=dict)  # ...unless set for that site here
     only_new: bool = False  # hide jobs shown in earlier searches
     history_path: Path | None = None  # where seen/applied/hidden jobs are remembered; None = don't
+    cache_path: Path | None = None  # saved descriptions/scores/resume readings; None = no cache
+    block_assets: bool = True  # skip images/fonts (and styles when the browser is hidden)
     profile: Profile | None = None  # already-extracted resume profile (skips that AI call)
     use_llm: bool = True
     headless: bool = True
@@ -87,13 +92,11 @@ def run(
         if not settings.openai_api_key:
             raise ValueError("OPENAI_API_KEY is not set. Add it to .env, or run with --no-llm and --keywords.")
         llm = JobMatcherLLM(settings.openai_api_key, settings.openai_model)
+    cache = Cache(options.cache_path) if options.cache_path else None
     if options.profile:
         profile = options.profile
     elif llm:
-        resume_text = read_resume_text(options.resume_path)
-        log.info("Read %d characters from %s", len(resume_text), options.resume_path)
-        log.info("Reading resume with %s", settings.openai_model)
-        profile = llm.extract_profile(resume_text)
+        profile = read_profile(llm, options.resume_path, settings.openai_model, cache)
     else:
         read_resume_text(options.resume_path)  # still fail early on an unreadable file
         profile = Profile(target_titles=list(options.keywords), search_queries=list(options.keywords))
@@ -114,6 +117,8 @@ def run(
             executable_path=settings.chromium_executable,
         )
         context = browser.new_context(locale="en-US")
+        if options.block_assets:
+            block_assets(context, block_styles=options.headless)
         try:
             scrapers = {
                 site: SCRAPERS[site](
@@ -151,14 +156,30 @@ def run(
             limits = {site: max(options.top_n, results_for(options, site)) for site in options.sites}
             shortlist = shortlist_per_site(jobs, terms, limits)
             emit("stage", stage="details")
-            for number, job in enumerate(shortlist, start=1):
+            # Only jobs without a description need opening (Naukri's come with the search),
+            # and only the ones we haven't opened in an earlier run.
+            to_fetch = [job for job in shortlist if not job.description]
+            if cache and to_fetch:
+                before = len(to_fetch)
+                to_fetch = cache.fill_descriptions(to_fetch)
+                if before != len(to_fetch):
+                    log.info("Reused %d saved job descriptions", before - len(to_fetch))
+            skipped_sites = {site for site, scraper in scrapers.items() if scraper.unreachable}
+            if skipped_sites:
+                log.info("Not opening job details on %s (not responding)", ", ".join(sorted(skipped_sites)))
+                to_fetch = [job for job in to_fetch if job.source not in skipped_sites]
+            for number, job in enumerate(to_fetch, start=1):
                 check_stop()
-                emit("progress", stage="details", done=number - 1, total=len(shortlist))
-                log.info("Fetching details %d/%d: %s at %s", number, len(shortlist), job.title, job.company)
+                if scrapers[job.source].unreachable:
+                    continue
+                emit("progress", stage="details", done=number - 1, total=len(to_fetch))
+                log.info("Fetching details %d/%d: %s at %s", number, len(to_fetch), job.title, job.company)
                 try:
                     scrapers[job.source].fetch_description(job)
                 except PlaywrightError as error:
                     log.warning("Skipping details for %s: %s", job.url, error)
+            if cache:
+                cache.save_descriptions(to_fetch)
         finally:
             browser.close()
 
@@ -173,11 +194,17 @@ def run(
 
     emit("stage", stage="score")
     if llm:
-        def before_batch(done: int, total: int) -> None:
+        def progress(done: int, total: int) -> None:
             check_stop()
             emit("progress", stage="score", done=done, total=total)
 
-        llm.score_jobs(profile, shortlist, experience=options.experience, before_batch=before_batch)
+        key = profile_key(profile, options.experience, settings.openai_model, SCORING_PROMPT)
+        to_score = cache.fill_scores(shortlist, key) if cache else shortlist
+        if len(to_score) != len(shortlist):
+            log.info("Reused %d saved scores; scoring %d new jobs", len(shortlist) - len(to_score), len(to_score))
+        llm.score_jobs(profile, to_score, experience=options.experience, progress=progress)
+        if cache:
+            cache.save_scores(to_score, key)
     else:
         for job in shortlist:
             job.score = keyword_score(job, terms)
@@ -207,6 +234,35 @@ def run(
     )
 
 
+def read_profile(llm: JobMatcherLLM, resume_path: Path, model: str, cache: Cache | None) -> Profile:
+    """The AI's reading of the resume, reused when the same file was read before."""
+    key = resume_key(resume_path, model)
+    cached = cache.get_profile(key) if cache else None
+    if cached:
+        log.info("Reused the saved reading of %s", Path(resume_path).name)
+        return cached
+    resume_text = read_resume_text(resume_path)
+    log.info("Read %d characters from %s", len(resume_text), resume_path)
+    log.info("Reading resume with %s", model)
+    profile = llm.extract_profile(resume_text)
+    if cache:
+        cache.save_profile(key, profile)
+    return profile
+
+
+def block_assets(context: BrowserContext, block_styles: bool) -> None:
+    """Abort images, fonts and media (and stylesheets if nobody is watching the browser)."""
+    blocked = BLOCKED_RESOURCES | ({"stylesheet"} if block_styles else set())
+
+    def handle(route: Route) -> None:
+        if route.request.resource_type in blocked:
+            route.abort()
+        else:
+            route.fallback()  # let other handlers (or the network) take it
+
+    context.route("**/*", handle)
+
+
 def _resume_locations(profile: Profile) -> list[str]:
     locations: list[str] = []
     for location in profile.locations:
@@ -226,24 +282,36 @@ def collect_jobs(
     for site, scraper in scrapers.items():
         emit("site", site=site, status="running", found=0)
         found_here, failures, searches = 0, 0, 0
-        for query in queries:
-            for location in locations:
-                searches += 1
-                try:
-                    found = scraper.search(query, location)
-                except PlaywrightError as error:
-                    # One board failing (timeout, block) shouldn't kill the whole run.
-                    log.warning("%s search %r/%r failed: %s", scraper.name, query, location, error)
-                    failures += 1
-                    continue
-                log.info("%s: %d jobs for %r in %r", scraper.name, len(found), query, location)
-                jobs.extend(found)
-                found_here += len(found)
-                emit("site", site=site, status="running", found=found_here)
-                scraper.pause()
-        status = "failed" if failures == searches else "done"
+        searches_to_run = [(q, loc) for q in queries for loc in search_locations(scraper, locations)]
+        for query, location in searches_to_run:
+            if scraper.unreachable:
+                log.warning("%s isn't responding; skipping its remaining searches this run", scraper.name)
+                break
+            searches += 1
+            try:
+                found = scraper.search(query, location)
+            except PlaywrightError as error:
+                # One board failing (timeout, block) shouldn't kill the whole run.
+                log.warning("%s search %r/%r failed: %s", scraper.name, query, location, error)
+                failures += 1
+                continue
+            log.info("%s: %d jobs for %r in %r", scraper.name, len(found), query, location)
+            jobs.extend(found)
+            found_here += len(found)
+            emit("site", site=site, status="running", found=found_here)
+            scraper.pause()
+        status = "failed" if failures == searches or (scraper.unreachable and not found_here) else "done"
         emit("site", site=site, status=status, found=found_here)
     return jobs
+
+
+def search_locations(scraper: BaseScraper, locations: list[str]) -> list[str]:
+    """Boards that accept several cities in one search get them combined (fewer requests)."""
+    if not scraper.combine_locations:
+        return locations
+    cities = [location for location in locations if not is_remote(location)]
+    remote = [location for location in locations if is_remote(location)]
+    return ([", ".join(cities)] if cities else []) + remote
 
 
 def dedupe(jobs: list[Job]) -> list[Job]:

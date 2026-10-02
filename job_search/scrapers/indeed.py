@@ -49,10 +49,8 @@ class IndeedScraper(BaseScraper):
             url = f"{BASE_URL}/jobs?{urlencode(params)}"
             log.info("Indeed: %r in %r, page %d", query, location, page_number + 1)
 
-            try:
-                self.page.goto(url, wait_until="domcontentloaded")
-            except PlaywrightError as error:
-                log.warning("Indeed request failed (%s); keeping %d jobs found so far", error.message.splitlines()[0], len(jobs))
+            if self.goto(url) is None:
+                log.warning("Indeed: couldn't load results; keeping %d jobs found so far", len(jobs))
                 break
             if not self._wait_for_results():
                 break
@@ -67,7 +65,8 @@ class IndeedScraper(BaseScraper):
 
     def fetch_description(self, job: Job) -> None:
         try:
-            self.page.goto(job.url, wait_until="domcontentloaded")
+            if self.goto(job.url) is None:
+                raise PlaywrightError("page did not load")
             description = self.page.locator(DESCRIPTION).first
             description.wait_for(timeout=10_000)
             job.description = description.inner_text().strip()

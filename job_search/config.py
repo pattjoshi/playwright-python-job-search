@@ -35,6 +35,11 @@ class Settings:
     experience: tuple[int, int] | None = None
     only_new: bool = False
     history_path: Path = Path("data") / "history.sqlite3"
+    keep_days: int = 30  # delete old uploads/reports/cache after this many days; 0 = never
+
+    @property
+    def cache_path(self) -> Path:
+        return self.history_path.parent / "cache.sqlite3"
 
 
 def load_settings() -> Settings:
@@ -59,6 +64,7 @@ def load_settings() -> Settings:
         experience=_get_experience(),
         only_new=_get_bool("ONLY_NEW"),
         history_path=Path(_get("HISTORY_DB") or Path("data") / "history.sqlite3"),
+        keep_days=_get_int("KEEP_DAYS", 30, minimum=0),
     )
 
 
@@ -101,7 +107,7 @@ def _get_bool(name: str) -> bool:
     raise ValueError(f"{name} in .env must be true or false, got {value!r}")
 
 
-def _get_int(name: str, default: int) -> int:
+def _get_int(name: str, default: int, minimum: int = 1) -> int:
     value = _get(name)
     if value is None:
         return default
@@ -109,6 +115,6 @@ def _get_int(name: str, default: int) -> int:
         number = int(value)
     except ValueError:
         raise ValueError(f"{name} in .env must be a whole number, got {value!r}") from None
-    if number < 1:
-        raise ValueError(f"{name} in .env must be at least 1, got {number}")
+    if number < minimum:
+        raise ValueError(f"{name} in .env must be at least {minimum}, got {number}")
     return number

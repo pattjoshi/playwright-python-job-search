@@ -10,6 +10,7 @@ import webbrowser
 from datetime import datetime
 from pathlib import Path
 
+from job_search.cleanup import cleanup
 from job_search.config import load_settings
 from job_search.pipeline import run
 from job_search.schedule import LOG_FILE, load_schedule, options_from_dict, save_state
@@ -50,6 +51,11 @@ def main(argv: list[str] | None = None) -> int:
     log.info("Daily search finished: %d jobs (%d new). Report: %s", shown, new, result.html_path)
     if schedule.open_report:
         webbrowser.open(Path(result.html_path).resolve().as_uri())
+    try:
+        options = options_from_dict(schedule.search)
+        cleanup(settings.keep_days, data_dir, Path(options.resume_path).parent, options.output_dir, settings.cache_path)
+    except Exception:  # housekeeping must never fail the daily run
+        log.exception("Cleanup failed")
     return 0
 
 
