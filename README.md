@@ -179,7 +179,14 @@ Tests never touch the real sites. They use saved HTML in `tests/fixtures/` and a
   are redone automatically if your resume, experience range or model changes).
 - **Faster pages.** Images, fonts and media aren't downloaded (styles too when the browser is hidden).
 - **Fewer requests.** Naukri searches several cities in one go.
+- **Sites in parallel.** LinkedIn, Naukri and Indeed are searched at the same time, each in its own
+  browser (`PARALLEL_SITES=false` to go one by one). Each single site is still visited politely, one page at a time.
 - **Parallel scoring.** Up to 4 AI scoring batches run at once.
+- **Cost per run.** The results show run time, AI tokens and how many scores were reused. Add your
+  model's prices to `.env` (`OPENAI_PRICE_INPUT`, `OPENAI_PRICE_OUTPUT`, optional
+  `OPENAI_PRICE_CACHED_INPUT`, in USD per 1M tokens) to also see an estimated cost.
+- **Search history.** *My jobs → Search history* lists every run (manual and daily): status, time,
+  jobs found per site, the filter funnel, tokens/cost, errors and a link to its report.
 - **Reliable.** Strict JSON schemas for AI replies; automatic retries when OpenAI or a job site says
   "too many requests"; a site that keeps failing is skipped for the rest of the run instead of
   slowing everything down.

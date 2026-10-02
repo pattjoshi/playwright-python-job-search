@@ -36,6 +36,11 @@ class Settings:
     only_new: bool = False
     history_path: Path = Path("data") / "history.sqlite3"
     keep_days: int = 30  # delete old uploads/reports/cache after this many days; 0 = never
+    parallel_sites: bool = True  # search all job sites at the same time
+    # Optional OpenAI prices (USD per 1M tokens) to show an estimated cost per run.
+    price_input: float | None = None
+    price_output: float | None = None
+    price_cached_input: float | None = None
 
     @property
     def cache_path(self) -> Path:
@@ -65,6 +70,10 @@ def load_settings() -> Settings:
         only_new=_get_bool("ONLY_NEW"),
         history_path=Path(_get("HISTORY_DB") or Path("data") / "history.sqlite3"),
         keep_days=_get_int("KEEP_DAYS", 30, minimum=0),
+        parallel_sites=_get_bool("PARALLEL_SITES", default=True),
+        price_input=_get_price("OPENAI_PRICE_INPUT"),
+        price_output=_get_price("OPENAI_PRICE_OUTPUT"),
+        price_cached_input=_get_price("OPENAI_PRICE_CACHED_INPUT"),
     )
 
 
@@ -98,9 +107,24 @@ def _get_experience() -> tuple[int, int] | None:
         raise ValueError(f"EXPERIENCE in .env: {error}") from None
 
 
-def _get_bool(name: str) -> bool:
+def _get_price(name: str) -> float | None:
+    value = _get(name)
+    if value is None:
+        return None
+    try:
+        price = float(value)
+    except ValueError:
+        raise ValueError(f"{name} in .env must be a number (USD per 1M tokens), got {value!r}") from None
+    if price < 0:
+        raise ValueError(f"{name} in .env can't be negative")
+    return price
+
+
+def _get_bool(name: str, default: bool = False) -> bool:
     value = (_get(name) or "").lower()
-    if value in ("", "0", "false", "no", "off"):
+    if value == "":
+        return default
+    if value in ("0", "false", "no", "off"):
         return False
     if value in ("1", "true", "yes", "on"):
         return True

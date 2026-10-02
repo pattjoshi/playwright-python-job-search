@@ -38,8 +38,11 @@ def main(argv: list[str] | None = None) -> int:
 
     started = datetime.now().isoformat(timespec="seconds")
     log.info("Daily search started")
+    options = options_from_dict(schedule.search)
+    options.origin = "daily"
+    options.parallel_sites = settings.parallel_sites
     try:
-        result = run(options_from_dict(schedule.search), settings)
+        result = run(options, settings)
     except Exception as error:  # record any failure so the UI can show it
         log.exception("Daily search failed")
         save_state(data_dir, last_run=started, status="error", error=str(error) or error.__class__.__name__)
@@ -47,12 +50,14 @@ def main(argv: list[str] | None = None) -> int:
 
     shown = sum(len(jobs) for jobs in result.top_by_site.values())
     new = sum(1 for jobs in result.top_by_site.values() for job in jobs if job.is_new)
-    save_state(data_dir, last_run=started, status="done", jobs=shown, new=new, report=str(Path(result.html_path).resolve()))
+    save_state(
+        data_dir, last_run=started, status="done", jobs=shown, new=new, report=str(Path(result.html_path).resolve()),
+        duration_s=result.stats.duration_s, cost_usd=result.stats.cost_usd,
+    )
     log.info("Daily search finished: %d jobs (%d new). Report: %s", shown, new, result.html_path)
     if schedule.open_report:
         webbrowser.open(Path(result.html_path).resolve().as_uri())
     try:
-        options = options_from_dict(schedule.search)
         cleanup(settings.keep_days, data_dir, Path(options.resume_path).parent, options.output_dir, settings.cache_path)
     except Exception:  # housekeeping must never fail the daily run
         log.exception("Cleanup failed")

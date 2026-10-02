@@ -146,6 +146,8 @@ def build_options(args: argparse.Namespace, settings: Settings) -> SearchOptions
         only_new=pick(args.only_new, settings.only_new),
         history_path=settings.history_path,
         cache_path=settings.cache_path,
+        parallel_sites=settings.parallel_sites,
+        origin="cli",
         max_age_hours=hours,
         max_pages=max_pages,
         top_n=top,

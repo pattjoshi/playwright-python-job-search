@@ -2,8 +2,11 @@
 
 import json
 import logging
+import threading
 from collections.abc import Callable
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
+
+from dataclasses import dataclass
 
 from openai import BadRequestError, OpenAI
 
@@ -35,6 +38,24 @@ MAX_DESCRIPTION_CHARS = 1500
 # Scoring requests in flight at once. OpenAI's client retries 429/5xx itself with backoff.
 SCORING_CONCURRENCY = 4
 MAX_RETRIES = 4
+
+
+@dataclass
+class TokenUsage:
+    """What the AI calls of one run used (for the cost shown in the UI)."""
+
+    calls: int = 0
+    input_tokens: int = 0  # includes cached_tokens
+    cached_tokens: int = 0  # input tokens OpenAI served from its prompt cache (cheaper)
+    output_tokens: int = 0
+
+    def cost_usd(self, input_price: float | None, output_price: float | None, cached_price: float | None = None) -> float | None:
+        """Estimated cost with prices in USD per 1M tokens; None when prices aren't configured."""
+        if input_price is None or output_price is None:
+            return None
+        cached_price = input_price if cached_price is None else cached_price
+        uncached = self.input_tokens - self.cached_tokens
+        return (uncached * input_price + self.cached_tokens * cached_price + self.output_tokens * output_price) / 1_000_000
 
 
 def _strings() -> dict:
@@ -86,6 +107,8 @@ class JobMatcherLLM:
         self.client = client or OpenAI(api_key=api_key, max_retries=MAX_RETRIES, timeout=90)
         self.concurrency = max(1, concurrency)
         self._structured = True  # switched off if the model doesn't support strict schemas
+        self.usage = TokenUsage()
+        self._usage_lock = threading.Lock()  # scoring batches finish on several threads
 
     def extract_profile(self, resume_text: str) -> Profile:
         data = self._ask_json(PROFILE_PROMPT, resume_text, "resume_profile", PROFILE_SCHEMA)
@@ -192,6 +215,7 @@ class JobMatcherLLM:
             response = self.client.chat.completions.create(
                 model=self.model, messages=messages, response_format={"type": "json_object"}
             )
+        self._count_usage(response)
         content = response.choices[0].message.content or "{}"
         try:
             data = json.loads(content)
@@ -199,6 +223,21 @@ class JobMatcherLLM:
             log.warning("Model returned invalid JSON; ignoring this response")
             return {}
         return data if isinstance(data, dict) else {}
+
+
+    def _count_usage(self, response) -> None:
+        usage = getattr(response, "usage", None)
+        details = getattr(usage, "prompt_tokens_details", None)
+        prompt, completion, cached = (
+            getattr(usage, "prompt_tokens", 0),
+            getattr(usage, "completion_tokens", 0),
+            getattr(details, "cached_tokens", 0),
+        )
+        with self._usage_lock:
+            self.usage.calls += 1
+            self.usage.input_tokens += prompt if isinstance(prompt, int) else 0
+            self.usage.output_tokens += completion if isinstance(completion, int) else 0
+            self.usage.cached_tokens += cached if isinstance(cached, int) else 0
 
 
 def _job_ref(job: Job) -> str:

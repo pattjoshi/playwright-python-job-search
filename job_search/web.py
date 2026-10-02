@@ -238,6 +238,7 @@ def create_app(
                     "only_new": settings.only_new,
                     "max_pages": settings.max_pages,
                     "top": settings.top,
+                    "parallel_sites": settings.parallel_sites,
                 },
                 "has_api_key": bool(settings.openai_api_key),
                 "running_job": manager.running.id if manager.running else None,
@@ -339,6 +340,8 @@ def create_app(
                 only_new=bool(body.get("only_new", False)),
                 history_path=settings.history_path,
                 cache_path=settings.cache_path,
+                parallel_sites=settings.parallel_sites,
+                origin="web",
                 profile=resume["profile"],
                 use_llm=True,
                 headless=not body.get("show_browser", True),
@@ -375,6 +378,21 @@ def create_app(
         if status not in STATUSES:
             return _error(f"status must be one of {', '.join(STATUSES)}")
         return jsonify({"jobs": history.list_jobs(status), "history": history.counts()})
+
+    @app.get("/api/runs")
+    def list_runs():
+        runs = history.list_runs(limit=50)
+        for item in runs:
+            report = item.get("report")
+            item["report_url"] = None
+            if report:
+                try:
+                    relative = Path(report).resolve().relative_to(output_dir.resolve())
+                    if (output_dir / relative).exists():
+                        item["report_url"] = f"/reports/{relative.as_posix()}"
+                except ValueError:
+                    pass
+        return jsonify({"runs": runs, "costs_configured": settings.price_input is not None and settings.price_output is not None})
 
     @app.post("/api/history/forget")
     def forget_history():
@@ -504,12 +522,22 @@ def result_to_dict(result: SearchResult, output_dir: Path) -> dict:
     def report_url(path: Path) -> str:
         return f"/reports/{path.resolve().relative_to(output_dir.resolve()).as_posix()}"
 
+    stats = result.stats
     return {
         "sites": [
             {"id": site, "name": SITE_NAMES.get(site, site.title()), "jobs": [job_to_dict(job) for job in jobs]}
             for site, jobs in result.top_by_site.items()
         ],
         "scored": len(result.jobs),
+        "stats": {
+            "duration_s": stats.duration_s,
+            "ai_calls": stats.usage.calls,
+            "tokens": stats.usage.input_tokens + stats.usage.output_tokens,
+            "cached_tokens": stats.usage.cached_tokens,
+            "cost_usd": stats.cost_usd,
+            "scores_reused": stats.scores_reused,
+            "descriptions_reused": stats.descriptions_reused,
+        },
         "html_report": report_url(result.html_path),
         "excel_report": report_url(result.xlsx_path),
     }

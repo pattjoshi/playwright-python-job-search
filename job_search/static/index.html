@@ -73,6 +73,13 @@ dialog.sheet::backdrop { background: rgba(15, 18, 24, .45); }
 .sheet-list a { font-weight: 700; color: var(--accent); text-decoration: none; }
 .sheet-list a:hover { text-decoration: underline; }
 .sheet-list .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.run-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.run-status { font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 999px; }
+.run-status.done { background: var(--good-bg); color: var(--good); }
+.run-status.stopped { background: var(--low-bg); color: var(--low); }
+.run-status.error { background: var(--danger-soft); color: var(--danger); }
+.run-error { color: var(--danger); font-size: 12px; margin-top: 4px; }
+.sheet-note { padding: 10px 18px; color: var(--faint); font-size: 12px; border-bottom: 1px solid var(--border); }
 
 /* ---------- Layout ---------- */
 .layout { max-width: 1240px; margin: 0 auto; padding: 20px; display: grid; grid-template-columns: 400px minmax(0, 1fr);
@@ -690,15 +697,24 @@ function chosenSites() {
 }
 function updateEstimate() {
   if (!state.config) return;
-  const sites = Object.keys(chosenSites()).length;
+  const chosen = Object.keys(chosenSites());
   const keywords = state.keywords.length || 3;
-  const locations = state.locations.length || 1;
+  const remote = state.locations.includes("Remote") ? 1 : 0;
+  const cities = Math.max(state.locations.length - remote, state.locations.length ? 0 : 1);
   const pages = parseInt($("max-pages").value, 10) || 3;
-  const searches = sites * keywords * locations;
-  const minutes = Math.max(1, Math.round((searches * pages * 6 + sites * (parseInt($("top").value, 10) || 40) * 3) / 60));
+  const top = parseInt($("top").value, 10) || 40;
+  // Naukri searches all cities in one request; the others search city by city.
+  const searchesFor = (site) => keywords * (site === "naukri" ? Math.min(cities, 1) + remote : cities + remote);
+  const perSite = chosen.map(searchesFor);
+  const searches = perSite.reduce((a, b) => a + b, 0);
+  const siteMinutes = perSite.map((n) => (n * pages * 6 + top * 3) / 60);
+  const parallel = state.config.defaults.parallel_sites !== false;
+  const minutes = Math.max(1, Math.round(parallel ? Math.max(0, ...siteMinutes) : siteMinutes.reduce((a, b) => a + b, 0)));
+  const sites = chosen.length;
+  const together = parallel && sites > 1 ? " (sites run at the same time)" : "";
   $("estimate").replaceChildren(
-    sites ? `${searches} searches across ${sites} site${sites > 1 ? "s" : ""} · about ${minutes} min` : "Pick at least one job site",
-    ...(sites && searches > 24 ? [el("span", { class: "tip", text: "Tip: fewer keywords or cities makes it faster" })] : []));
+    sites ? `${searches} searches across ${sites} site${sites > 1 ? "s" : ""} · about ${minutes} min${together}` : "Pick at least one job site",
+    ...(sites && Math.max(0, ...perSite) > 12 ? [el("span", { class: "tip", text: "Tip: fewer keywords or cities makes it faster" })] : []));
 }
 
 /* ---------- resume ---------- */
@@ -903,11 +919,30 @@ function renderResults(result) {
   const total = result.sites.reduce((sum, site) => sum + site.jobs.length, 0);
   const fresh = result.sites.reduce((sum, site) => sum + site.jobs.filter((j) => j.is_new).length, 0);
   $("results-title").textContent = `${total} best matches`;
-  $("results-sub").textContent = `${fresh} new · ${result.scored} jobs scored`;
+  $("results-sub").textContent = [`${fresh} new`, `${result.scored} jobs scored`, ...statsParts(result.stats)].join(" · ");
   $("html-link").href = result.html_report; $("excel-link").href = result.excel_report;
   $("results").hidden = false;
   renderTabs(); renderJobList();
 }
+function formatDuration(seconds) {
+  const s = Math.round(seconds || 0);
+  return s >= 60 ? `${Math.floor(s / 60)}m ${s % 60}s` : `${s}s`;
+}
+function formatTokens(n) {
+  return n >= 1000 ? `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k` : String(n || 0);
+}
+function formatCost(usd) {
+  if (usd == null) return null;
+  return usd < 0.01 ? `~$${usd.toFixed(4)}` : `~$${usd.toFixed(2)}`;
+}
+function statsParts(stats) {
+  if (!stats) return [];
+  const parts = [formatDuration(stats.duration_s)];
+  if (stats.tokens) parts.push(`${formatTokens(stats.tokens)} AI tokens` + (formatCost(stats.cost_usd) ? ` (${formatCost(stats.cost_usd)})` : ""));
+  if (stats.scores_reused) parts.push(`${stats.scores_reused} scores reused`);
+  return parts;
+}
+
 function renderTabs() {
   const tabs = [{ id: "all", name: "All", count: state.result.sites.reduce((n, s) => n + s.jobs.length, 0) },
     ...state.result.sites.map((s) => ({ id: s.id, name: s.name, count: s.jobs.length }))];
@@ -1062,8 +1097,9 @@ async function openMyJobs(tab) {
   await loadMyJobs();
 }
 async function loadMyJobs() {
-  const tabs = [["applied", "Applied"], ["hidden", "Hidden"]];
+  const tabs = [["applied", "Applied"], ["hidden", "Hidden"], ["runs", "Search history"]];
   const counts = state.history || {};
+  if (myJobs.tab === "runs") return loadRuns(tabs);
   $("my-jobs-tabs").replaceChildren(...tabs.map(([id, name]) => el("button", {
     type: "button", class: "tab", role: "tab", "aria-selected": String(myJobs.tab === id),
     onclick: () => openMyJobs(id),
@@ -1096,6 +1132,51 @@ async function loadMyJobs() {
           if (state.result) renderJobList();
           loadMyJobs();
         } })));
+    }
+  } catch (error) {
+    list.replaceChildren(el("li", { class: "empty-list", text: error.message }));
+  }
+}
+
+async function loadRuns(tabs) {
+  $("my-jobs-tabs").replaceChildren(...tabs.map(([id, name]) => el("button", {
+    type: "button", class: "tab", role: "tab", "aria-selected": String(myJobs.tab === id), onclick: () => openMyJobs(id),
+  }, name, id === "runs" ? null : el("span", { class: "count", text: String((state.history || {})[id] || 0) }))));
+  const list = $("my-jobs-list");
+  list.replaceChildren(el("li", { class: "empty-list", text: "Loading…" }));
+  try {
+    const body = await api("/api/runs");
+    const names = Object.fromEntries(state.config.sites.map((s) => [s.id, s.name]));
+    list.replaceChildren();
+    if (!body.costs_configured) {
+      list.append(el("li", { class: "sheet-note", text: "Tip: set OPENAI_PRICE_INPUT and OPENAI_PRICE_OUTPUT in .env to see an estimated cost per run." }));
+    }
+    if (!body.runs.length) {
+      list.append(el("li", { class: "empty-list", text: "No searches yet. Every search (from here or the daily search) shows up here." }));
+      return;
+    }
+    for (const r of body.runs) {
+      const when = new Date(r.started_at).toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+      const runSites = r.sites || {};
+      const order = [...state.config.sites.map((s) => s.id), ...Object.keys(runSites)];
+      const sites = [...new Set(order)].filter((id) => runSites[id]).map((id) =>
+        `${names[id] || id} ${runSites[id].status === "failed" ? "✕" : runSites[id].found}`).join(" · ");
+      const usage = r.usage || {};
+      const tokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
+      const details = [formatDuration(r.duration_s), sites,
+        r.status === "done" ? `${r.shown} shown (${r.new} new)` : null,
+        tokens ? `${formatTokens(tokens)} tokens${formatCost(r.cost_usd) ? " " + formatCost(r.cost_usd) : ""}` : null,
+        r.scores_reused ? `${r.scores_reused} reused` : null].filter(Boolean).join(" · ");
+      const funnel = (r.funnel || []).map(([label, count]) => `${count} ${label}`).join(" → ");
+      list.append(el("li", {},
+        el("div", { class: "meta" },
+          el("div", { class: "run-head" }, el("b", { text: when }),
+            el("span", { class: `run-status ${r.status}`, text: r.status }),
+            el("span", { class: "badge site", text: r.origin === "daily" ? "Daily" : r.origin === "web" ? "Manual" : "Command line" })),
+          el("div", { class: "sub", text: details }),
+          funnel ? el("div", { class: "sub", text: funnel }) : null,
+          r.error ? el("div", { class: "run-error", text: r.error }) : null),
+        r.report_url ? el("a", { class: "btn btn-secondary", href: r.report_url, target: "_blank", rel: "noopener", text: "Report" }) : null));
     }
   } catch (error) {
     list.replaceChildren(el("li", { class: "empty-list", text: error.message }));
