@@ -12,6 +12,7 @@ from pathlib import Path
 
 from job_search.cache import Cache
 from job_search.schedule import LOG_FILE, load_schedule, load_state
+from job_search.session import SessionStore
 
 log = logging.getLogger(__name__)
 
@@ -39,7 +40,7 @@ def cleanup(
     if keep_days <= 0:
         return result
     cutoff = (now or time.time()) - keep_days * 86_400
-    protected = _protected_files(data_dir)
+    protected = _protected_files(data_dir, output_dir)
 
     for folder, suffixes in ((upload_dir, None), (output_dir, REPORT_SUFFIXES)):
         if not folder.is_dir():
@@ -67,15 +68,26 @@ def cleanup(
     return result
 
 
-def _protected_files(data_dir: Path) -> set[Path]:
+def _protected_files(data_dir: Path, output_dir: Path) -> set[Path]:
     protected: set[Path] = set()
     schedule = load_schedule(data_dir)
     if schedule and schedule.search.get("resume_path"):
         protected.add(Path(schedule.search["resume_path"]).resolve())
+    reports = []
     state = load_state(data_dir)
     if state and state.get("report"):
-        report = Path(state["report"]).resolve()
-        protected |= {report, report.with_suffix(".xlsx"), report.with_suffix(".csv")}
+        reports.append(Path(state["report"]))
+    # What the web page is currently showing (kept until you press Clear).
+    session = SessionStore(data_dir).load()
+    if session.get("resume", {}).get("path"):
+        protected.add(Path(session["resume"]["path"]).resolve())
+    result = (session.get("last_job") or {}).get("result") or {}
+    for url in (result.get("html_report"), result.get("excel_report")):
+        if url and url.startswith("/reports/"):
+            reports.append(output_dir / url.removeprefix("/reports/"))
+    for report in reports:
+        report = report.resolve()
+        protected |= {report, report.with_suffix(".html"), report.with_suffix(".xlsx"), report.with_suffix(".csv")}
     return protected
 
 

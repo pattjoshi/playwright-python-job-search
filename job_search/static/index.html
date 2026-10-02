@@ -48,6 +48,7 @@ button, input, select { font: inherit; color: inherit; }
 .pill.error { background: var(--danger-soft); color: var(--danger); }
 .history-stats { color: var(--muted); font-size: 13px; }
 .my-jobs-btn { display: inline-flex; align-items: center; gap: 8px; }
+.saved-note { color: var(--good); font-size: 12px; margin-top: 8px; }
 .my-jobs-btn .counts { color: var(--muted); font-weight: 500; }
 
 /* Funnel: jobs left after each filter */
@@ -55,7 +56,7 @@ button, input, select { font: inherit; color: inherit; }
 .funnel-step { white-space: nowrap; }
 .funnel-step b { color: var(--text); font-variant-numeric: tabular-nums; }
 .funnel .arrow { color: var(--faint); }
-.hint { margin-top: 10px; padding: 9px 12px; border-radius: 8px; background: var(--ok-bg); color: var(--ok); font-size: 13px; }
+.funnel-hint { margin-top: 10px; padding: 9px 12px; border-radius: 8px; background: var(--ok-bg); color: var(--ok); font-size: 13px; }
 
 /* My jobs side panel */
 dialog.sheet { margin: 0 0 0 auto; height: 100%; max-height: 100%; width: min(460px, 100%); max-width: 100%; padding: 0; border: 0;
@@ -323,6 +324,8 @@ details.log pre { max-height: 220px; overflow: auto; font-size: 12px; background
     <div class="brand"><span class="brand-mark" aria-hidden="true">J</span>Job Search</div>
     <span class="pill" id="status-pill" aria-live="polite"><span class="dot"></span><span id="status-pill-text">Ready</span></span>
     <span class="spacer"></span>
+    <button type="button" class="btn btn-secondary" id="clear-session" hidden
+            title="Remove the resume, keywords and results from this page">Clear</button>
     <button type="button" class="btn btn-secondary my-jobs-btn" id="my-jobs-open" aria-haspopup="dialog">
       My jobs <span class="counts" id="history-stats"></span></button>
   </div>
@@ -348,6 +351,7 @@ details.log pre { max-height: 220px; overflow: auto; font-size: 12px; background
           <button type="button" class="btn btn-secondary" id="replace-resume">Replace</button>
         </div>
         <p class="profile-summary" id="profile-summary"></p>
+        <p class="saved-note" id="resume-restored" hidden>✓ Restored from your last session · no upload or AI call needed</p>
       </div>
       <div class="alert" id="resume-error" hidden style="margin-top: 10px"></div>
     </div></section>
@@ -480,7 +484,7 @@ details.log pre { max-height: 220px; overflow: auto; font-size: 12px; background
       </ol>
       <div class="site-status" id="site-status"></div>
       <div class="funnel" id="funnel" hidden aria-label="Jobs kept after each filter"></div>
-      <div class="hint" id="funnel-hint" hidden></div>
+      <div class="funnel-hint" id="funnel-hint" hidden></div>
       <div class="found" id="found" hidden>
         <div class="chips" id="query-chips"></div>
         <div class="chips" id="skill-chips"></div>
@@ -517,6 +521,7 @@ details.log pre { max-height: 220px; overflow: auto; font-size: 12px; background
 "use strict";
 const $ = (id) => document.getElementById(id);
 const STORE_KEY = "job-search-ui-v2";
+const SESSION_KEY = "job-search-session";  // keywords you edited; cleared by "Clear"
 const POLL_MS = 1200;
 const STAGES = ["resume", "search", "details", "score", "report"];
 const STAGE_TEXT = { resume: "Preparing…", search: "Searching job sites…", details: "Reading job details…", score: "Scoring jobs against your resume…", report: "Building your report…" };
@@ -573,7 +578,11 @@ function renderTags(controlId, inputId, items, onRemove) {
 function setKeywords(list) {
   state.keywords = [...new Set(list.map((k) => k.trim()).filter(Boolean))].slice(0, 8);
   renderTags("keyword-control", "keyword-input", state.keywords, (k) => setKeywords(state.keywords.filter((x) => x !== k)));
+  try { localStorage.setItem(SESSION_KEY, JSON.stringify({ keywords: state.keywords })); } catch { /* private mode */ }
   updateEstimate();
+}
+function savedKeywords() {
+  try { return (JSON.parse(localStorage.getItem(SESSION_KEY)) || {}).keywords || null; } catch { return null; }
 }
 function setupKeywords() {
   const input = $("keyword-input");
@@ -734,19 +743,11 @@ async function analyze(file) {
   data.append("resume", file);
   try {
     const body = await api("/api/analyze", { method: "POST", body: data });
-    state.resume = body;
-    const profile = body.profile;
-    $("file-name").textContent = body.file_name;
-    $("file-ext").textContent = (body.file_name.split(".").pop() || "").toUpperCase().slice(0, 4);
-    const years = profile.years_experience != null ? `${+profile.years_experience.toFixed(1)} yrs experience` : "";
-    $("file-sub").textContent = [profile.current_title, years].filter(Boolean).join(" · ");
-    $("profile-summary").textContent = profile.summary || "";
-    $("step-resume").textContent = "✓"; $("step-resume").classList.add("done");
-    setKeywords(profile.keywords);
+    showResume(body, false);
+    setKeywords(body.profile.keywords);
     const prefs = loadPrefs();
-    if (!state.locations.length && profile.locations.length) setLocations(profile.locations);
+    if (!state.locations.length && body.profile.locations.length) setLocations(body.profile.locations);
     if (!prefs.experience && body.suggested_experience) setExperience(body.suggested_experience);
-    $("resume-ready").hidden = false;
   } catch (error) {
     showError("resume-error", error.message);
     $("drop").hidden = false;
@@ -755,7 +756,22 @@ async function analyze(file) {
     updateStart();
   }
 }
+function showResume(body, restored) {
+  state.resume = body;
+  const profile = body.profile;
+  $("file-name").textContent = body.file_name;
+  $("file-ext").textContent = (body.file_name.split(".").pop() || "").toUpperCase().slice(0, 4);
+  const years = profile.years_experience != null ? `${+profile.years_experience.toFixed(1)} yrs experience` : "";
+  $("file-sub").textContent = [profile.current_title, years].filter(Boolean).join(" · ");
+  $("profile-summary").textContent = profile.summary || "";
+  $("resume-restored").hidden = !restored;
+  $("step-resume").textContent = "✓"; $("step-resume").classList.add("done");
+  $("drop").hidden = true; $("analyzing").hidden = true; $("resume-ready").hidden = false;
+}
+
 function updateStart() {
+  $("clear-session").hidden = !state.resume && !state.result && $("progress").hidden;
+  $("clear-session").disabled = !!state.jobId;
   $("daily-save").disabled = !state.resume || !state.config.has_api_key;
   const running = !!state.jobId;
   $("start").hidden = running; $("stop").hidden = !running;
@@ -842,6 +858,7 @@ function finish(job) {
   if (job.status === "done") { setPill("done", "Done"); $("progress-text").textContent = "Search complete"; renderResults(job.result); }
   else if (job.status === "stopped") { setPill("", "Stopped"); $("progress-text").textContent = "Search stopped"; }
   else { setPill("error", "Error"); $("progress-text").textContent = "The search stopped with an error"; if (job.error) showError("run-error", job.error); }
+  updateStart();  // again, now that results may be showing (enables "Clear")
 }
 function setPill(kind, text) { $("status-pill").className = "pill " + kind; $("status-pill-text").textContent = text; }
 
@@ -899,12 +916,13 @@ function renderFunnel(job) {
   if (!wanted || scored >= wanted) return;
   let worst = null;
   for (let i = 1; i < steps.length; i++) {
+    if (steps[i][0] === "unique") continue;  // removing duplicates is never the problem
     const drop = steps[i - 1][1] - steps[i][1];
     if (!worst || drop > worst.drop) worst = { drop, label: steps[i][0] };
   }
   const advice = {
     "posted in": "a longer time window", "yrs": "a wider experience range (or Any)", "new": "turning off “Only new jobs”",
-    "unique": "more keywords or locations", "checked": "a higher “Jobs to score per site” (Advanced)",
+"checked": "a higher “Jobs to score per site” (Advanced)",
   };
   const key = Object.keys(advice).find((k) => worst && worst.label.includes(k));
   if (worst && worst.drop > 0 && key) {
@@ -916,6 +934,9 @@ function renderFunnel(job) {
 /* ---------- results ---------- */
 function renderResults(result) {
   state.result = result; state.tab = "all"; state.statuses = {};
+  for (const site of result.sites) {
+    for (const job of site.jobs) if (job.status && job.status !== "seen") state.statuses[jobKey(job)] = job.status;
+  }
   const total = result.sites.reduce((sum, site) => sum + site.jobs.length, 0);
   const fresh = result.sites.reduce((sum, site) => sum + site.jobs.filter((j) => j.is_new).length, 0);
   $("results-title").textContent = `${total} best matches`;
@@ -1187,8 +1208,53 @@ async function refreshHistory() {
   try { renderHistory((await api("/api/config")).history); } catch { /* ignore */ }
 }
 
+/* ---------- saved session (survives reloads and restarts) ---------- */
+function showSavedJob(job) {
+  // A finished search from before the reload: show it as it ended, without polling.
+  $("empty-state").hidden = true; $("progress").hidden = false;
+  showError("run-error", "");
+  renderJob(job);
+  const seconds = job.started_at && job.finished_at ? (new Date(job.finished_at) - new Date(job.started_at)) / 1000 : 0;
+  $("elapsed").textContent = seconds ? formatDuration(seconds) : "";
+  const when = job.finished_at ? new Date(job.finished_at).toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "";
+  finish(job);
+  if (when) $("progress-text").textContent += ` · ${when}`;
+}
+
+async function restoreSession() {
+  const saved = await api("/api/session");
+  if (saved.resume) {
+    showResume(saved.resume, true);
+    setKeywords(state.keptKeywords ?? saved.resume.profile.keywords);
+  }
+  if (saved.last_job && !state.config.running_job) showSavedJob(saved.last_job);
+  updateStart();
+}
+
+async function clearSession() {
+  if (!window.confirm("Clear the resume, keywords and results from this page?\n\nYour settings, applied/hidden jobs, search history and daily search are kept.")) return;
+  try {
+    await api("/api/session/clear", { method: "POST" });
+  } catch (error) {
+    return showError("form-error", error.message);
+  }
+  try { localStorage.removeItem(SESSION_KEY); } catch { /* private mode */ }
+  state.resume = null; state.result = null; state.statuses = {};
+  setKeywords([]);
+  try { localStorage.removeItem(SESSION_KEY); } catch { /* setKeywords saved an empty list */ }
+  $("resume").value = "";
+  $("drop").hidden = false; $("resume-ready").hidden = true; $("analyzing").hidden = true;
+  $("step-resume").textContent = "1"; $("step-resume").classList.remove("done");
+  $("progress").hidden = true; $("results").hidden = true; $("empty-state").hidden = false;
+  showError("resume-error", ""); showError("form-error", ""); showError("run-error", "");
+  setPill("", "Ready");
+  updateStart();
+}
+
 /* ---------- init ---------- */
 async function init() {
+  // Read before anything below writes the keyword list.
+  state.keptKeywords = savedKeywords();
   state.config = await api("/api/config");
   const prefs = loadPrefs(), defaults = state.config.defaults;
   $("key-warning").hidden = state.config.has_api_key;
@@ -1200,7 +1266,7 @@ async function init() {
   $("show-browser").checked = prefs.show_browser ?? true;
   setExperience(prefs.experience !== undefined ? prefs.experience : defaults.experience || [1, 3]);
   setupKeywords(); setupLocations(); setupResume();
-  setKeywords(defaults.keywords || []);
+  setKeywords(state.keptKeywords ?? defaults.keywords ?? []);
   setLocations(prefs.locations || defaults.locations || []);
   renderHistory(state.config.history);
 
@@ -1219,7 +1285,9 @@ async function init() {
   $("forget-seen").addEventListener("click", async () => {
     try { renderHistory((await api("/api/history/forget", { method: "POST" })).history); } catch (error) { showError("form-error", error.message); }
   });
+  $("clear-session").addEventListener("click", clearSession);
   updateStart(); updateEstimate();
+  try { await restoreSession(); } catch { /* nothing saved yet */ }
   if (state.config.running_job) watch(state.config.running_job);
 }
 init().catch(() => showError("form-error", "Could not reach the job search app. Is it still running?"));

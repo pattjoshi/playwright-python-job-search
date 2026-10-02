@@ -41,6 +41,7 @@ from job_search.schedule import (
     save_schedule,
 )
 from job_search.scrapers import SCRAPERS
+from job_search.session import SessionStore
 from job_search.utils import SearchStopped
 
 log = logging.getLogger(__name__)
@@ -57,6 +58,7 @@ class SearchJob:
     status: str = "running"  # running | stopping | done | stopped | error
     stage: str = "resume"  # resume | search | details | score | report
     started_at: str = field(default_factory=lambda: datetime.now().isoformat(timespec="seconds"))
+    finished_at: str | None = None
     logs: list[str] = field(default_factory=list)
     sites: dict[str, dict] = field(default_factory=dict)  # site -> {"status", "found"}
     progress: dict | None = None  # {"stage", "done", "total"} for details/scoring
@@ -77,6 +79,7 @@ class SearchJob:
             "status": self.status,
             "stage": self.stage,
             "started_at": self.started_at,
+            "finished_at": self.finished_at,
             "logs": self.logs[-MAX_LOG_LINES:],
             "sites": self.sites,
             "progress": self.progress,
@@ -117,10 +120,11 @@ class _JobLogHandler(logging.Handler):
 class SearchManager:
     """Runs one search at a time in a background thread (one browser is plenty)."""
 
-    def __init__(self, settings: Settings, output_dir: Path, runner=run):
+    def __init__(self, settings: Settings, output_dir: Path, runner=run, session: SessionStore | None = None):
         self.settings = settings
         self.output_dir = output_dir
         self.runner = runner
+        self.session = session
         self.jobs: dict[str, SearchJob] = {}
         self._lock = threading.Lock()
         self._current: SearchJob | None = None
@@ -169,6 +173,13 @@ class SearchManager:
             job.status = "error"
         finally:
             package_logger.removeHandler(handler)
+            job.finished_at = datetime.now().isoformat(timespec="seconds")
+            if self.session:
+                try:
+                    # Kept so a page reload (or app restart) shows this search again.
+                    self.session.save_last_job({**job.to_dict(), "logs": job.logs[-100:]})
+                except Exception:
+                    log.exception("Couldn't save the session")
 
 
 def default_analyzer(settings: Settings):
@@ -204,9 +215,13 @@ def create_app(
         cleanup(settings.keep_days, data_dir, upload_dir, output_dir, settings.cache_path)
     except Exception:  # housekeeping must never stop the app from starting
         log.exception("Cleanup failed")
-    manager = SearchManager(settings, output_dir, runner)
+    session = SessionStore(data_dir)
+    manager = SearchManager(settings, output_dir, runner, session)
     history = JobHistory(settings.history_path)
     resumes: dict[str, dict] = {}  # resume_id -> {"path", "name", "profile"}
+    saved = session.resume()
+    if saved:  # the resume from before a restart still works without uploading it again
+        resumes[saved["resume_id"]] = {"path": saved["path"], "name": saved["file_name"], "profile": saved["profile"]}
 
     app = Flask(__name__, static_folder=None)
     app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_BYTES
@@ -268,19 +283,38 @@ def create_app(
 
         resume_id = uuid.uuid4().hex[:12]
         resumes[resume_id] = {"path": path, "name": upload.filename, "profile": profile}
-        locations = []
-        for location in profile.locations:
-            city = normalize_location(location)
-            if city and city not in locations:
-                locations.append(city)
-        return jsonify(
-            {
-                "resume_id": resume_id,
-                "file_name": upload.filename,
-                "profile": profile_to_dict(profile, profile.search_queries or profile.target_titles, locations),
-                "suggested_experience": suggest_experience(profile.years_experience),
-            }
-        )
+        suggested = suggest_experience(profile.years_experience)
+        session.save_resume(resume_id, path, upload.filename, profile, suggested)
+        return jsonify(resume_to_dict(resume_id, upload.filename, profile, suggested))
+
+    @app.get("/api/session")
+    def get_session():
+        """What the page showed before a reload: the resume and the last search."""
+        data = session.load()
+        saved = session.resume()
+        resume = resume_to_dict(saved["resume_id"], saved["file_name"], saved["profile"], saved.get("suggested_experience")) if saved else None
+        last_job = data.get("last_job")
+        if last_job and last_job.get("result"):
+            # Show jobs you marked applied/hidden since then as such.
+            jobs = [
+                Job(j["source"], j["job_id"], j.get("title", ""), "", "", "")
+                for site in last_job["result"]["sites"] for j in site["jobs"]
+            ]
+            statuses = history.statuses(jobs)
+            for site in last_job["result"]["sites"]:
+                for j in site["jobs"]:
+                    j["status"] = statuses.get((j["source"], j["job_id"]))
+        return jsonify({"resume": resume, "last_job": last_job})
+
+    @app.post("/api/session/clear")
+    def clear_session():
+        if manager.running:
+            return _error("Stop the running search before clearing.", status=409)
+        saved = session.load().get("resume")
+        if saved:
+            resumes.pop(saved.get("resume_id"), None)
+        session.clear()
+        return jsonify({"resume": None, "last_job": None})
 
     @app.post("/api/search")
     def start_search():
@@ -487,6 +521,20 @@ def suggest_experience(years: float | None) -> list[int] | None:
     if years is None or years < 0:
         return None
     return [max(0, math.floor(years) - 1), min(50, math.ceil(years) + 1)]
+
+
+def resume_to_dict(resume_id: str, file_name: str, profile: Profile, suggested_experience) -> dict:
+    locations = []
+    for location in profile.locations:
+        city = normalize_location(location)
+        if city and city not in locations:
+            locations.append(city)
+    return {
+        "resume_id": resume_id,
+        "file_name": file_name,
+        "profile": profile_to_dict(profile, profile.search_queries or profile.target_titles, locations),
+        "suggested_experience": suggested_experience,
+    }
 
 
 def profile_to_dict(profile: Profile, queries: list[str], locations: list[str]) -> dict:
