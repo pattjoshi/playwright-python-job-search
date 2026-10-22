@@ -1,6 +1,0 @@
-.log { margin-top: 12px; }
-.log summary { cursor: pointer; color: var(--muted); font-size: 12px; }
-.log pre {
-  max-height: 220px; overflow: auto; font-size: 12px; background: var(--surface-2); padding: 10px;
-  border-radius: 8px; white-space: pre-wrap; margin: 8px 0 0; border: 1px solid var(--border);
-}

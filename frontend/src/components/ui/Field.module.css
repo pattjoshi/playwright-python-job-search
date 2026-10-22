@@ -1,6 +1,0 @@
-.field + .field { margin-top: 14px; }
-.label {
-  display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
-  font-size: 13px; font-weight: 600; margin-bottom: 6px;
-}
-.hint { font-weight: 400; color: var(--faint); font-size: 12px; }
