@@ -1,0 +1,4 @@
+.head { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; }
+.elapsed { margin-left: auto; color: var(--faint); font-weight: 500; font-size: 13px; font-variant-numeric: tabular-nums; }
+.found { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+.error { margin-top: 12px; }

@@ -1,0 +1,14 @@
+.row { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-top: 1px solid var(--border); }
+.row:first-of-type { border-top: 0; padding-top: 2px; }
+.text { flex: 1; }
+.title { font-weight: 600; }
+.desc { color: var(--muted); font-size: 12px; }
+.advanced summary {
+  cursor: pointer; color: var(--muted); font-weight: 600; font-size: 13px; padding: 8px 0 0; list-style: none;
+}
+.advanced summary::-webkit-details-marker { display: none; }
+.advanced summary::before { content: "▸ "; }
+.advanced[open] summary::before { content: "▾ "; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+.label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+@media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }

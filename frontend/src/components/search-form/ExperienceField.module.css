@@ -1,0 +1,3 @@
+.range { display: flex; align-items: center; gap: 8px; }
+.range input { width: 74px; text-align: center; }
+.unit { color: var(--muted); }

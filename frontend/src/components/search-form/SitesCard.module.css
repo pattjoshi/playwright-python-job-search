@@ -1,0 +1,4 @@
+.row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--border); }
+.row:first-of-type { border-top: 0; padding-top: 2px; }
+.name { flex: 1; font-weight: 600; }
+.off .name, .off > span:last-child { opacity: .45; }

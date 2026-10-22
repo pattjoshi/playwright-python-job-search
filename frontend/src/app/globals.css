@@ -1,0 +1,27 @@
+@import "../styles/tokens.css";
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+}
+button, input, select { font: inherit; color: inherit; }
+[hidden] { display: none !important; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; }
+
+/* Shared form styles (used by several components) */
+.input {
+  width: 100%; background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px;
+  padding: 7px 10px; min-height: 38px;
+}
+.input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+.input:disabled { opacity: .6; }
+.help { color: var(--faint); font-size: 12px; margin-top: 5px; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation-duration: 2.5s !important; }
+}

@@ -1,0 +1,7 @@
+.layout {
+  max-width: 1240px; margin: 0 auto; padding: 20px; display: grid; grid-template-columns: 400px minmax(0, 1fr);
+  gap: 20px; align-items: start;
+}
+.setup { display: flex; flex-direction: column; gap: 14px; }
+@media (max-width: 960px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 560px) { .layout { padding: 12px 16px; } }

@@ -1,0 +1,3 @@
+.timeRow { display: flex; align-items: center; gap: 12px; }
+.timeRow > input { width: 140px; }
+.error { margin-top: 12px; }

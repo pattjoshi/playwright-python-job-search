@@ -1,0 +1,10 @@
+/* Rows of the My jobs panel (saved jobs and search history). */
+.item { display: flex; gap: 12px; align-items: flex-start; padding: 12px 18px; border-bottom: 1px solid var(--border); }
+.meta { flex: 1; min-width: 0; }
+.item a { font-weight: 700; color: var(--accent); text-decoration: none; }
+.item a:hover { text-decoration: underline; }
+.sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.empty { padding: 28px 18px; color: var(--muted); text-align: center; }
+.note { padding: 10px 18px; color: var(--faint); font-size: 12px; border-bottom: 1px solid var(--border); }
+.runHead { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.runError { color: var(--danger); font-size: 12px; margin-top: 4px; }
