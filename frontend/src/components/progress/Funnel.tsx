@@ -3,7 +3,6 @@ import { Fragment } from "react";
 import { funnelHint } from "@/lib/funnel";
 import type { FunnelStep } from "@/lib/types";
 
-import styles from "./Funnel.module.css";
 
 interface FunnelProps {
   steps: FunnelStep[];
@@ -17,15 +16,15 @@ export function Funnel({ steps, requested, done }: FunnelProps) {
   const hint = done ? funnelHint(steps, requested) : null;
   return (
     <>
-      <div className={styles.funnel} aria-label="Jobs kept after each filter">
+      <div className="mt-3 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground" aria-label="Jobs kept after each filter">
         {steps.map(([label, count], index) => (
           <Fragment key={label}>
-            {index ? <span className={styles.arrow} aria-hidden="true">→</span> : null}
-            <span className={styles.step}><b>{count}</b> {label}</span>
+            {index ? <span className="text-muted-foreground/60" aria-hidden="true">→</span> : null}
+            <span className="whitespace-nowrap"><b className="text-foreground tabular-nums">{count}</b> {label}</span>
           </Fragment>
         ))}
       </div>
-      {hint ? <div className={styles.hint}>{hint}</div> : null}
+      {hint ? <div className="mt-2.5 rounded-md bg-warning-soft px-3 py-2 text-sm text-warning">{hint}</div> : null}
     </>
   );
 }

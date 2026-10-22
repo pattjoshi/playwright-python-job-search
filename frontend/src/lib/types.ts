@@ -36,6 +36,7 @@ export interface AppConfig {
   running_job: string | null;
   resume_types: string[];
   history: HistoryCounts;
+  version?: string;
 }
 
 export interface ProfileSummary {

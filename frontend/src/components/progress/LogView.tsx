@@ -2,7 +2,6 @@
 
 import { useLayoutEffect, useRef } from "react";
 
-import styles from "./LogView.module.css";
 
 /** The search log, collapsed by default. Keeps following new lines while scrolled to the bottom. */
 export function LogView({ lines }: { lines: string[] }) {
@@ -21,9 +20,14 @@ export function LogView({ lines }: { lines: string[] }) {
   };
 
   return (
-    <details className={styles.log}>
-      <summary>Show log</summary>
-      <pre ref={pre} onScroll={onScroll}>{text}</pre>
+    <details className="mt-3">
+      <summary className="cursor-pointer text-xs text-muted-foreground">Show log</summary>
+      <pre
+        ref={pre} onScroll={onScroll}
+        className="mt-2 max-h-56 overflow-auto rounded-md border bg-muted/40 p-2.5 font-mono text-xs whitespace-pre-wrap"
+      >
+        {text}
+      </pre>
     </details>
   );
 }

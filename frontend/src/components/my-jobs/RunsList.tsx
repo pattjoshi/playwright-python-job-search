@@ -1,17 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
-import { Badge, type BadgeKind } from "@/components/ui/Badge";
-import { LinkButton } from "@/components/ui/Button";
-import { api } from "@/lib/api/endpoints";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useRuns } from "@/hooks/useRuns";
 import { formatCost, formatDateTime, formatDuration, formatTokens } from "@/lib/format";
 import type { Run, SiteConfig } from "@/lib/types";
 
-import styles from "./ListItem.module.css";
+import { EMPTY, NOTE, ROW, SUB } from "./list-styles";
 
 const ORIGINS: Record<string, string> = { daily: "Daily", web: "Manual" };
-const STATUS_BADGES: Record<string, BadgeKind> = { done: "done", stopped: "stopped", error: "error" };
+const STATUS_STYLES: Record<string, string> = { done: "bg-success-soft text-success", error: "bg-destructive/10 text-destructive" };
 
 function details(run: Run, sites: SiteConfig[]): string {
   const runSites = run.sites ?? {};
@@ -35,46 +33,37 @@ function details(run: Run, sites: SiteConfig[]): string {
 
 /** Every search (from the page, the daily search or the command line), newest first. */
 export function RunsList({ sites }: { sites: SiteConfig[] }) {
-  const [body, setBody] = useState<{ runs: Run[]; costs_configured: boolean } | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { runs, costsConfigured, error } = useRuns();
 
-  useEffect(() => {
-    let cancelled = false;
-    api.runs()
-      .then((data) => !cancelled && setBody(data))
-      .catch((err: Error) => !cancelled && setError(err.message));
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  if (error) return <li className={styles.empty}>{error}</li>;
-  if (!body) return <li className={styles.empty}>Loading…</li>;
+  if (error) return <li className={EMPTY}>{error}</li>;
+  if (!runs) return <li className={EMPTY}>Loading…</li>;
   return (
     <>
-      {!body.costs_configured ? (
-        <li className={styles.note}>
+      {!costsConfigured ? (
+        <li className={NOTE}>
           Tip: set OPENAI_PRICE_INPUT and OPENAI_PRICE_OUTPUT in .env to see an estimated cost per run.
         </li>
       ) : null}
-      {!body.runs.length ? (
-        <li className={styles.empty}>No searches yet. Every search (from here or the daily search) shows up here.</li>
+      {!runs.length ? (
+        <li className={EMPTY}>No searches yet. Every search (from here or the daily search) shows up here.</li>
       ) : null}
-      {body.runs.map((run) => {
+      {runs.map((run) => {
         const funnel = (run.funnel ?? []).map(([label, count]) => `${count} ${label}`).join(" → ");
         return (
-          <li key={run.id} className={styles.item}>
-            <div className={styles.meta}>
-              <div className={styles.runHead}>
+          <li key={run.id} className={ROW}>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-1.5">
                 <b>{formatDateTime(run.started_at)}</b>
-                <Badge kind={STATUS_BADGES[run.status] ?? "stopped"}>{run.status}</Badge>
-                <Badge kind="site">{ORIGINS[run.origin] ?? "Command line"}</Badge>
+                <Badge variant="secondary" className={STATUS_STYLES[run.status]}>{run.status}</Badge>
+                <Badge variant="outline">{ORIGINS[run.origin] ?? "Command line"}</Badge>
               </div>
-              <div className={styles.sub}>{details(run, sites)}</div>
-              {funnel ? <div className={styles.sub}>{funnel}</div> : null}
-              {run.error ? <div className={styles.runError}>{run.error}</div> : null}
+              <div className={SUB}>{details(run, sites)}</div>
+              {funnel ? <div className={SUB}>{funnel}</div> : null}
+              {run.error ? <div className="mt-1 text-xs text-destructive">{run.error}</div> : null}
             </div>
-            {run.report_url ? <LinkButton href={run.report_url} external>Report</LinkButton> : null}
+            {run.report_url ? (
+              <Button asChild variant="outline" size="sm"><a href={run.report_url} target="_blank" rel="noopener noreferrer">Report</a></Button>
+            ) : null}
           </li>
         );
       })}

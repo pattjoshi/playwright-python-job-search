@@ -1,8 +1,7 @@
-import { Field } from "@/components/ui/Field";
-import { InlineCheck } from "@/components/ui/InlineCheck";
+import { Checkbox } from "@/components/ui/checkbox";
+import { FormField } from "@/components/ui/form-field";
+import { Input } from "@/components/ui/input";
 import type { Experience } from "@/hooks/useSearchForm";
-
-import styles from "./ExperienceField.module.css";
 
 interface ExperienceFieldProps {
   value: Experience;
@@ -12,22 +11,27 @@ interface ExperienceFieldProps {
 /** "1 to 3 years", or Any. */
 export function ExperienceField({ value, onChange }: ExperienceFieldProps) {
   return (
-    <Field
+    <FormField
       label={<span id="exp-label">Experience</span>}
-      hint={<InlineCheck checked={value.any} onChange={(any) => onChange({ ...value, any })}>Any</InlineCheck>}
+      hint={
+        <label className="inline-flex cursor-pointer items-center gap-1.5 text-sm text-muted-foreground">
+          <Checkbox checked={value.any} onCheckedChange={(checked) => onChange({ ...value, any: checked === true })} aria-label="Any experience" />
+          Any
+        </label>
+      }
     >
-      <div className={styles.range} role="group" aria-labelledby="exp-label">
-        <input
-          className="input" type="number" min={0} max={50} value={value.min} disabled={value.any}
+      <div className="flex items-center gap-2 text-sm text-muted-foreground" role="group" aria-labelledby="exp-label">
+        <Input
+          type="number" min={0} max={50} value={value.min} disabled={value.any} className="w-20 text-center"
           aria-label="Experience from (years)" onChange={(e) => onChange({ ...value, min: e.target.value })}
         />
-        <span className={styles.unit}>to</span>
-        <input
-          className="input" type="number" min={0} max={50} value={value.max} disabled={value.any}
+        to
+        <Input
+          type="number" min={0} max={50} value={value.max} disabled={value.any} className="w-20 text-center"
           aria-label="Experience to (years)" onChange={(e) => onChange({ ...value, max: e.target.value })}
         />
-        <span className={styles.unit}>years</span>
+        years
       </div>
-    </Field>
+    </FormField>
   );
 }

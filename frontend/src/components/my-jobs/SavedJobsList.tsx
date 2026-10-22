@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api/endpoints";
 import { safeUrl } from "@/lib/format";
 import type { HistoryCounts, JobStatus, SavedJob } from "@/lib/types";
 
-import styles from "./ListItem.module.css";
+import { EMPTY, ROW, SUB } from "./list-styles";
 
 interface SavedJobsListProps {
   status: "applied" | "hidden";
@@ -40,9 +40,9 @@ export function SavedJobsList({ status, names, onCounts, onUndo }: SavedJobsList
     };
   }, [status, version, onCounts]);
 
-  if (error) return <li className={styles.empty}>{error}</li>;
-  if (!jobs) return <li className={styles.empty}>Loading…</li>;
-  if (!jobs.length) return <li className={styles.empty}>{EMPTY_TEXT[status]}</li>;
+  if (error) return <li className={EMPTY}>{error}</li>;
+  if (!jobs) return <li className={EMPTY}>Loading…</li>;
+  if (!jobs.length) return <li className={EMPTY}>{EMPTY_TEXT[status]}</li>;
   return (
     <>
       {jobs.map((job) => {
@@ -50,12 +50,12 @@ export function SavedJobsList({ status, names, onCounts, onUndo }: SavedJobsList
         const when = new Date(job.updated_at).toLocaleDateString(undefined, { day: "numeric", month: "short" });
         const title = job.title || "Untitled job";
         return (
-          <li key={`${job.source}:${job.job_id}`} className={styles.item}>
-            <div className={styles.meta}>
+          <li key={`${job.source}:${job.job_id}`} className={ROW}>
+            <div className="min-w-0 flex-1">
               {url ? <a href={url} target="_blank" rel="noopener noreferrer">{title}</a> : <b>{title}</b>}
-              <div className={styles.sub}>{[job.company, names[job.source] ?? job.source, `${status} ${when}`].filter(Boolean).join(" · ")}</div>
+              <div className={SUB}>{[job.company, names[job.source] ?? job.source, `${status} ${when}`].filter(Boolean).join(" · ")}</div>
             </div>
-            <Button onClick={() => onUndo(job, "seen").then(() => setVersion((v) => v + 1))}>Undo</Button>
+            <Button variant="outline" size="sm" onClick={() => onUndo(job, "seen").then(() => setVersion((v) => v + 1))}>Undo</Button>
           </li>
         );
       })}

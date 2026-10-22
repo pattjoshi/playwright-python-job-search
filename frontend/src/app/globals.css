@@ -1,27 +1,27 @@
-@import "../styles/tokens.css";
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "../styles/theme.css";
 
-* { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-}
-button, input, select { font: inherit; color: inherit; }
-[hidden] { display: none !important; }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; }
+@custom-variant dark (&:is(.dark *));
 
-/* Shared form styles (used by several components) */
-.input {
-  width: 100%; background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px;
-  padding: 7px 10px; min-height: 38px;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
 }
-.input:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
-.input:disabled { opacity: .6; }
-.help { color: var(--faint); font-size: 12px; margin-top: 5px; }
 
 @media (prefers-reduced-motion: reduce) {
-  * { transition: none !important; animation-duration: 2.5s !important; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

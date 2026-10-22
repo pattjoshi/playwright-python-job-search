@@ -1,14 +1,15 @@
 "use client";
 
+import { FileUp } from "lucide-react";
 import { useRef, useState } from "react";
 
-import { Alert } from "@/components/ui/Alert";
-import { Button } from "@/components/ui/Button";
-import { Card, CardBody, CardHead } from "@/components/ui/Card";
-import { Spinner } from "@/components/ui/Spinner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
+import { StepTitle } from "@/components/ui/step-title";
 import type { ResumeApi } from "@/hooks/useResume";
-
-import styles from "./ResumeCard.module.css";
+import { cn } from "@/lib/utils";
 
 const ACCEPT = ".pdf,.docx,.txt,.md";
 
@@ -21,47 +22,55 @@ export function ResumeCard({ resume: state }: { resume: ResumeApi }) {
   const pick = (files: FileList | null) => {
     if (files?.[0]) void analyze(files[0]);
   };
-  const dragProps = {
-    onDragEnter: (e: React.DragEvent) => { e.preventDefault(); setOver(true); },
-    onDragOver: (e: React.DragEvent) => { e.preventDefault(); setOver(true); },
-    onDragLeave: (e: React.DragEvent) => { e.preventDefault(); setOver(false); },
-    onDrop: (e: React.DragEvent) => { e.preventDefault(); setOver(false); pick(e.dataTransfer.files); },
+  const drag = (active: boolean) => (e: React.DragEvent) => {
+    e.preventDefault();
+    setOver(active);
   };
   const profile = resume?.profile;
   const years = profile?.years_experience != null ? `${+profile.years_experience.toFixed(1)} yrs experience` : "";
   const extension = (resume?.file_name.split(".").pop() ?? "").toUpperCase().slice(0, 4);
 
   return (
-    <Card>
-      <CardBody>
-        <CardHead step={1} done={!!resume}>Resume</CardHead>
-        <label className={[styles.drop, over ? styles.over : ""].join(" ")} hidden={!!resume || analyzing} {...dragProps}>
+    <Card className="gap-4 py-5">
+      <CardContent className="grid grid-cols-1 gap-3 px-5">
+        <StepTitle step={1} done={!!resume}>Resume</StepTitle>
+        <label
+          hidden={!!resume || analyzing} onDragEnter={drag(true)} onDragOver={drag(true)} onDragLeave={drag(false)}
+          onDrop={(e) => { drag(false)(e); pick(e.dataTransfer.files); }}
+          className={cn(
+            "relative block cursor-pointer rounded-lg border-[1.5px] border-dashed border-input bg-muted/40 px-4 py-6 text-center transition-colors",
+            "hover:border-primary hover:bg-accent focus-within:ring-[3px] focus-within:ring-ring/50", over && "border-primary bg-accent",
+          )}
+        >
           <input
-            ref={input} type="file" accept={ACCEPT} aria-describedby="drop-hint"
+            ref={input} type="file" accept={ACCEPT} aria-describedby="drop-hint" className="sr-only"
             onChange={(e) => { pick(e.target.files); e.target.value = ""; }}
           />
-          <strong>Drop your resume here, or click to browse</strong>
-          <span id="drop-hint">PDF, DOCX or TXT · stays on your computer</span>
+          <FileUp className="mx-auto mb-2 size-6 text-primary" aria-hidden="true" />
+          <strong className="block text-sm">Drop your resume here, or click to browse</strong>
+          <span id="drop-hint" className="text-xs text-muted-foreground">PDF, DOCX or TXT · stays on your computer</span>
         </label>
         {analyzing ? (
-          <div className={styles.analyzing}><Spinner />Reading your resume with AI…</div>
+          <div className="flex items-center gap-2.5 py-3 text-sm text-muted-foreground"><Spinner />Reading your resume with AI…</div>
         ) : null}
         {resume && profile ? (
-          <div>
-            <div className={styles.ready}>
-              <div className={styles.fileIcon}>{extension}</div>
-              <div className={styles.meta}>
-                <div className={styles.name}>{resume.file_name}</div>
-                <div className={styles.sub}>{[profile.current_title, years].filter(Boolean).join(" · ")}</div>
+          <div className="grid grid-cols-1 gap-2">
+            <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-3">
+              <div className="grid grid-cols-1 h-10 w-9 shrink-0 place-items-center rounded-md bg-accent text-[11px] font-extrabold text-accent-foreground">
+                {extension}
               </div>
-              <Button onClick={() => input.current?.click()}>Replace</Button>
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-semibold">{resume.file_name}</div>
+                <div className="text-xs text-muted-foreground">{[profile.current_title, years].filter(Boolean).join(" · ")}</div>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => input.current?.click()}>Replace</Button>
             </div>
-            <p className={styles.summary}>{profile.summary}</p>
-            {restored ? <p className={styles.restored}>✓ Restored from your last session · no upload or AI call needed</p> : null}
+            <p className="text-sm text-muted-foreground">{profile.summary}</p>
+            {restored ? <p className="text-xs text-success">✓ Restored from your last session · no upload or AI call needed</p> : null}
           </div>
         ) : null}
-        <Alert message={error} className={styles.error} />
-      </CardBody>
+        {error ? <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert> : null}
+      </CardContent>
     </Card>
   );
 }

@@ -2,14 +2,15 @@
 
 import { useState } from "react";
 
-import { LinkButton } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
-import { Tabs } from "@/components/ui/Tabs";
+import { Download, ExternalLink } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { jobKey, statsParts } from "@/lib/format";
 import type { Job, JobStatus, SearchResult } from "@/lib/types";
 
 import { HiddenJob, JobCard } from "./JobCard";
-import styles from "./ResultsCard.module.css";
 
 interface ResultsCardProps {
   result: SearchResult;
@@ -32,22 +33,34 @@ export function ResultsCard({ result, statuses, onSetStatus }: ResultsCardProps)
   ];
 
   return (
-    <Card className={styles.results}>
-      <div className={styles.head}>
-        <div>
-          <h2>{all.length} best matches</h2>
-          <div className={styles.sub}>
+    <Card className="mt-4 gap-0 py-0">
+      <div className="flex flex-wrap items-center gap-2.5 border-b px-5 py-3.5">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-base font-semibold">{all.length} best matches</h2>
+          <p className="text-sm text-muted-foreground">
             {[`${fresh} new`, `${result.scored} jobs scored`, ...statsParts(result.stats)].join(" · ")}
-          </div>
+          </p>
         </div>
-        <span className={styles.spacer} />
-        <LinkButton href={result.html_report} external>Open report</LinkButton>
-        <LinkButton href={result.excel_report}>Download Excel</LinkButton>
+        <Button asChild variant="outline" size="sm">
+          <a href={result.html_report} target="_blank" rel="noopener noreferrer"><ExternalLink /> Open report</a>
+        </Button>
+        <Button asChild variant="outline" size="sm"><a href={result.excel_report}><Download /> Download Excel</a></Button>
       </div>
-      <Tabs tabs={tabs} selected={tab} onSelect={setTab} />
-      <ul className={styles.list}>
+      <Tabs value={tab} onValueChange={setTab} className="gap-0">
+        <div className="overflow-x-auto border-b px-5 py-2.5">
+          <TabsList>
+            {tabs.map((item) => (
+              <TabsTrigger key={item.id} value={item.id}>
+                {item.name}
+                <span className="rounded-full bg-muted px-1.5 text-xs text-muted-foreground tabular-nums">{item.count}</span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
+      </Tabs>
+      <ul className="m-0 list-none p-0">
         {!jobs.length ? (
-          <li className={styles.empty}>
+          <li className="px-5 py-7 text-center text-sm text-muted-foreground">
             No matching jobs here. Try more locations, other keywords, a wider experience range or a longer time window.
           </li>
         ) : null}
