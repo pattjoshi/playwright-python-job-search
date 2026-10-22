@@ -1,0 +1,10 @@
+.stages { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 16px 0 4px; list-style: none; padding: 0; }
+.stages li { font-size: 12px; color: var(--faint); font-weight: 600; }
+.stages li::before { content: ""; display: block; height: 4px; border-radius: 4px; background: var(--border); margin-bottom: 6px; }
+.stages li.done { color: var(--good); }
+.stages li.done::before { background: var(--good); }
+.stages li.current { color: var(--accent); }
+.stages li.current::before {
+  background: linear-gradient(90deg, var(--accent) var(--pct, 40%), var(--accent-soft) var(--pct, 40%));
+}
+@media (max-width: 560px) { .stages li { font-size: 11px; } }

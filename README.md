@@ -38,11 +38,13 @@ https://github.com/user-attachments/assets/533608e4-3862-4822-bb7c-f1f81f2b237c
 7. [Where your data is stored](#7-where-your-data-is-stored)
 8. [For developers](#8-for-developers)
 
+Want to help? See [CONTRIBUTING.md](CONTRIBUTING.md) for the branch workflow and coding rules.
+
 ---
 
 ## 1. Install (one time)
 
-You need **Python 3.10+**, **Git** and an **OpenAI API key**.
+You need **Python 3.10+**, **Node.js 20+** (for the web page), **Git** and an **OpenAI API key**.
 
 ```bash
 git clone https://github.com/pattjoshi/playwright-python-job-search.git
@@ -52,8 +54,13 @@ python -m venv .venv
 # Windows:      .venv\Scripts\activate
 # macOS/Linux:  source .venv/bin/activate
 
-pip install -r requirements.txt
-playwright install chromium
+pip install -r requirements.txt      # the backend (Python) and its packages
+playwright install chromium          # the browser that searches the job sites
+
+cd frontend
+npm install                          # the web page's packages
+npm run build                        # builds the page into frontend/out
+cd ..
 
 # Windows: copy .env.example .env      macOS/Linux: cp .env.example .env
 ```
@@ -69,10 +76,11 @@ OPENAI_API_KEY=sk-...
 ## 2. Start the app
 
 ```bash
-python -m job_search.web
+python -m job_search
 ```
 
-On Windows you can also just **double-click `start_ui.bat`**.
+On Windows you can also just **double-click `start_ui.bat`** (macOS/Linux: `./start_ui.sh`). It builds the
+page the first time if needed.
 
 Your browser opens **http://127.0.0.1:8000**. Keep the terminal window open while you use the page;
 press **Ctrl+C** in it to stop the app. The page only works on your computer (it isn't on the internet).
@@ -189,7 +197,7 @@ Click **My jobs** (top right).
 - When it finishes, the report opens in your browser (untick *Open report when ready* if you don't want that).
 - The card shows the next run, the last run with a link to its report, and a **Turn off** button.
 - Changed your settings? Click **Update daily search**.
-- Test it without waiting: `python -m job_search.daily` (log: `data/scheduled.log`).
+- Test it without waiting: `python -m job_search daily` (log: `data/scheduled.log`).
 
 ### Step 9 · Reload, restart and Clear
 
@@ -244,10 +252,10 @@ command line). See `.env.example` for the full list with comments.
 Everything the page does is also available without it:
 
 ```bash
-python -m job_search --resume my_resume.pdf --location Pune Remote --experience 2-4 --results linkedin=20 naukri=12
+python -m job_search search --resume my_resume.pdf --location Pune Remote --experience 2-4 --results linkedin=20 naukri=12
 ```
 
-Run `python -m job_search --help` for all options. Each option matches a `.env` setting; the command line wins.
+Run `python -m job_search search --help` for all options. Each option matches a `.env` setting; the command line wins.
 
 ## 7. Where your data is stored
 
@@ -266,27 +274,50 @@ Your resume text and job descriptions are sent to OpenAI for reading and scoring
 
 ## 8. For developers
 
+The project has two parts: a **Python backend** (FastAPI + Playwright + OpenAI) and a **Next.js frontend**
+(TypeScript). The frontend is exported as static files that the backend serves, so users run one command.
+
 ```
-job_search/
-  web.py           local web app (Flask) + static/index.html
-  pipeline.py      the search flow: resume -> sites -> filters -> details -> scoring -> report
-  browser.py       one browser per site, each on its own thread (parallel sites)
-  scrapers/        linkedin.py, naukri.py, indeed.py on top of base.py (retries, stop, give-up)
-  llm.py           OpenAI: resume reading, parallel job scoring, token usage
-  cache.py         saved descriptions / scores / resume readings
-  history.py       applied / hidden / seen jobs and run history (SQLite)
-  session.py       the page's saved session (survives reloads and restarts)
-  schedule.py      daily search (Windows Task Scheduler / cron); daily.py runs it
-  cleanup.py       KEEP_DAYS housekeeping
-  html_report.py, report.py   HTML / Excel / CSV reports
-tests/             offline tests: saved HTML pages, fake OpenAI, fake job sites
+backend/                     Python package `job_search` (pip install -r requirements.txt installs it)
+  src/job_search/
+    api/                     FastAPI app (app.py) and one router per resource (routes/)
+    cli/                     commands: serve (default), search, daily
+    config/                  settings from .env, project paths, city list
+    models/                  plain dataclasses: Job, Profile, SearchOptions, Schedule...
+    repositories/            SQLite (history, cache) and JSON (schedule, session) storage
+    schemas/                 API errors, request validation, response serializers
+    services/
+      search/                the search: runner -> pipeline -> sites / filters / profile
+      scraping/              one browser per site + linkedin.py, naukri.py, indeed.py
+      reporting/             HTML / Excel / CSV reports
+      llm_service.py         OpenAI: resume reading, parallel job scoring, token usage
+      search_manager.py      runs one search at a time in the background for the web page
+      schedule_service.py    daily search (Windows Task Scheduler / cron)
+  tests/                     unit/ (fast) and integration/ (headless browser, fakes)
+frontend/                    Next.js + TypeScript (App Router, static export)
+  src/app/                   page, layout, global styles
+  src/components/            ui/ (buttons, cards, tabs...) + one folder per feature
+  src/hooks/                 state and API calls (search form, running search, resume...)
+  src/lib/                   typed API client, types, formatting, estimate, storage
+.github/workflows/ci.yml     lint, type check, tests and build on every pull request
 ```
+
+**Develop with live reload** (two terminals):
 
 ```bash
-pip install -r requirements-dev.txt
-pytest
+python -m job_search --no-open        # backend on http://127.0.0.1:8000
+cd frontend && npm run dev            # page on http://localhost:3000 (API calls go to :8000)
 ```
 
-Tests never touch the real sites or OpenAI. To add a job board, create `job_search/scrapers/<board>.py`
-with a class extending `BaseScraper` (implement `search()` and, if needed, `fetch_description()`) and
-register it in `job_search/scrapers/__init__.py`.
+**Checks** (the same ones CI runs):
+
+```bash
+pip install -e "./backend[dev]"
+cd backend && ruff check . && pytest            # backend
+cd frontend && npm run lint && npm run typecheck && npm test && npm run build   # frontend
+python scripts/check_file_length.py             # every code file under 250 lines
+```
+
+Tests never touch the real sites or OpenAI. To add a job board, create
+`backend/src/job_search/services/scraping/<board>.py` with a class extending `BaseScraper` (implement
+`search()` and, if needed, `fetch_description()`) and register it in `services/scraping/__init__.py`.

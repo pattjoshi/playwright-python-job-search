@@ -1,0 +1,9 @@
+.segmented {
+  display: grid; grid-template-columns: repeat(4, 1fr); background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 9px; padding: 3px; gap: 3px;
+}
+.segmented button {
+  border: 0; background: transparent; padding: 6px 4px; border-radius: 6px; cursor: pointer;
+  color: var(--muted); font-weight: 600; font-size: 13px;
+}
+.segmented button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }

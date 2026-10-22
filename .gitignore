@@ -1,12 +1,32 @@
+# Your settings and personal data (never committed)
 .env
-__pycache__/
-*.pyc
-.venv/
-venv/
-.pytest_cache/
 output/
 uploads/
 data/
 resumes/
 *.pdf
 *.docx
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+*.whl
+
+# Frontend (Node.js / Next.js)
+node_modules/
+frontend/.next/
+frontend/out/
+frontend/next-env.d.ts
+*.tsbuildinfo
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

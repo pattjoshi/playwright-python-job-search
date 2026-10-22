@@ -1,0 +1,8 @@
+.empty { padding: 48px 28px; text-align: center; }
+.empty h2 { margin: 0 0 6px; font-size: 20px; }
+.empty p { color: var(--muted); margin: 0 auto; max-width: 440px; }
+.how { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 28px; text-align: left; }
+.how div { background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+.how b { display: block; margin-bottom: 2px; }
+.how span { color: var(--muted); font-size: 13px; }
+@media (max-width: 560px) { .how { grid-template-columns: 1fr; } }

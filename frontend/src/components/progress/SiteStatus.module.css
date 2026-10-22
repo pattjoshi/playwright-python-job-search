@@ -1,0 +1,9 @@
+.status { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border);
+  font-size: 13px; background: var(--surface-2);
+}
+.state { color: var(--faint); }
+.running { border-color: var(--accent); }
+.done .state { color: var(--good); }
+.failed .state { color: var(--danger); }

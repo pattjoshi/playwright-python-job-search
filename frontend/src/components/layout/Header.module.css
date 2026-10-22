@@ -1,0 +1,21 @@
+.topbar { position: sticky; top: 0; z-index: 20; background: var(--surface); border-bottom: 1px solid var(--border); }
+.inner { max-width: 1240px; margin: 0 auto; padding: 12px 20px; display: flex; align-items: center; gap: 14px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; }
+.mark {
+  width: 28px; height: 28px; border-radius: 8px; background: var(--accent); color: var(--accent-text);
+  display: grid; place-items: center; font-size: 15px;
+}
+.spacer { flex: 1; }
+.pill {
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 12px;
+  font-weight: 600; background: var(--low-bg); color: var(--low);
+}
+.dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.running { background: var(--accent-soft); color: var(--accent); }
+.done { background: var(--good-bg); color: var(--good); }
+.error { background: var(--danger-soft); color: var(--danger); }
+.counts { color: var(--muted); font-weight: 500; }
+@media (max-width: 560px) {
+  .inner { padding: 10px 16px; }
+  .counts { display: none; }
+}

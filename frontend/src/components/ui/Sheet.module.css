@@ -1,0 +1,9 @@
+.sheet {
+  margin: 0 0 0 auto; height: 100%; max-height: 100%; width: min(460px, 100%); max-width: 100%; padding: 0; border: 0;
+  border-left: 1px solid var(--border); background: var(--surface); color: var(--text);
+  box-shadow: -12px 0 32px rgba(16, 24, 40, .18);
+}
+.sheet::backdrop { background: rgba(15, 18, 24, .45); }
+.inner { display: flex; flex-direction: column; height: 100%; }
+.head { display: flex; align-items: center; gap: 10px; padding: 16px 18px; border-bottom: 1px solid var(--border); }
+.head h2 { margin: 0; font-size: 16px; flex: 1; }
