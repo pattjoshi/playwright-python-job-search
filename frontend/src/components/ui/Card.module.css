@@ -1,9 +1,0 @@
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
-.body { padding: 16px 18px; }
-.head { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; font-size: 14px; font-weight: 700; }
-.step {
-  width: 22px; height: 22px; border-radius: 50%; background: var(--accent-soft); color: var(--accent);
-  display: grid; place-items: center; font-size: 12px; font-weight: 700; flex: none;
-}
-.done { background: var(--good-bg); color: var(--good); }
-.aside { margin-left: auto; font-weight: 500; color: var(--faint); font-size: 12px; }

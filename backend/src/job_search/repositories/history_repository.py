@@ -1,4 +1,4 @@
-"""Remembers jobs across runs (SQLite), so you can see only new ones and mark applied/hidden.
+"""Remembers jobs across runs, so you can see only new ones and mark applied/hidden; plus the run history.
 
 Statuses:
   seen     shown to you in an earlier search
@@ -7,59 +7,43 @@ Statuses:
 """
 
 import json
-import sqlite3
 from datetime import datetime
 from pathlib import Path
 
-from job_search.database import Database
+from sqlalchemy import delete, func, insert, literal_column, select, tuple_
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+from job_search.config import DATA_DIR
+from job_search.database import get_engine
+from job_search.database.tables import JobRecord, RunRecord
 from job_search.models import Job
 
 STATUSES = ("seen", "applied", "hidden")
-DEFAULT_PATH = Path("data") / "history.sqlite3"
+DEFAULT_PATH = DATA_DIR / "history.sqlite3"
 MAX_RUNS = 200  # run history keeps the newest runs only
+_BATCH = 300  # stay well under SQLite's limit on query parameters
 
-_SCHEMA = """
-CREATE TABLE IF NOT EXISTS jobs (
-    source      TEXT NOT NULL,
-    job_id      TEXT NOT NULL,
-    title       TEXT NOT NULL DEFAULT '',
-    company     TEXT NOT NULL DEFAULT '',
-    url         TEXT NOT NULL DEFAULT '',
-    status      TEXT NOT NULL DEFAULT 'seen',
-    first_seen  TEXT NOT NULL,
-    updated_at  TEXT NOT NULL,
-    PRIMARY KEY (source, job_id)
-);
-CREATE TABLE IF NOT EXISTS runs (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    started_at  TEXT NOT NULL,
-    origin      TEXT NOT NULL,   -- web | daily | cli
-    status      TEXT NOT NULL,   -- done | stopped | error
-    data        TEXT NOT NULL    -- JSON: settings, funnel, sites, timings, tokens, cost, error...
-);
-"""
+_JOB_COLUMNS = (
+    JobRecord.source, JobRecord.job_id, JobRecord.title, JobRecord.company, JobRecord.url,
+    JobRecord.status, JobRecord.first_seen, JobRecord.updated_at,
+)
 
 
 class JobHistoryRepository:
     def __init__(self, path: Path = DEFAULT_PATH):
-        self._db = Database(path, _SCHEMA)
-
-    @property
-    def path(self) -> Path:
-        return self._db.path
+        self.path = Path(path)
+        self._engine = get_engine(self.path)
 
     def statuses(self, jobs: list[Job]) -> dict[tuple[str, str], str]:
         """{(source, job_id): status} for the jobs we already know."""
-        if not jobs:
-            return {}
+        keys = list({(job.source, job.job_id) for job in jobs})
         known: dict[tuple[str, str], str] = {}
-        with self._db.lock, self._db.connect() as db:
-            for job in jobs:
-                row = db.execute(
-                    "SELECT status FROM jobs WHERE source = ? AND job_id = ?", (job.source, job.job_id)
-                ).fetchone()
-                if row:
-                    known[(job.source, job.job_id)] = row[0]
+        with self._engine.connect() as db:
+            for start in range(0, len(keys), _BATCH):
+                query = select(JobRecord.source, JobRecord.job_id, JobRecord.status).where(
+                    tuple_(JobRecord.source, JobRecord.job_id).in_(keys[start : start + _BATCH])
+                )
+                known.update({(source, job_id): status for source, job_id, status in db.execute(query)})
         return known
 
     def filter(self, jobs: list[Job], only_new: bool) -> list[Job]:
@@ -77,65 +61,66 @@ class JobHistoryRepository:
         return kept
 
     def record_seen(self, jobs: list[Job]) -> None:
+        if not jobs:
+            return
         now = _now()
-        with self._db.lock, self._db.connect() as db:
-            db.executemany(
-                """INSERT INTO jobs (source, job_id, title, company, url, status, first_seen, updated_at)
-                   VALUES (?, ?, ?, ?, ?, 'seen', ?, ?)
-                   ON CONFLICT (source, job_id) DO NOTHING""",
-                [(j.source, j.job_id, j.title, j.company, j.url, now, now) for j in jobs],
-            )
+        rows = [
+            {"source": j.source, "job_id": j.job_id, "title": j.title, "company": j.company, "url": j.url,
+             "status": "seen", "first_seen": now, "updated_at": now}
+            for j in jobs
+        ]
+        with self._engine.begin() as db:
+            db.execute(sqlite_insert(JobRecord).on_conflict_do_nothing(index_elements=["source", "job_id"]), rows)
 
     def set_status(self, source: str, job_id: str, status: str, title: str = "", company: str = "", url: str = "") -> None:
         if status not in STATUSES:
             raise ValueError(f"status must be one of {', '.join(STATUSES)}")
         now = _now()
-        with self._db.lock, self._db.connect() as db:
-            db.execute(
-                """INSERT INTO jobs (source, job_id, title, company, url, status, first_seen, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                   ON CONFLICT (source, job_id) DO UPDATE SET status = excluded.status, updated_at = excluded.updated_at""",
-                (source, job_id, title, company, url, status, now, now),
-            )
+        statement = sqlite_insert(JobRecord).values(
+            source=source, job_id=job_id, title=title, company=company, url=url, status=status, first_seen=now, updated_at=now,
+        )
+        statement = statement.on_conflict_do_update(
+            index_elements=["source", "job_id"],
+            set_={"status": statement.excluded.status, "updated_at": statement.excluded.updated_at},
+        )
+        with self._engine.begin() as db:
+            db.execute(statement)
 
     def list_jobs(self, status: str, limit: int = 500) -> list[dict]:
         """Jobs with this status, most recently changed first."""
         if status not in STATUSES:
             raise ValueError(f"status must be one of {', '.join(STATUSES)}")
-        with self._db.lock, self._db.connect() as db:
-            db.row_factory = sqlite3.Row
-            rows = db.execute(
-                """SELECT source, job_id, title, company, url, status, first_seen, updated_at
-                   FROM jobs WHERE status = ? ORDER BY updated_at DESC, rowid DESC LIMIT ?""",
-                (status, limit),
-            ).fetchall()
-        return [dict(row) for row in rows]
+        query = (
+            select(*_JOB_COLUMNS).where(JobRecord.status == status)
+            .order_by(JobRecord.updated_at.desc(), literal_column("rowid").desc()).limit(limit)
+        )
+        with self._engine.connect() as db:
+            return [dict(row._mapping) for row in db.execute(query)]
 
     def record_run(self, started_at: str, origin: str, status: str, data: dict) -> None:
-        with self._db.lock, self._db.connect() as db:
-            db.execute(
-                "INSERT INTO runs (started_at, origin, status, data) VALUES (?, ?, ?, ?)",
-                (started_at, origin, status, json.dumps(data, default=str)),
-            )
-            db.execute("DELETE FROM runs WHERE id NOT IN (SELECT id FROM runs ORDER BY id DESC LIMIT ?)", (MAX_RUNS,))
+        newest = select(RunRecord.id).order_by(RunRecord.id.desc()).limit(MAX_RUNS)
+        with self._engine.begin() as db:
+            db.execute(insert(RunRecord).values(
+                started_at=started_at, origin=origin, status=status, data=json.dumps(data, default=str),
+            ))
+            db.execute(delete(RunRecord).where(RunRecord.id.not_in(newest.scalar_subquery())))
 
     def list_runs(self, limit: int = 50) -> list[dict]:
         """Newest first: {"id", "started_at", "origin", "status", **data}."""
-        with self._db.lock, self._db.connect() as db:
-            rows = db.execute(
-                "SELECT id, started_at, origin, status, data FROM runs ORDER BY id DESC LIMIT ?", (limit,)
-            ).fetchall()
-        return [{"id": r[0], "started_at": r[1], "origin": r[2], "status": r[3], **json.loads(r[4])} for r in rows]
+        query = select(RunRecord.id, RunRecord.started_at, RunRecord.origin, RunRecord.status, RunRecord.data)
+        with self._engine.connect() as db:
+            rows = db.execute(query.order_by(RunRecord.id.desc()).limit(limit)).all()
+        return [{"id": r.id, "started_at": r.started_at, "origin": r.origin, "status": r.status, **json.loads(r.data)} for r in rows]
 
     def counts(self) -> dict[str, int]:
-        with self._db.lock, self._db.connect() as db:
-            rows = db.execute("SELECT status, COUNT(*) FROM jobs GROUP BY status").fetchall()
-        return {status: 0 for status in STATUSES} | dict(rows)
+        with self._engine.connect() as db:
+            rows = db.execute(select(JobRecord.status, func.count()).group_by(JobRecord.status)).all()
+        return {status: 0 for status in STATUSES} | {status: count for status, count in rows}
 
     def forget_seen(self) -> int:
         """Forget 'seen' jobs (they can show up as new again). Applied and hidden stay."""
-        with self._db.lock, self._db.connect() as db:
-            return db.execute("DELETE FROM jobs WHERE status = 'seen'").rowcount
+        with self._engine.begin() as db:
+            return db.execute(delete(JobRecord).where(JobRecord.status == "seen")).rowcount
 
 
 def _now() -> str:

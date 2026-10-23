@@ -2,8 +2,8 @@
 
 import { useRef, useState } from "react";
 
-import { Field } from "@/components/ui/Field";
-import { TagControl } from "@/components/ui/TagControl";
+import { FormField } from "@/components/ui/form-field";
+import { TagInput } from "@/components/ui/tag-input";
 
 interface KeywordsFieldProps {
   keywords: string[];
@@ -30,16 +30,13 @@ export function KeywordsField({ keywords, onChange }: KeywordsFieldProps) {
   };
 
   return (
-    <Field label={<label htmlFor="keyword-input">Keywords</label>} hint="From your resume · Enter to add">
-      <TagControl
-        tags={keywords} onClick={() => input.current?.focus()}
-        onRemove={(keyword) => onChange(keywords.filter((k) => k !== keyword))}
-      >
+    <FormField label={<label htmlFor="keyword-input">Keywords</label>} hint="From your resume · Enter to add">
+      <TagInput tags={keywords} onClick={() => input.current?.focus()} onRemove={(keyword) => onChange(keywords.filter((k) => k !== keyword))}>
         <input
           ref={input} id="keyword-input" placeholder="e.g. Python Developer" autoComplete="off"
           value={text} onChange={(e) => setText(e.target.value)} onKeyDown={onKeyDown} onBlur={commit}
         />
-      </TagControl>
-    </Field>
+      </TagInput>
+    </FormField>
   );
 }

@@ -1,7 +1,6 @@
-import { Button } from "@/components/ui/Button";
+import { Button } from "@/components/ui/button";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { ALL_DAYS, DAY_LABELS, WEEKDAYS } from "@/lib/constants";
-
-import styles from "./DaysPicker.module.css";
 
 interface DaysPickerProps {
   days: string[];
@@ -10,20 +9,22 @@ interface DaysPickerProps {
 }
 
 export function DaysPicker({ days, onChange, labelledBy }: DaysPickerProps) {
-  const toggle = (day: string) => onChange(days.includes(day) ? days.filter((d) => d !== day) : [...days, day]);
   return (
-    <>
-      <div className={styles.days} role="group" aria-labelledby={labelledBy}>
+    <div className="grid grid-cols-1 gap-1.5">
+      <ToggleGroup type="multiple" variant="outline" value={days} onValueChange={onChange} aria-labelledby={labelledBy} className="w-full">
         {ALL_DAYS.map((day) => (
-          <button key={day} type="button" aria-pressed={days.includes(day)} aria-label={DAY_LABELS[day]} onClick={() => toggle(day)}>
+          <ToggleGroupItem
+            key={day} value={day} aria-label={DAY_LABELS[day]}
+            className="flex-1 px-0 text-xs data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+          >
             {DAY_LABELS[day].slice(0, 2)}
-          </button>
+          </ToggleGroupItem>
         ))}
+      </ToggleGroup>
+      <div className="flex gap-3">
+        <Button variant="link" size="xs" className="h-auto p-0" onClick={() => onChange(ALL_DAYS)}>Every day</Button>
+        <Button variant="link" size="xs" className="h-auto p-0" onClick={() => onChange(WEEKDAYS)}>Weekdays</Button>
       </div>
-      <div className={styles.quick}>
-        <Button variant="link" onClick={() => onChange(ALL_DAYS)}>Every day</Button>
-        <Button variant="link" onClick={() => onChange(WEEKDAYS)}>Weekdays</Button>
-      </div>
-    </>
+    </div>
   );
 }

@@ -7,10 +7,10 @@ import logging
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 
 from job_search.api.dependencies import ApiContext
+from job_search.api.frontend import serve_frontend
 from job_search.api.routes import ROUTERS
 from job_search.config import FRONTEND_BUILD_DIR, OUTPUT_DIR, UPLOAD_DIR, Settings, load_settings
 from job_search.models import Profile
@@ -24,15 +24,6 @@ from job_search.services.search import run
 from job_search.services.search_manager import SearchManager
 
 log = logging.getLogger(__name__)
-
-FRONTEND_MISSING = """<!doctype html><meta charset="utf-8"><title>Job Search</title>
-<body style="font-family:system-ui;max-width:640px;margin:60px auto;padding:0 16px;line-height:1.5">
-<h1>The web page isn't built yet</h1>
-<p>Build it once (needs <a href="https://nodejs.org/">Node.js</a> 20 or newer), then reload this page:</p>
-<pre style="background:#f3f4f6;padding:12px;border-radius:8px">cd frontend
-npm install
-npm run build</pre>
-<p>Or double-click <b>start_ui.bat</b> on Windows, which does this for you.</p></body>"""
 
 
 def default_analyzer(settings: Settings):
@@ -91,17 +82,5 @@ def create_app(
 
     for build_router in ROUTERS:
         app.include_router(build_router(ctx))
-    _serve_frontend(app, frontend_dir)
+    serve_frontend(app, frontend_dir)
     return app
-
-
-def _serve_frontend(app: FastAPI, frontend_dir: Path) -> None:
-    """Serve the built page at "/" (mounted last, so the API routes above take priority)."""
-    if (frontend_dir / "index.html").is_file():
-        app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
-        return
-    log.warning("The web page isn't built yet: run `npm install` and `npm run build` in the frontend folder")
-
-    @app.get("/", response_class=HTMLResponse)
-    def frontend_missing():
-        return FRONTEND_MISSING

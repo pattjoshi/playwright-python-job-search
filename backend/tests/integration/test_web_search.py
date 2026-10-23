@@ -14,10 +14,19 @@ def test_frontend_page_or_build_hint(make_client, tmp_path):
     built = tmp_path / "frontend"
     (built / "_next").mkdir(parents=True)
     (built / "index.html").write_text("<title>Job Search</title>")
+    (built / "dashboard.html").write_text("<title>Dashboard</title>")
+    (built / "dashboard").mkdir()  # Next.js also writes a folder of page data next to dashboard.html
+    (built / "404.html").write_text("not found")
     (built / "_next" / "app.js").write_text("console.log(1)")
     client, _ = make_client()
     assert b"<title>Job Search</title>" in client.get("/").content
+    page = client.get("/dashboard")
+    assert b"<title>Dashboard</title>" in page.content  # clean URL -> dashboard.html
+    reload = client.get("/dashboard", headers={"If-None-Match": page.headers["etag"]})
+    assert reload.status_code == 304  # a browser reload gets "not modified", not the 404 page
     assert client.get("/_next/app.js").text == "console.log(1)"
+    missing = client.get("/no-such-page")
+    assert missing.status_code == 404 and missing.text == "not found"
     assert client.get("/api/session").json() == {"resume": None, "last_job": None}  # API still wins
 
 

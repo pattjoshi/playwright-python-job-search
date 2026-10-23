@@ -1,7 +1,7 @@
-import { Alert } from "@/components/ui/Alert";
-import { Card, CardBody } from "@/components/ui/Card";
-import { Chip, ChipLabel, Chips } from "@/components/ui/Chips";
-import { Spinner } from "@/components/ui/Spinner";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card, CardContent } from "@/components/ui/card";
+import { Chip, ChipLabel, Chips } from "@/components/ui/chip";
+import { Spinner } from "@/components/ui/spinner";
 import type { RunView } from "@/hooks/useSearchJob";
 import { STAGES } from "@/lib/constants";
 import { formatClock, formatDateTime, formatDuration } from "@/lib/format";
@@ -9,7 +9,6 @@ import type { SearchJob, SiteConfig } from "@/lib/types";
 
 import { Funnel } from "./Funnel";
 import { LogView } from "./LogView";
-import styles from "./ProgressCard.module.css";
 import { SiteStatus } from "./SiteStatus";
 import { Stages } from "./Stages";
 
@@ -49,21 +48,23 @@ function elapsedText(job: SearchJob | null, restored: boolean, elapsed: number):
 }
 
 /** The live progress of a search (or how the last one ended): stages, sites, filters and the log. */
-export function ProgressCard({ job, view, restored, elapsed, error, sites }: ProgressCardProps) {
+export function ProgressCard(props: ProgressCardProps) {
+  const { job, view, restored, elapsed, sites } = props;
   const running = view === "running";
+  const error = props.error ?? (view === "finished" ? job?.error : null);
   return (
-    <Card>
-      <CardBody>
-        <div className={styles.head} aria-live="polite">
-          {running ? <Spinner /> : null}
+    <Card className="gap-0 py-5">
+      <CardContent className="px-5">
+        <div className="flex items-center gap-2.5 text-[15px] font-semibold" aria-live="polite">
+          {running ? <Spinner aria-hidden="true" /> : null}
           <span>{headline(job, view, restored)}</span>
-          <span className={styles.elapsed}>{elapsedText(job, restored, elapsed)}</span>
+          <span className="ml-auto text-sm font-normal text-muted-foreground tabular-nums">{elapsedText(job, restored, elapsed)}</span>
         </div>
         <Stages job={job} />
         {job ? <SiteStatus sites={sites} progress={job.sites} /> : null}
         {job ? <Funnel steps={job.funnel ?? []} requested={job.requested} done={job.status === "done"} /> : null}
         {job?.profile ? (
-          <div className={styles.found}>
+          <div className="mt-4 border-t pt-4">
             <Chips>
               <ChipLabel>Searching for</ChipLabel>
               {job.profile.keywords.map((keyword) => <Chip key={`k-${keyword}`} kind="key">{keyword}</Chip>)}
@@ -76,9 +77,9 @@ export function ProgressCard({ job, view, restored, elapsed, error, sites }: Pro
             </Chips>
           </div>
         ) : null}
-        <Alert message={error ?? (view === "finished" ? job?.error : null)} className={styles.error} />
+        {error ? <Alert variant="destructive" className="mt-3"><AlertDescription>{error}</AlertDescription></Alert> : null}
         <LogView lines={job?.logs ?? []} />
-      </CardBody>
+      </CardContent>
     </Card>
   );
 }

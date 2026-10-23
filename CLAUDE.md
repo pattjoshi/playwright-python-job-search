@@ -42,9 +42,12 @@ Layered: **api / cli → services → repositories → models**, with `config/`,
 supporting. Lower layers never import upper ones.
 
 - `models/`: plain dataclasses (`Job`, `Profile`, `SearchOptions`, `RunStats`, `SearchResult`, `Schedule`).
+- `database/`: SQLAlchemy `Base`, `tables.py` (models for the app DB `data/history.sqlite3`), Alembic
+  `migrations/` applied automatically by `get_engine(path)`; `test_database.py` fails if models drift
+  from migrations. The disposable cache DB still uses the raw `Database` helper.
 - `config/`: `Settings`/`load_settings()` from `.env` (command line wins), `paths.py` (project root,
   `data/`, `output/`, `uploads/`, `frontend/out`, all anchored to the repo root), city list.
-- `repositories/`: SQLite `JobHistoryRepository` (applied/hidden/seen + run history, never
+- `repositories/`: `JobHistoryRepository` (SQLAlchemy) (applied/hidden/seen + run history, never
   auto-deleted) and `CacheRepository` (resume readings, descriptions, scores; safe to delete),
   plus JSON session/schedule files.
 - `services/search/`: the search. `runner.run()` is the entry point (timing, run history), and
@@ -69,15 +72,27 @@ Calling `run()` always starts real Chromium (via `SiteSession`), so such tests l
 
 ## Frontend architecture (`frontend/src/`)
 
-- `app/`: `layout.tsx`, `page.tsx` (renders `JobSearchApp`), `globals.css` (imports `styles/tokens.css`:
-  light/dark design tokens).
-- `components/JobSearchApp.tsx` loads `/api/config`; `JobSearchPage.tsx` composes the page.
-  Feature folders: `resume/`, `search-form/`, `daily/`, `progress/`, `results/`, `my-jobs/`, `layout/`;
-  shared primitives in `ui/`. One component per file with a CSS Module next to it.
-- `hooks/`: `useSearchForm` (form state, saved preferences, `buildRequest`), `useSearchJob`
-  (start/poll/stop), `useResume`, `useJobHistory`, `useDailySearch`, `useSessionRestore`.
-- `lib/`: `api/` (typed client, one function per endpoint), `types.ts` (mirrors the API JSON),
-  `format.ts`, `estimate.ts`, `funnel.ts`, `storage.ts` (guarded localStorage), `constants.ts`.
+Tailwind CSS v4 + shadcn/ui (new-york). Theme tokens in `styles/theme.css` (light + `.dark`), dark mode via
+next-themes, toasts via sonner. Static export: pages become `name.html`, served by the backend at `/name`.
+
+- `app/layout.tsx` (theme provider, toaster); `app/page.tsx` redirects to `/dashboard`;
+  `app/(app)/layout.tsx` wraps every page in `ConfigProvider` → `SearchSessionProvider` → `AppShell`;
+  `app/(app)/<page>/page.tsx` exports metadata and renders a feature component.
+- `providers/`: `ConfigProvider` (`useConfig`, loads `/api/config` once), `SearchSessionProvider`
+  (`useSearchSession`: form, resume, running search, history, daily search and actions; lives above the
+  pages so navigation keeps state and a running search), `ThemeProvider`.
+- `components/ui/`: shadcn components (copied from the registry; `Button` defaults to `type="button"`)
+  plus small custom parts (`stepper`, `tag-input`, `form-field`, `step-title`, `chip`).
+- `components/layout/`: `AppShell`, `AppSidebar`, `Topbar`, `nav.ts` (sidebar items; `soon` = later phase),
+  `PageHeader`. Feature folders: `dashboard/`, `search/`, `resume/`, `search-form/`, `daily/`, `progress/`,
+  `results/`, `my-jobs/`, `settings/`, `coming-soon/`.
+- `hooks/`: `useSearchForm`, `useSearchJob`, `useResume`, `useJobHistory`, `useDailySearch`,
+  `useSessionRestore`, `useRuns`.
+- `lib/`: `api/` (typed client), `types.ts` (mirrors the API JSON), `format.ts`, `estimate.ts`, `funnel.ts`,
+  `storage.ts`, `constants.ts`, `utils.ts` (`cn`).
+
+Use theme tokens (`bg-card`, `text-muted-foreground`, `bg-success-soft`…), never raw colours. Give
+one-column grids `grid-cols-1` so long text can't widen the page.
 
 If an API response shape changes, update `lib/types.ts` and tests on both sides together.
 

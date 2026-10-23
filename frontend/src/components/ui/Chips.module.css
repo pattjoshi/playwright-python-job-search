@@ -1,9 +1,0 @@
-.chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 6px 0; }
-.label {
-  font-size: 11px; font-weight: 700; color: var(--faint); text-transform: uppercase; letter-spacing: .05em; margin-right: 4px;
-}
-.chip { font-size: 12px; padding: 2px 9px; border-radius: 999px; }
-.key { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
-.skill { background: var(--low-bg); color: var(--low); }
-.have { background: var(--good-bg); color: var(--good); }
-.miss { border: 1px solid var(--border-strong); color: var(--muted); }

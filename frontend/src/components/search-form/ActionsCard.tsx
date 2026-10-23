@@ -1,38 +1,43 @@
-import { Alert } from "@/components/ui/Alert";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
-import type { Estimate } from "@/lib/estimate";
+import { Square } from "lucide-react";
 
-import styles from "./ActionsCard.module.css";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
+import type { Estimate } from "@/lib/estimate";
 
 interface ActionsCardProps {
   estimate: Estimate;
   error: string | null;
   running: boolean;
   stopping: boolean;
+  starting: boolean;
   canStart: boolean;
   hasResume: boolean;
   onStop: () => void;
 }
 
 /** The sticky footer with the estimate and the Start / Stop button (Start submits the form). */
-export function ActionsCard({ estimate, error, running, stopping, canStart, hasResume, onStop }: ActionsCardProps) {
+export function ActionsCard({ estimate, error, running, stopping, starting, canStart, hasResume, onStop }: ActionsCardProps) {
   return (
-    <Card className={styles.actions}>
-      <div className={styles.body}>
-        <div className={styles.estimate}>
+    <Card className="sticky bottom-3 z-10 gap-0 py-0 shadow-lg max-lg:static">
+      <CardContent className="grid grid-cols-1 gap-2.5 p-4">
+        <p className="text-xs text-muted-foreground">
           {estimate.text}
-          {estimate.tip ? <span className={styles.tip}>Tip: fewer keywords or cities makes it faster</span> : null}
-        </div>
-        <Alert message={error} />
+          {estimate.tip ? <span className="block text-warning">Tip: fewer keywords or cities makes it faster</span> : null}
+        </p>
+        {error ? <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert> : null}
         {running ? (
-          <Button variant="danger" disabled={stopping} onClick={onStop}>{stopping ? "Stopping…" : "Stop search"}</Button>
+          <Button variant="outline" size="lg" className="w-full border-destructive text-destructive hover:bg-destructive/10 hover:text-destructive" disabled={stopping} onClick={onStop}>
+            {stopping ? <><Spinner aria-hidden="true" /> Stopping…</> : <><Square className="fill-current" /> Stop search</>}
+          </Button>
         ) : (
-          <Button variant="primary" type="submit" disabled={!canStart}>
+          <Button type="submit" size="lg" className="w-full text-base" disabled={!canStart}>
+            {starting ? <Spinner aria-hidden="true" /> : null}
             {hasResume ? "Start search" : "Upload your resume to start"}
           </Button>
         )}
-      </div>
+      </CardContent>
     </Card>
   );
 }

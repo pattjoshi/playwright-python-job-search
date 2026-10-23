@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter
 
+from job_search import __version__
 from job_search.api.dependencies import ApiContext
 from job_search.config import LOCATION_CHOICES
 from job_search.services.reporting import SITE_NAMES
@@ -40,6 +41,7 @@ def build_router(ctx: ApiContext) -> APIRouter:
             "running_job": ctx.manager.running.id if ctx.manager.running else None,
             "resume_types": list(SUPPORTED_SUFFIXES),
             "history": ctx.history.counts(),
+            "version": __version__,
         }
 
     return router

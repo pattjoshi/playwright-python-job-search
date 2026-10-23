@@ -126,24 +126,31 @@ class SearchManager:
         if package_logger.getEffectiveLevel() > logging.INFO:
             package_logger.setLevel(logging.INFO)
         package_logger.addHandler(handler)
+        status = "error"
         try:
             result = self.runner(options, self.settings, on_event=job.on_event, stop_event=job.stop_event)
             job.result = result_to_dict(result, self.output_dir)
-            job.status = "done"
+            status = "done"
             job.logs.append("Done.")
         except SearchStopped:
-            job.status = "stopped"
+            status = "stopped"
             job.logs.append("Stopped.")
         except Exception as error:  # show any failure on the page instead of a silent stop
             log.exception("Search failed")
             job.error = str(error) or error.__class__.__name__
-            job.status = "error"
         finally:
             package_logger.removeHandler(handler)
             job.finished_at = datetime.now().isoformat(timespec="seconds")
-            if self.session:
-                try:
-                    # Kept so a page reload (or app restart) shows this search again.
-                    self.session.save_last_job({**job.to_dict(), "logs": job.logs[-100:]})
-                except Exception:
-                    log.exception("Couldn't save the session")
+            self._save_session(job, status)
+            # Only now does the page see the search as finished, so a "Clear" right after it
+            # can't be undone by this save.
+            job.status = status
+
+    def _save_session(self, job: SearchJob, status: str) -> None:
+        if not self.session:
+            return
+        try:
+            # Kept so a page reload (or app restart) shows this search again.
+            self.session.save_last_job({**job.to_dict(), "status": status, "logs": job.logs[-100:]})
+        except Exception:
+            log.exception("Couldn't save the session")

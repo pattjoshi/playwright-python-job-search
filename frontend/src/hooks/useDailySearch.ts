@@ -15,6 +15,11 @@ export function useDailySearch() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const fail = useCallback((message: string) => {
+    setError(message);
+    return false;
+  }, []);
+
   const setDays = useCallback((next: string[]) => setDaysState(ALL_DAYS.filter((day) => next.includes(day))), []);
 
   const show = useCallback(
@@ -35,31 +40,35 @@ export function useDailySearch() {
     });
   }, [show]);
 
+  /** Save the schedule; returns true when it was saved. */
   const save = useCallback(
-    async (search: SearchRequest) => {
+    async (search: SearchRequest): Promise<boolean> => {
       setError(null);
-      if (!time) return setError("Pick a time.");
-      if (!days.length) return setError("Pick at least one day.");
+      if (!time) return fail("Pick a time.");
+      if (!days.length) return fail("Pick at least one day.");
       setSaving(true);
       try {
         show(await api.saveDaily({ ...search, time, days, open_report: openReport }));
+        return true;
       } catch (err) {
-        setError((err as Error).message);
+        return fail((err as Error).message);
       } finally {
         setSaving(false);
       }
     },
-    [days, openReport, show, time],
+    [days, fail, openReport, show, time],
   );
 
-  const turnOff = useCallback(async () => {
+  /** Remove the schedule; returns true when it was removed. */
+  const turnOff = useCallback(async (): Promise<boolean> => {
     setError(null);
     try {
       show(await api.turnOffDaily());
+      return true;
     } catch (err) {
-      setError((err as Error).message);
+      return fail((err as Error).message);
     }
-  }, [show]);
+  }, [fail, show]);
 
   return { status, time, setTime, days, setDays, openReport, setOpenReport, error, setError, saving, save, turnOff };
 }

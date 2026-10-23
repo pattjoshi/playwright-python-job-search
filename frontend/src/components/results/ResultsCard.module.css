@@ -1,7 +1,0 @@
-.results { margin-top: 16px; }
-.head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--border); }
-.head h2 { margin: 0; font-size: 16px; }
-.sub { color: var(--muted); font-size: 13px; }
-.spacer { flex: 1; }
-.list { list-style: none; margin: 0; padding: 0; }
-.empty { padding: 28px 18px; color: var(--muted); text-align: center; }
