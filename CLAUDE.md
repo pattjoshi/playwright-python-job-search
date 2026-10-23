@@ -90,7 +90,11 @@ supporting. Lower layers never import upper ones.
   `step_through` Next→Submit; `naukri.py` chat questions, `linkedin.py` pop-up, `indeed.py` new tab). Logins come
   from `Settings.board_logins` (`NAUKRI_EMAIL`/`_PASSWORD`…, `repr=False`); `browser.py` keeps a persistent profile in
   `data/browser-profile`. Per-board switches + `board_daily_limit` in settings; tests pass `board_base_url` and
-  `pace=0` to use the saved board pages in `tests/fixtures/forms`.
+  `pace=0` to use the saved board pages in `tests/fixtures/forms`. A run keeps ONE tab open (a visible Chrome quits
+  with its last tab); `sessions.py` remembers boards you signed in to ("Sign in" = `AutoApplyManager.sign_in`, a
+  visible browser waiting while you log in, so `.env` passwords are optional) and saves the page of jobs that didn't go
+  through (served only as a download). `run(only_job=)` is "Try this job". Board pages wait for their Apply button
+  (`Board.wait_until`) and report signed-out pages; LinkedIn opens `www.linkedin.com/jobs/view/<id>/`.
 - `cli/`: `serve`, `search`, `daily`, `reset-password` commands; `__main__.py` and `daily.py` are thin entry points.
 
 Tests patch `job_search.services.search.pipeline.SCRAPERS` / `.JobMatcherLLM` to fake boards and AI.

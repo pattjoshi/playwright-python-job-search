@@ -13,6 +13,7 @@ from job_search.services.auto_apply.filler import Filler, pick
 
 APPLY = re.compile(r"^\s*apply\s*$", re.I)
 COMPANY_SITE = re.compile(r"apply on company (site|website)", re.I)
+LOGIN_TO_APPLY = re.compile(r"(login|register) to apply", re.I)
 ALREADY = re.compile(r"^\s*applied\s*$", re.I)
 SENT = re.compile(r"successfully applied|you have applied|application (sent|submitted)", re.I)
 DRAWER = ".chatbot_DrawerContentWrapper, [class*='chatbot_Drawer']"
@@ -31,7 +32,11 @@ class NaukriBoard(Board):
 
     def apply(self, page: Page, job_url: str, filler: Filler, dry_run: bool, screenshot) -> Outcome:
         page.goto(job_url, wait_until="domcontentloaded", timeout=45_000)
+        buttons = (APPLY, ALREADY, COMPANY_SITE, LOGIN_TO_APPLY)
+        self.wait_until(page, lambda: any(_visible(page.get_by_role("button", name=b)) for b in buttons), 20 if self.pace else 3)
         self.pause(page)
+        if _visible(page.get_by_role("button", name=LOGIN_TO_APPLY)) or self.signed_out(page):
+            return self.not_signed_in()
         if _visible(page.get_by_role("button", name=ALREADY)):
             return Outcome("submitted", "Already applied on Naukri.")
         if _visible(page.get_by_role("button", name=COMPANY_SITE)):

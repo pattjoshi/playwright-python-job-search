@@ -40,7 +40,11 @@ class IndeedBoard(Board):
 
     def apply(self, page: Page, job_url: str, filler: Filler, dry_run: bool, screenshot) -> Outcome:
         page.goto(job_url, wait_until="domcontentloaded", timeout=45_000)
+        loaded = lambda: any(_visible(page.get_by_role(role, name=b)) for role in ("button", "link") for b in (APPLY, COMPANY_SITE))  # noqa: E731
+        self.wait_until(page, loaded, 20 if self.pace else 3)
         self.pause(page)
+        if not loaded() and self.signed_out(page):
+            return self.not_signed_in()
         if _visible(page.get_by_role("button", name=COMPANY_SITE)) or _visible(page.get_by_role("link", name=COMPANY_SITE)):
             return Outcome("blocked", "This job is applied to on the company's site, not on Indeed.")
         button = _visible(page.get_by_role("button", name=APPLY))

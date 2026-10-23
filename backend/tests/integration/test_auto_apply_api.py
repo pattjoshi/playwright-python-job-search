@@ -27,5 +27,9 @@ def test_settings_queue_and_run(make_client):
     assert client.post("/api/auto-apply/999/retry").status_code == 404
     assert client.delete("/api/auto-apply/999").status_code == 404
     assert client.get("/api/auto-apply/999/screenshot").status_code == 404
+    assert client.get("/api/auto-apply/999/page").status_code == 404
+    assert client.post("/api/auto-apply/999/try").status_code == 404
+    assert client.post("/api/auto-apply/boards/monster/sign-in").status_code == 404
+    assert set(client.get("/api/auto-apply").json()["boards"]["linkedin"]) == {"today", "has_login", "signed_in"}
     client.post("/api/auth/logout")
     assert client.get("/api/auto-apply").status_code == 401

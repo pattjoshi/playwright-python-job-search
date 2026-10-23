@@ -17,10 +17,13 @@ interface RunCardProps {
 export function RunCard({ data, waiting, busy, onRun, onStop }: RunCardProps) {
   const { run, settings, today, remaining } = data;
   const active = run.status === "running" || run.status === "stopping";
+  const signingIn = run.status === "signing_in";
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">{active ? <Spinner /> : null} {active ? "Applying…" : "Run"}</CardTitle>
+        <CardTitle className="flex items-center gap-2">
+          {active || signingIn ? <Spinner /> : null} {signingIn ? "Waiting for you to sign in…" : active ? "Applying…" : "Run"}
+        </CardTitle>
         <CardDescription>
           {today} of {settings.daily_limit} today · {waiting} waiting{remaining ? "" : " · today's limit is reached"}
         </CardDescription>
@@ -28,7 +31,7 @@ export function RunCard({ data, waiting, busy, onRun, onStop }: RunCardProps) {
           {active ? (
             <Button variant="outline" onClick={onStop} disabled={run.status === "stopping"}><Square /> Stop</Button>
           ) : (
-            <Button onClick={onRun} disabled={busy || !waiting || !remaining}><Play /> Run now</Button>
+            <Button onClick={onRun} disabled={busy || signingIn || !waiting}><Play /> Run now</Button>
           )}
         </CardAction>
       </CardHeader>
