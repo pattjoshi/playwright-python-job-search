@@ -95,6 +95,8 @@ supporting. Lower layers never import upper ones.
   visible browser waiting while you log in, so `.env` passwords are optional) and saves the page of jobs that didn't go
   through (served only as a download). `run(only_job=)` is "Try this job". Board pages wait for their Apply button
   (`Board.wait_until`) and report signed-out pages; LinkedIn opens `www.linkedin.com/jobs/view/<id>/`.
+- Notes: `notes` table (blocks as JSON, `parent_id` for pages inside pages, cascade delete), `repositories/note_repository.py`,
+  `services/notes.py` (`clean_blocks`, `move` refuses loops), `api/routes/notes.py`.
 - `cli/`: `serve`, `search`, `daily`, `reset-password` commands; `__main__.py` and `daily.py` are thin entry points.
 
 Tests patch `job_search.services.search.pipeline.SCRAPERS` / `.JobMatcherLLM` to fake boards and AI.
@@ -120,11 +122,12 @@ next-themes, toasts via sonner. Static export: pages become `name.html`, served 
   `results/`, `my-jobs/`, `applications/` (board with dnd-kit drag and drop, table, form dialog, details
   sheet; `statuses.ts` holds the status labels and colours), `answers/` (Answer Bank: tabs by status, rows
   grouped by category with an answer box shaped by `kind`, form dialog, Test a question card; `meta.ts`), `auto-apply/`
-  (run card, queue tabs, job rows, settings with a confirm before leaving dry run), `settings/`,
-  `coming-soon/`.
+  (run card, queue tabs, job rows, settings with a confirm before leaving dry run), `notes/` (Notion-style:
+  `NoteTree` sidebar, `NoteEditor` autosaves, `NoteBlock` = one auto-growing textarea per block with Markdown shortcuts,
+  the "/" menu and dnd-kit sortable; pure helpers in `blocks.ts`), `settings/`, `coming-soon/`.
 - `hooks/`: `useSearchForm`, `useSearchJob`, `useResume`, `useJobHistory`, `useDailySearch`,
   `useSessionRestore`, `useRuns`, `useApplications` (optimistic moves with rollback), `useApplicationStats`,
-  `useAnswers`, `useAutoApply` (polls while a run is going).
+  `useAnswers`, `useAutoApply` (polls while a run is going), `useNotes`.
 - `lib/`: `api/` (typed client), `types.ts` (mirrors the API JSON), `format.ts`, `estimate.ts`, `funnel.ts`,
   `storage.ts`, `constants.ts`, `utils.ts` (`cn`).
 

@@ -232,3 +232,4 @@ export interface ApplicationStats {
 
 export * from "./answer-types";
 export * from "./auto-apply-types";
+export * from "./note-types";

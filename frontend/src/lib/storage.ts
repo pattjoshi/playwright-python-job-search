@@ -47,3 +47,7 @@ export const clearSavedKeywords = () => write(SESSION_KEY, null);
 const TRACKER_VIEW_KEY = "job-search-tracker-view";
 export const loadTrackerView = (): "board" | "table" => (read<string>(TRACKER_VIEW_KEY) === "table" ? "table" : "board");
 export const saveTrackerView = (view: "board" | "table") => write(TRACKER_VIEW_KEY, view);
+
+const LAST_NOTE_KEY = "job-search-last-note";
+export const loadLastNote = (): number | null => read<number>(LAST_NOTE_KEY);
+export const saveLastNote = (id: number | null) => write(LAST_NOTE_KEY, id);
