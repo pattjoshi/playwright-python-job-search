@@ -63,6 +63,26 @@ def build_router(ctx: ApiContext) -> APIRouter:
         current_user(request)
         return {"run": manager.stop()}
 
+    @router.post("/boards/{board}/sign-in")
+    def sign_in(request: Request, board: str):
+        current_user(request)
+        return {"run": run(lambda: manager.sign_in(board))}
+
+    @router.post("/{job_id}/try")
+    def try_job(request: Request, job_id: int):
+        user = current_user(request)
+        run(lambda: service.retry(user.id, job_id))  # 404 for someone else's job
+        return {"run": run(lambda: manager.start(user.id, only_job=job_id))}
+
+    @router.get("/{job_id}/page")
+    def saved_page(request: Request, job_id: int):
+        """The page as it was when the job failed, as a download (never shown on this site: it's someone else's HTML)."""
+        path = run(lambda: service.saved_page(current_user(request).id, job_id))
+        if path is None:
+            raise ApiError("No saved page for that job.", status=404)
+        return FileResponse(path, media_type="text/plain; charset=utf-8", filename=f"auto-apply-job-{job_id}.html",
+                            content_disposition_type="attachment")
+
     @router.post("/{job_id}/retry")
     def retry(request: Request, job_id: int):
         return {"job": run(lambda: service.retry(current_user(request).id, job_id))}

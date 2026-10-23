@@ -20,6 +20,8 @@ log = logging.getLogger(__name__)
 
 SECURITY_URL = re.compile(r"checkpoint|challenge|captcha|verify|security|otp", re.I)
 CAPTCHA = "iframe[src*='captcha'], iframe[src*='recaptcha'], iframe[src*='hcaptcha'], iframe[title*='challenge'], #captcha"
+SIGNED_OUT_URL = re.compile(r"/login|/signin|authwall|/uas/|nlogin", re.I)
+SIGN_IN = re.compile(r"^\s*sign in( to apply)?\s*$", re.I)
 ERRORS = "[role='alert']:visible, .artdeco-inline-feedback--error, [aria-invalid='true']"
 
 
@@ -48,6 +50,24 @@ class Board:
     def security_check(self, page: Page) -> bool:
         return bool(SECURITY_URL.search(page.url)) or any(f.is_visible() for f in page.locator(CAPTCHA).all())
 
+    def wait_until(self, page: Page, done: Callable[[], bool], seconds: float = 15) -> bool:
+        """Poll until done() (e.g. the Apply button has loaded); pages like LinkedIn draw it late."""
+        deadline = time.monotonic() + seconds
+        while time.monotonic() < deadline:
+            if done():
+                return True
+            page.wait_for_timeout(500)
+        return done()
+
+    def signed_out(self, page: Page) -> bool:
+        """The page asks you to sign in (so applying can't work until you do)."""
+        return bool(SIGNED_OUT_URL.search(page.url)) or bool(_visible(page.get_by_role("link", name=SIGN_IN))) \
+            or bool(_visible(page.get_by_role("button", name=SIGN_IN)))
+
+    def not_signed_in(self) -> Outcome:
+        return Outcome("blocked", f"Not signed in to {self.label}. Press Sign in next to {self.label} in Auto-apply Settings "
+                       "and log in once in the browser that opens.", stop_platform=True)
+
     def wait_for_you(self, page: Page, done: Callable[[], bool]) -> bool:
         """With the browser visible, give you time to finish a CAPTCHA / OTP / check; True once done()."""
         deadline = time.monotonic() + self.wait_for_you_s
@@ -65,15 +85,15 @@ class Board:
         self.pause(page, 1, 2)
         if not page.locator(self.password_field).count() and not page.locator(self.user_field).count():
             return None  # the saved profile is still signed in
-        if not login:
-            env = self.name.upper()
-            return f"Add {env}_EMAIL and {env}_PASSWORD to your .env file (and restart) to use {self.label} Easy Apply."
-        self.fill_login(page, *login)
         signed_in = lambda: not page.locator(self.password_field).count() and not self.security_check(page)  # noqa: E731
-        for _ in range(20 if self.pace else 6):  # up to 10 s for the board to sign you in (3 s when pacing is off)
-            if signed_in():
+        if not login:  # no password saved: you sign in yourself in the open browser
+            if self.wait_for_you_s and self.wait_for_you(page, signed_in):
                 return None
-            page.wait_for_timeout(500)
+            return (f"Not signed in to {self.label}. Press Sign in next to {self.label} in Auto-apply Settings and log in "
+                    f"once in the browser that opens (or add {self.name.upper()}_EMAIL and _PASSWORD to .env).")
+        self.fill_login(page, *login)
+        if self.wait_until(page, signed_in, 10 if self.pace else 3):
+            return None
         if self.wait_for_you_s and self.wait_for_you(page, signed_in):
             return None
         if self.security_check(page):

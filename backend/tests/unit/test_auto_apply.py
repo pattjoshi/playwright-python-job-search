@@ -77,7 +77,7 @@ def test_manager_runs_one_at_a_time_and_stops(tmp_path):
     pending = []
     manager = AutoApplyManager(service, start_thread=pending.append)
     assert manager.start(1)["status"] == "running"
-    with pytest.raises(AutoApplyError, match="already running"):
+    with pytest.raises(AutoApplyError, match="is running"):
         manager.start(1)
     assert manager.stop()["status"] == "stopping"
     pending[0]()  # the run sees Stop straight away

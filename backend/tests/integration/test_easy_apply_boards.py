@@ -32,7 +32,8 @@ def board(name, site, wait_s=0):
 @pytest.mark.parametrize("name", ["naukri", "linkedin", "indeed"])
 def test_sign_in_once_then_stay_signed_in(page, form_site, name):  # noqa: F811
     site = board(name, form_site)
-    assert "Add " + name.upper() + "_EMAIL" in site.ensure_login(page, None)
+    problem = site.ensure_login(page, None)
+    assert problem.startswith("Not signed in") and f"{name.upper()}_EMAIL" in problem
     assert "Couldn't sign in" in site.ensure_login(page, ("om@example.com", "wrong"))
     assert site.ensure_login(page, LOGIN) is None
     assert site.ensure_login(page, None) is None  # the saved profile is still signed in: no password needed
@@ -76,3 +77,26 @@ def test_indeed_new_tab_steps(page, form_site, tmp_path):  # noqa: F811
     outcome = board("indeed", form_site).apply(page, f"{form_site}/indeed_job.html", filler(tmp_path), False, tmp_path / "s.png")
     assert outcome.status == "submitted"
     assert {a["question"] for a in outcome.answers} >= {"Full name", "Email", "Are you legally authorized to work in India?"}
+
+
+def test_sign_in_yourself_without_a_password(page, form_site):  # noqa: F811
+    """No password in .env: with the browser open, the app waits while you log in yourself."""
+    page.context.add_init_script("setTimeout(() => document.querySelectorAll('form').forEach((f) => f.remove()), 1500)")
+    assert board("linkedin", form_site, wait_s=10).ensure_login(page, None) is None
+
+
+def test_linkedin_waits_for_a_late_button_and_spots_signed_out_pages(page, form_site, tmp_path):  # noqa: F811
+    linkedin = board("linkedin", form_site)
+    late = linkedin.apply(page, f"{form_site}/linkedin_job_slow.html", filler(tmp_path), True, tmp_path / "s.png")
+    assert late.status == "filled"  # the Easy Apply button appeared after the page loaded
+    out = linkedin.apply(page, f"{form_site}/linkedin_job_signed_out.html", filler(tmp_path), True, tmp_path / "s.png")
+    assert out.status == "blocked" and out.message.startswith("Not signed in to LinkedIn") and out.stop_platform
+
+
+def test_linkedin_opens_the_signed_in_job_page():
+    from job_search.services.auto_apply.boards.linkedin import job_page_url
+
+    assert job_page_url("https://in.linkedin.com/jobs/view/ai-engineer-at-straive-4012345678") == \
+        "https://www.linkedin.com/jobs/view/4012345678/"
+    assert job_page_url("https://www.linkedin.com/jobs/view/4012345678") == "https://www.linkedin.com/jobs/view/4012345678/"
+    assert job_page_url("http://127.0.0.1:9/linkedin_job.html") == "http://127.0.0.1:9/linkedin_job.html"
