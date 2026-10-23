@@ -3,6 +3,10 @@
 import { postJson, request } from "@/lib/api/client";
 import type {
   Answer,
+  AutoApplyJob,
+  AutoApplyOverview,
+  AutoApplyRun,
+  AutoApplySettings,
   AnswerInput,
   Application,
   ApplicationEvent,
@@ -60,6 +64,20 @@ export const answersApi = {
   addStarters: () => postJson<{ added: number }>("/api/answers/starters"),
   fillFromResume: () => postJson<{ filled: number }>("/api/answers/fill-from-resume"),
   tryQuestion: (question: string, options: string[]) => postJson<TryResult>("/api/answers/try", { question, options }),
+};
+
+export const autoApplyApi = {
+  overview: () => request<AutoApplyOverview>("/api/auto-apply"),
+  saveSettings: (body: Partial<AutoApplySettings>) =>
+    request<{ settings: AutoApplySettings }>("/api/auto-apply/settings", {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    }),
+  queueLastSearch: () => postJson<{ added: number }>("/api/auto-apply/queue-last-search"),
+  run: () => postJson<{ run: AutoApplyRun }>("/api/auto-apply/run"),
+  stop: () => postJson<{ run: AutoApplyRun }>("/api/auto-apply/stop"),
+  retry: (id: number) => postJson<{ job: AutoApplyJob }>(`/api/auto-apply/${id}/retry`),
+  remove: (id: number) => request<{ ok: boolean }>(`/api/auto-apply/${id}`, { method: "DELETE" }),
+  screenshotUrl: (id: number, version: string) => `/api/auto-apply/${id}/screenshot?v=${encodeURIComponent(version)}`,
 };
 
 export const api = {

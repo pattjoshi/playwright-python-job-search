@@ -36,6 +36,9 @@ export function JobCard({ job, rank, applied, siteName, onSetStatus }: JobCardPr
           {job.is_new ? <Badge className="bg-new-soft text-new">New</Badge> : null}
           {applied ? <Badge className="bg-success-soft text-success">Applied</Badge> : null}
           {siteName ? <Badge variant="secondary">{siteName}</Badge> : null}
+          {job.apply_url ? (
+            <Badge variant="outline" title="Applied to on the company's own career page: auto-apply can do this one">Company site</Badge>
+          ) : null}
         </div>
         <div className="mt-0.5 mb-1.5 text-sm text-muted-foreground">
           {[job.company, job.location, job.experience, job.posted_text].filter(Boolean).join(" · ")}

@@ -29,6 +29,7 @@ _FIRST = re.compile(r"^(legal |preferred )?(first|given) name$|^preferred name$"
 _LAST = re.compile(r"^(legal )?(last|family) name$|^surname$")
 _FULL = re.compile(r"^(your |legal )?(full )?name$")
 MAX_LOGGED = 500  # characters of each answer kept in the log
+FILE_LABELS = {"resume": "Your resume file", "ai_letter": "Cover letter written by AI (Word file)"}
 
 
 @dataclass
@@ -103,7 +104,8 @@ class Filler:
                 continue
             value, how = self.decide(f)
             if value is not None and self._put(page, f, value):
-                result.answers.append({"question": f.label, "answer": value[:MAX_LOGGED], "how": how})
+                shown = FILE_LABELS.get(how, "A file") if f.kind == "file" else value[:MAX_LOGGED]
+                result.answers.append({"question": f.label, "answer": shown, "how": how})
             elif f.required:
                 result.missing.append(f.label)
         return result

@@ -53,6 +53,8 @@ def test_dry_run_fills_a_greenhouse_style_form(page, make_filler, form_site, tmp
     assert page.input_value("[name=newsletter]") == ""  # outside the application form
     how = {a["question"]: a["how"] for a in outcome.answers}
     assert how["Resume/CV"] == "resume" and how["Cover Letter"] == "ai_letter" and filler.cover_letter == "Letter for: Cover letter"
+    shown = {a["question"]: a["answer"] for a in outcome.answers}
+    assert shown["Resume/CV"] == "Your resume file" and shown["Cover Letter"] == "Cover letter written by AI (Word file)"
     assert page.url.endswith("/greenhouse.html")  # not submitted
 
 

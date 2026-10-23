@@ -257,6 +257,35 @@ How a form question gets its answer:
 - Click the pencil to change a question, its category, its answer type (text, number, Yes/No, options) and the
   **other wordings** forms use for it.
 
+### Step 12 · Auto-apply (company career pages)
+
+Click **Auto-apply** in the sidebar.
+
+![Auto-apply](docs/screenshots/13-auto-apply.png)
+
+Some jobs on LinkedIn, Naukri and Indeed say **Apply on company site**. Those show a **Company site** badge in
+the results. After every search (and the daily search), the ones scoring at least your **minimum match score**
+(75 to start) are added to the auto-apply queue.
+
+1. Click **Run now**. For each job, auto-apply opens the company's application page (Greenhouse, Lever, Ashby,
+   SmartRecruiters or a simple company form), clicks **Apply** if needed and fills the form:
+   - **Resume / CV** upload: your resume file
+   - **Cover letter** and "Why do you want to join us?": written by the AI for that job, from your resume
+   - **Everything else**: your Answer Bank
+2. Every filled form is **screenshotted**. Open **What was filled in** on a job to see each answer.
+3. **Dry run is on at first**: forms are filled but never submitted. When the screenshots look right, turn
+   **Dry run** off in Settings (it asks you to confirm). Submitted jobs are added to **Applications** as Applied.
+
+| What you see | Meaning |
+|---|---|
+| **Needs your answer** | A required question isn't in your resume or Answer Bank. It's added to the Answer Bank's **Needs answer** list. Answer it there, then press **Retry**. Nothing is guessed or submitted half-filled. |
+| **Submitted** / **Submitted?** | Sent. "Submitted?" means no confirmation page appeared, so check your email. |
+| **Do it yourself** | The site needs an account or sign-in (e.g. Workday), or showed a CAPTCHA. Turn on **Show browser** to solve CAPTCHAs while it runs. |
+
+Safety settings: **Applications per day** (15 to start), **Minimum match score**, **Dry run**, **Show browser**, and
+**Apply after each search** (off to start; turn it on for hands-free applying after each search).
+Jobs you apply to on LinkedIn, Naukri or Indeed themselves (Easy Apply) come in the next phase.
+
 ---
 
 ## 4. Tips and troubleshooting
@@ -316,7 +345,8 @@ Everything stays in the project folder on your computer:
 |---|---|---|
 | `uploads/` | Resumes you uploaded | `KEEP_DAYS` cleanup (never the one in use) |
 | `output/` | HTML / Excel / CSV reports | `KEEP_DAYS` cleanup (never the one on screen) |
-| `data/history.sqlite3` | Your account, applications, Answer Bank, applied / hidden / seen jobs and the search history | Never automatically |
+| `data/history.sqlite3` | Your account, applications, Answer Bank, auto-apply queue, applied / hidden / seen jobs and the search history | Never automatically |
+| `data/auto-apply/` | Screenshots of filled application forms and the cover letters sent | When you remove the job from Auto-apply |
 | `data/cache.sqlite3` | Saved job details, AI scores, resume readings | `KEEP_DAYS` cleanup; safe to delete anytime |
 | `data/session.json` | What the page shows (resume, last results) | The **Clear** button |
 | `data/schedule.json`, `data/scheduled.log` | Daily search settings and its log | **Turn off** / log is trimmed when large |
@@ -345,6 +375,7 @@ backend/                     Python package `job_search` (pip install -r require
       llm_service.py         OpenAI: resume reading, parallel job scoring, token usage
       applications.py        application tracker: validation, status changes, tracking jobs from results
       answers/               Answer Bank: starter questions, AI matching and drafts, answering form questions
+      auto_apply/            auto-apply: queue rules, form reading and filling, submit + confirm, background run
       search_manager.py      runs one search at a time in the background for the web page
       schedule_service.py    daily search (Windows Task Scheduler / cron)
   tests/                     unit/ (fast) and integration/ (headless browser, fakes)
