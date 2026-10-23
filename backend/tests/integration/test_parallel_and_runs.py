@@ -17,6 +17,7 @@ from job_search.repositories import JobHistoryRepository
 from job_search.services.matching_service import SearchStopped
 from job_search.services.scraping import BaseScraper
 from job_search.services.search import pipeline
+from tests.auth_helpers import signed_in
 
 SAMPLE_RESUME = Path(__file__).parent.parent / "sample_resume.txt"
 TIMELINE: list = []
@@ -150,7 +151,7 @@ def test_runs_api(tmp_path):
 
     app = create_app(Settings("key", history_path=tmp_path / "history.sqlite3"), output_dir=output,
                      upload_dir=tmp_path / "uploads", analyzer=lambda p: Profile(), system_scheduler=NoScheduler())
-    body = TestClient(app).get("/api/runs").json()
+    body = signed_in(TestClient(app)).get("/api/runs").json()
 
     assert [r["status"] for r in body["runs"]] == ["error", "done"]
     assert body["runs"][1]["report_url"] == "/reports/jobs_1.html"

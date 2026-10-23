@@ -3,6 +3,7 @@
 import { Menu, PanelLeft } from "lucide-react";
 import { usePathname } from "next/navigation";
 
+import { UserMenu } from "@/components/auth/UserMenu";
 import { Button } from "@/components/ui/button";
 
 import { findNavItem } from "./nav";
@@ -29,6 +30,7 @@ export function Topbar({ onToggleSidebar, onOpenMobileMenu }: TopbarProps) {
       <div className="ml-auto flex items-center gap-1">
         <SearchStatusChip />
         <ThemeToggle />
+        <UserMenu />
       </div>
     </header>
   );

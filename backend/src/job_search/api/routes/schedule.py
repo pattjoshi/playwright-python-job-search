@@ -4,6 +4,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Request
 
+from job_search.api.auth import require_owner
 from job_search.api.dependencies import ApiContext
 from job_search.api.routes.search import build_search_options
 from job_search.models import Schedule, parse_time
@@ -53,6 +54,7 @@ def build_router(ctx: ApiContext) -> APIRouter:
 
     @router.post("/api/schedule")
     async def set_schedule(request: Request):
+        require_owner(request)  # installs a task on this computer
         try:
             body = await request.json()
         except Exception:
@@ -82,7 +84,8 @@ def build_router(ctx: ApiContext) -> APIRouter:
         return schedule_status()
 
     @router.delete("/api/schedule")
-    def remove_schedule():
+    def remove_schedule(request: Request):
+        require_owner(request)
         try:
             ctx.scheduler.remove()
         except ScheduleError as error:

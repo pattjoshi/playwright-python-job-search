@@ -179,3 +179,16 @@ export interface SearchRequest {
   max_pages: number;
   top: number;
 }
+
+export interface AuthUser {
+  id: number;
+  email: string;
+  name: string;
+  role: "owner" | "member" | string;
+  created_at: string;
+}
+
+export interface AuthStatus {
+  setup_required: boolean;
+  user: AuthUser | null;
+}

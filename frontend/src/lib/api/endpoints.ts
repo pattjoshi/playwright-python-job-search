@@ -3,6 +3,8 @@
 import { postJson, request } from "@/lib/api/client";
 import type {
   AppConfig,
+  AuthStatus,
+  AuthUser,
   DailyStatus,
   HistoryCounts,
   JobStatus,
@@ -13,6 +15,15 @@ import type {
   SearchRequest,
   SessionState,
 } from "@/lib/types";
+
+export const authApi = {
+  status: () => request<AuthStatus>("/api/auth/status"),
+  setup: (body: { name: string; email: string; password: string }) => postJson<{ user: AuthUser }>("/api/auth/setup", body),
+  login: (body: { email: string; password: string }) => postJson<{ user: AuthUser }>("/api/auth/login", body),
+  logout: () => postJson<{ ok: boolean }>("/api/auth/logout"),
+  logoutEverywhere: () => postJson<{ ok: boolean }>("/api/auth/logout-everywhere"),
+  changePassword: (current: string, next: string) => postJson<{ ok: boolean }>("/api/auth/password", { current, new: next }),
+};
 
 export const api = {
   config: () => request<AppConfig>("/api/config"),

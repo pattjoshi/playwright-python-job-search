@@ -11,6 +11,7 @@ from job_search.repositories.schedule_repository import (
     save_state,
 )
 from job_search.repositories.session_repository import SessionRepository
+from job_search.repositories.user_repository import User, UserRepository
 
 __all__ = [
     "CacheRepository",
@@ -28,4 +29,6 @@ __all__ = [
     "save_schedule",
     "save_state",
     "SessionRepository",
+    "User",
+    "UserRepository",
 ]

@@ -115,6 +115,9 @@ Every step from zero to your first job search. For the full guide with screensho
       project folder. It also builds the web page if it isn't built yet.
 
 17. Your browser opens **http://127.0.0.1:8000** by itself. If not, open that address yourself.
+    - **First time:** click **Get started** and **create your account** (name, email, password, at least 8 characters).
+    - **Next times:** **Sign in** with that email and password.
+    - Forgot it? Run `python -m job_search reset-password --email you@example.com` in the project folder.
 18. **Keep the terminal window open** while you use the page.
 
 ## E. Use it
@@ -176,6 +179,7 @@ Every step from zero to your first job search. For the full guide with screensho
 | `No module named fastapi` / `playwright` | The environment isn't active (no `(.venv)`): run step 10, then step 11. |
 | Browser error on start ("Executable doesn't exist") | Run step 12: `playwright install chromium`. |
 | Page says **OPENAI_API_KEY is not set** | Check step 15 (key saved in `.env`), then restart the app (Ctrl+C, step 16). |
+| Forgot your password | In the project folder (with `(.venv)` active): `python -m job_search reset-password --email you@example.com`. |
 | **Address already in use** / port 8000 busy | The app is already running in another window, or start it on another port: `python -m job_search --port 8001`. |
 | A site finds **0 jobs** | Look at the number line under the progress bar and the yellow hint; widen cities, experience or *Posted within*. Click **Show log** for details. |
 | "Verify you're human" on Naukri / Indeed | Keep **Show browser** on and solve it in the browser window. |
