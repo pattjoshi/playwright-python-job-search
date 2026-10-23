@@ -10,6 +10,7 @@ from job_search.repositories import JobHistoryRepository, SessionRepository
 from job_search.services.answers import AnswerService
 from job_search.services.applications import ApplicationService
 from job_search.services.auth import AuthService
+from job_search.services.auto_apply import AutoApplyManager
 from job_search.services.schedule_service import SystemScheduler
 from job_search.services.search_manager import SearchManager
 
@@ -28,4 +29,5 @@ class ApiContext:
     auth: AuthService
     applications: ApplicationService
     answers: AnswerService
+    auto_apply: AutoApplyManager
     resumes: dict[str, dict] = field(default_factory=dict)

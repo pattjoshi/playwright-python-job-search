@@ -43,6 +43,11 @@ class UserRepository:
             )).inserted_primary_key[0]
         return User(user_id, email, name, role, now)
 
+    def owner_id(self) -> int | None:
+        """The owner's id (the account created first), for work that runs without a signed-in page (daily search)."""
+        with self._engine.connect() as db:
+            return db.execute(select(UserRecord.id).where(UserRecord.role == "owner").order_by(UserRecord.id).limit(1)).scalar()
+
     def by_id(self, user_id: int) -> User | None:
         with self._engine.connect() as db:
             row = db.execute(select(UserRecord).where(UserRecord.id == user_id)).first()

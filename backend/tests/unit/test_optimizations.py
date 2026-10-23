@@ -157,7 +157,7 @@ def test_cleanup_removes_old_files_but_protects_important_ones(tmp_path):
     cache = CacheRepository(data / "cache.sqlite3")
     cache.save_descriptions([job("1", description="x")])
     with cache._db.connect() as db:
-        db.execute("UPDATE descriptions SET saved_at = '2000-01-01T00:00:00'")
+        db.execute("UPDATE job_details SET saved_at = '2000-01-01T00:00:00'")
 
     result = cleanup(30, data, uploads, output, data / "cache.sqlite3")
 

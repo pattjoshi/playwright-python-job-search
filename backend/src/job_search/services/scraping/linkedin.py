@@ -14,6 +14,7 @@ from playwright.sync_api import Page
 from job_search.models import Job
 from job_search.services.location_service import is_remote
 from job_search.services.matching_service import parse_relative_age
+from job_search.services.scraping.apply_links import external_apply_url
 from job_search.services.scraping.base import BaseScraper
 
 log = logging.getLogger(__name__)
@@ -29,6 +30,7 @@ LOCATION = ".job-search-card__location"
 POSTED = "time"
 LINK = "a.base-card__full-link"
 DESCRIPTION = ".show-more-less-html__markup, .description__text"
+APPLY_URL = "code#applyUrl"  # only on "Apply on company website" jobs; the link sits in an HTML comment
 
 
 class LinkedInScraper(BaseScraper):
@@ -73,6 +75,9 @@ class LinkedInScraper(BaseScraper):
         description = self.page.locator(DESCRIPTION).first
         if description.count():
             job.description = description.inner_text().strip()
+        apply_code = self.page.locator(APPLY_URL).first
+        if apply_code.count():
+            job.apply_url = external_apply_url(apply_code.inner_html(), board_hosts=("linkedin.com",))
         self.pause()
 
 

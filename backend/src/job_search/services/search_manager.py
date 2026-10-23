@@ -87,8 +87,10 @@ class _JobLogHandler(logging.Handler):
 class SearchManager:
     """Runs one search at a time in a background thread (one browser is plenty)."""
 
-    def __init__(self, settings: Settings, output_dir: Path, runner=run_search, session: SessionRepository | None = None):
+    def __init__(self, settings: Settings, output_dir: Path, runner=run_search, session: SessionRepository | None = None,
+                 after_search=None):
         self.settings = settings
+        self.after_search = after_search  # called with each finished search's SearchResult (auto-apply queues from it)
         self.output_dir = output_dir
         self.runner = runner
         self.session = session
@@ -130,6 +132,8 @@ class SearchManager:
         try:
             result = self.runner(options, self.settings, on_event=job.on_event, stop_event=job.stop_event)
             job.result = result_to_dict(result, self.output_dir)
+            if self.after_search:
+                self.after_search(result)
             status = "done"
             job.logs.append("Done.")
         except SearchStopped:

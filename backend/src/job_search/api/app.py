@@ -18,6 +18,7 @@ from job_search.models import Profile
 from job_search.repositories import (
     AnswerRepository,
     ApplicationRepository,
+    AutoApplyRepository,
     CacheRepository,
     JobHistoryRepository,
     SessionRepository,
@@ -28,6 +29,7 @@ from job_search.schemas.common import ApiError
 from job_search.services.answers import AnswerAI, AnswerService
 from job_search.services.applications import ApplicationService
 from job_search.services.auth import AuthService
+from job_search.services.auto_apply import AutoApplyManager, AutoApplyService, open_browser
 from job_search.services.cleanup_service import cleanup
 from job_search.services.llm_service import JobMatcherLLM
 from job_search.services.resume_service import read_resume_text
@@ -71,6 +73,27 @@ def saved_resume_text(session: SessionRepository):
     return read
 
 
+def saved_resume_path(session: SessionRepository):
+    """The resume file on the Search page (None when there isn't one)."""
+    def path() -> Path | None:
+        saved = session.resume()
+        return saved["path"] if saved else None
+
+    return path
+
+
+def build_auto_apply(settings: Settings, session: SessionRepository, answer_ai=None, browser=None) -> AutoApplyManager:
+    """Auto-apply with the Answer Bank and the tracker it uses (shared by the web app and the daily search)."""
+    path = settings.history_path
+    answer_ai = answer_ai or default_answer_ai(settings)
+    answers = AnswerService(AnswerRepository(path), answer_ai, saved_resume_text(session))
+    return AutoApplyManager(AutoApplyService(
+        AutoApplyRepository(path), answers, ApplicationService(ApplicationRepository(path)), path.parent / "auto-apply",
+        saved_resume_path(session), saved_resume_text(session), answer_ai,
+        browser or (lambda headless: open_browser(headless, settings.chromium_executable)),
+    ))
+
+
 def create_app(
     settings: Settings | None = None,
     output_dir: Path = OUTPUT_DIR,
@@ -80,6 +103,7 @@ def create_app(
     system_scheduler: SystemScheduler | None = None,
     frontend_dir: Path = FRONTEND_BUILD_DIR,
     answer_ai=None,
+    auto_apply_browser=None,
 ) -> FastAPI:
     settings = settings or load_settings()
     data_dir = settings.history_path.parent
@@ -88,21 +112,30 @@ def create_app(
     except Exception:  # housekeeping must never stop the app from starting
         log.exception("Cleanup failed")
     session = SessionRepository(data_dir)
+    users = UserRepository(settings.history_path)
+    auto_apply = build_auto_apply(settings, session, answer_ai, auto_apply_browser)
+    auto_apply.service.repo.requeue_interrupted()
+    answers, applications = auto_apply.service.answers, auto_apply.service.applications
+
+    def queue_for_auto_apply(result) -> None:
+        owner = users.owner_id()
+        if owner is not None:
+            auto_apply.after_search(owner, result.jobs)
+
     ctx = ApiContext(
         settings=settings,
         output_dir=output_dir,
         upload_dir=upload_dir,
         data_dir=data_dir,
-        manager=SearchManager(settings, output_dir, runner, session),
+        manager=SearchManager(settings, output_dir, runner, session, after_search=queue_for_auto_apply),
         history=JobHistoryRepository(settings.history_path),
         session=session,
         scheduler=system_scheduler or SystemScheduler(data_dir),
         analyzer=analyzer or default_analyzer(settings),
-        auth=AuthService(UserRepository(settings.history_path)),
-        applications=ApplicationService(ApplicationRepository(settings.history_path)),
-        answers=AnswerService(
-            AnswerRepository(settings.history_path), answer_ai or default_answer_ai(settings), saved_resume_text(session),
-        ),
+        auth=AuthService(users),
+        applications=applications,
+        answers=answers,
+        auto_apply=auto_apply,
     )
     saved = session.resume()
     if saved:  # the resume from before a restart still works without uploading it again
