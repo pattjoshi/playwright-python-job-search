@@ -9,6 +9,7 @@ import { useApplicationStats } from "@/hooks/useApplicationStats";
 import { useRuns } from "@/hooks/useRuns";
 import { useSearchSession } from "@/providers/SearchSessionProvider";
 
+import { AnswerBankCard } from "./AnswerBankCard";
 import { ComingNextCard } from "./ComingNextCard";
 import { CurrentSearchCard } from "./CurrentSearchCard";
 import { DailySummaryCard } from "./DailySummaryCard";
@@ -39,6 +40,7 @@ export function DashboardPage() {
           </div>
           <div className="grid min-w-0 grid-cols-1 content-start gap-4">
             <FollowUpsCard stats={tracker.stats} />
+            <AnswerBankCard />
             <DailySummaryCard />
             <ComingNextCard />
           </div>

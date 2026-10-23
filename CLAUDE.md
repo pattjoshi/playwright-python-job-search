@@ -73,6 +73,11 @@ supporting. Lower layers never import upper ones.
   per user; `stats()` for the dashboard), `services/applications.py` (`STATUSES`, validation in `clean()`,
   `ApplicationService.track_job()` used by `/api/applications/track` and by marking a job applied),
   `api/routes/applications.py`.
+- Answer Bank: `repositories/answer_repository.py` (answers + `answer_wordings`, the other ways forms asked each
+  question, also the cache of AI matches), `services/answers/` (`AnswerService.resolve()` answers a form question:
+  saved wording → AI match → AI draft from the resume (`needs_review`) → else added as `needs_answer`; the AI never
+  invents personal facts; `starters.py`, `ai.py` prompts, `matching.py`), `api/routes/answers.py`. `create_app(answer_ai=)`
+  takes a factory so tests use `tests/answer_fakes.py` instead of OpenAI.
 - `cli/`: `serve`, `search`, `daily`, `reset-password` commands; `__main__.py` and `daily.py` are thin entry points.
 
 Tests patch `job_search.services.search.pipeline.SCRAPERS` / `.JobMatcherLLM` to fake boards and AI.
@@ -96,9 +101,12 @@ next-themes, toasts via sonner. Static export: pages become `name.html`, served 
 - `components/layout/`: `AppShell`, `AppSidebar`, `Topbar`, `nav.ts` (sidebar items; `soon` = later phase),
   `PageHeader`. Feature folders: `dashboard/`, `search/`, `resume/`, `search-form/`, `daily/`, `progress/`,
   `results/`, `my-jobs/`, `applications/` (board with dnd-kit drag and drop, table, form dialog, details
-  sheet; `statuses.ts` holds the status labels and colours), `settings/`, `coming-soon/`.
+  sheet; `statuses.ts` holds the status labels and colours), `answers/` (Answer Bank: tabs by status, rows
+  grouped by category with an answer box shaped by `kind`, form dialog, Test a question card; `meta.ts`), `settings/`,
+  `coming-soon/`.
 - `hooks/`: `useSearchForm`, `useSearchJob`, `useResume`, `useJobHistory`, `useDailySearch`,
-  `useSessionRestore`, `useRuns`, `useApplications` (optimistic moves with rollback), `useApplicationStats`.
+  `useSessionRestore`, `useRuns`, `useApplications` (optimistic moves with rollback), `useApplicationStats`,
+  `useAnswers`.
 - `lib/`: `api/` (typed client), `types.ts` (mirrors the API JSON), `format.ts`, `estimate.ts`, `funnel.ts`,
   `storage.ts`, `constants.ts`, `utils.ts` (`cn`).
 
