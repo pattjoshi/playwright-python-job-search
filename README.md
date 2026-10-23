@@ -91,7 +91,12 @@ press **Ctrl+C** in it to stop the app. The page only works on your computer (it
 
 ## 3. How to use the website, step by step
 
-The **left side** is where you set up the search; the **right side** shows progress and results.
+The app opens on the **Dashboard** (your counts, the latest matches, the daily search and recent searches).
+Use the **sidebar** to move between pages; the light/dark switch is at the top right.
+
+Open **Search jobs** in the sidebar. The **left side** is where you set up the search; the **right side** shows
+progress and results. A running search keeps going if you open another page: the top bar shows a timer, and
+a message pops up when it's done.
 
 ### Step 1 · Upload your resume
 
@@ -174,7 +179,7 @@ you asked for, a yellow hint tells you which filter removed the most and what to
 
 ### Step 7 · My jobs and search history
 
-Click **My jobs** (top right).
+On the **Search jobs** page, click **My jobs** (top right of the page).
 
 ![My jobs](docs/screenshots/08-my-jobs.png)
 
@@ -203,7 +208,7 @@ Click **My jobs** (top right).
 
 - **Reloading the page or restarting the app keeps everything**: your resume, keywords, the last search's
   progress and results (including jobs you marked applied).
-- Click **Clear** (top right) to remove the **resume, keywords and results** from the page.
+- Click **Clear** (top right of the Search jobs page) to remove the **resume, keywords and results** from the page.
   It asks you to confirm first. **Your settings, applied/hidden jobs, search history and daily search are kept.**
 
 ---
@@ -284,7 +289,8 @@ backend/                     Python package `job_search` (pip install -r require
     cli/                     commands: serve (default), search, daily
     config/                  settings from .env, project paths, city list
     models/                  plain dataclasses: Job, Profile, SearchOptions, Schedule...
-    repositories/            SQLite (history, cache) and JSON (schedule, session) storage
+    database/                SQLAlchemy models + Alembic migrations (run automatically on start)
+    repositories/            job/run history (SQLAlchemy), cache, schedule and session storage
     schemas/                 API errors, request validation, response serializers
     services/
       search/                the search: runner -> pipeline -> sites / filters / profile
@@ -294,11 +300,13 @@ backend/                     Python package `job_search` (pip install -r require
       search_manager.py      runs one search at a time in the background for the web page
       schedule_service.py    daily search (Windows Task Scheduler / cron)
   tests/                     unit/ (fast) and integration/ (headless browser, fakes)
-frontend/                    Next.js + TypeScript (App Router, static export)
-  src/app/                   page, layout, global styles
-  src/components/            ui/ (buttons, cards, tabs...) + one folder per feature
+frontend/                    Next.js + TypeScript + Tailwind CSS + shadcn/ui (static export)
+  src/app/(app)/             one folder per page: dashboard, search, applications, settings...
+  src/components/            ui/ (shadcn/ui + small custom parts), layout/ (sidebar, top bar), one folder per feature
+  src/providers/             app-wide state: config, theme, the search session (survives page changes)
   src/hooks/                 state and API calls (search form, running search, resume...)
   src/lib/                   typed API client, types, formatting, estimate, storage
+  src/styles/theme.css       design tokens (colours, radius) for light and dark mode
 .github/workflows/ci.yml     lint, type check, tests and build on every pull request
 ```
 
@@ -317,6 +325,12 @@ cd backend && ruff check . && pytest            # backend
 cd frontend && npm run lint && npm run typecheck && npm test && npm run build   # frontend
 python scripts/check_file_length.py             # every code file under 250 lines
 ```
+
+**Database changes:** edit `backend/src/job_search/database/tables.py`, then create a migration with
+`cd backend && alembic revision --autogenerate --rev-id 0002 -m "what changed"`. The app applies it on start.
+
+**New UI components:** shadcn/ui components are copied into `frontend/src/components/ui/`
+(`npx shadcn@latest add <name>` from `frontend/`). Keep each file under 250 lines.
 
 Tests never touch the real sites or OpenAI. To add a job board, create
 `backend/src/job_search/services/scraping/<board>.py` with a class extending `BaseScraper` (implement

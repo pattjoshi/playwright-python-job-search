@@ -60,11 +60,12 @@ cd frontend && npm run dev             # the page on http://localhost:3000
 - `backend/src/job_search/`: the Python package.
   - `api/` has the FastAPI app and one router per resource.
   - `services/` has the business logic: search, scraping, AI, reports, schedule.
-  - `repositories/` handles storage.
+  - `database/` has the SQLAlchemy table models and Alembic migrations; `repositories/` handles storage.
   - `models/` holds the dataclasses.
   - `cli/` has the commands.
 - `backend/tests/`: `unit/` for fast tests without a browser, `integration/` for tests with a headless browser and fakes.
-- `frontend/src/`: the Next.js page.
+- `frontend/src/`: the Next.js app (Tailwind CSS + shadcn/ui).
+  - `app/(app)/` has one folder per page; `providers/` holds app-wide state.
   - `components/` has `ui/` primitives plus one folder per feature.
   - `hooks/` holds state and API calls.
   - `lib/` holds the typed API client and helpers.
@@ -78,7 +79,11 @@ The README's [For developers](README.md#8-for-developers) section has the full t
 - **Tests come with the change.** New behavior gets a test; a bug fix gets a test that failed before the fix.
   Tests never call the real job sites or OpenAI (use the fakes and saved pages in `backend/tests/fixtures`).
 - **Match the code around you.** Python: type hints and a docstring on public functions; ruff must pass.
-  TypeScript: strict mode, no `any`, one component per file, styles in a CSS Module next to the component.
+  TypeScript: strict mode, no `any`, one component per file, styled with Tailwind classes.
+- **Database changes need a migration.** Edit `database/tables.py`, then run
+  `alembic revision --autogenerate --rev-id <next number> -m "..."` in `backend/`; a test fails if you forget.
+- **UI uses the design system.** Build pages from `components/ui` (shadcn/ui) and theme tokens
+  (`bg-card`, `text-muted-foreground`, `bg-primary`…), never hard-coded colours, so light and dark mode both work.
 - **The backend API is the contract.** If you change a response shape, update `frontend/src/lib/types.ts`
   and the tests on both sides in the same pull request.
 - **No secrets or personal data** in commits: no `.env`, API keys, resumes, or files from `data/`, `uploads/` or `output/`.
