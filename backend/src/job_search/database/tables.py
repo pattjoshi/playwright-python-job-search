@@ -3,7 +3,7 @@
 Create a migration after editing this file:  cd backend && alembic revision --autogenerate -m "what changed"
 """
 
-from sqlalchemy import ForeignKey, Integer, Text
+from sqlalchemy import ForeignKey, Integer, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from job_search.database.base import Base
@@ -59,3 +59,40 @@ class AuthSessionRecord(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     created_at: Mapped[str] = mapped_column(Text)
     expires_at: Mapped[str] = mapped_column(Text)
+
+
+class ApplicationRecord(Base):
+    """A job in the application tracker (Saved → Applied → … → Offer / Rejected), owned by one user."""
+
+    __tablename__ = "applications"
+    __table_args__ = (UniqueConstraint("user_id", "source", "source_job_id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    company: Mapped[str] = mapped_column(Text)
+    title: Mapped[str] = mapped_column(Text)
+    url: Mapped[str] = mapped_column(Text, default="", server_default="")
+    source: Mapped[str] = mapped_column(Text, default="manual", server_default="manual")  # linkedin | naukri | indeed | manual
+    source_job_id: Mapped[str | None] = mapped_column(Text, nullable=True)  # the site's job id, when tracked from a search
+    location: Mapped[str] = mapped_column(Text, default="", server_default="")
+    salary: Mapped[str] = mapped_column(Text, default="", server_default="")
+    status: Mapped[str] = mapped_column(Text, default="saved", server_default="saved")
+    applied_on: Mapped[str | None] = mapped_column(Text, nullable=True)  # YYYY-MM-DD
+    follow_up_on: Mapped[str | None] = mapped_column(Text, nullable=True)  # YYYY-MM-DD
+    contact: Mapped[str] = mapped_column(Text, default="", server_default="")
+    notes: Mapped[str] = mapped_column(Text, default="", server_default="")
+    created_at: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[str] = mapped_column(Text)
+
+
+class ApplicationEventRecord(Base):
+    """The timeline of an application: when it was added and every status change."""
+
+    __tablename__ = "application_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    application_id: Mapped[int] = mapped_column(ForeignKey("applications.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(Text)  # created | status
+    from_status: Mapped[str | None] = mapped_column(Text, nullable=True)
+    to_status: Mapped[str | None] = mapped_column(Text, nullable=True)
+    at: Mapped[str] = mapped_column(Text)
