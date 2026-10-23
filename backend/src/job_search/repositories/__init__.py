@@ -3,6 +3,7 @@ from job_search.repositories.application_repository import ApplicationRepository
 from job_search.repositories.auto_apply_repository import AutoApplyRepository
 from job_search.repositories.cache_repository import CacheRepository, profile_key, resume_key
 from job_search.repositories.history_repository import MAX_RUNS, STATUSES, JobHistoryRepository
+from job_search.repositories.note_repository import NoteRepository
 from job_search.repositories.schedule_repository import (
     LOG_FILE,
     SCHEDULE_FILE,
@@ -21,6 +22,7 @@ __all__ = [
     "ApplicationRepository",
     "AutoApplyRepository",
     "CacheRepository",
+    "NoteRepository",
     "profile_key",
     "resume_key",
     "MAX_RUNS",
