@@ -1,0 +1,14 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Sign in</title></head><body>
+<form id="login" onsubmit="event.preventDefault(); signIn();">
+  <label for="username">Email</label><input id="username" type="email">
+  <label for="password">Password</label><input id="password" type="password">
+  <p id="err" role="alert" hidden>Invalid details</p><button type="submit">Sign in</button>
+</form>
+<script>
+  if (document.cookie.includes("linkedin=1")) document.getElementById("login").remove();
+  function signIn() {
+    if (document.getElementById("password").value !== "right-password") { document.getElementById("err").hidden = false; return; }
+    document.cookie = "linkedin=1; path=/"; document.body.innerHTML = "<h1>Welcome back</h1>";
+  }
+</script></body></html>

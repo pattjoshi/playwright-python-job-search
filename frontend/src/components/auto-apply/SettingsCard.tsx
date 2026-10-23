@@ -12,7 +12,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { autoApplyApi } from "@/lib/api/endpoints";
-import type { AutoApplySettings } from "@/lib/types";
+import type { AutoApplyOverview, AutoApplySettings } from "@/lib/types";
+
+import { BoardSwitches } from "./BoardSwitches";
 
 const SWITCHES: { key: "dry_run" | "show_browser" | "run_after_search"; label: string; hint: string }[] = [
   { key: "dry_run", label: "Dry run", hint: "Fill forms and take a screenshot, but never submit. Turn off to apply for real." },
@@ -21,7 +23,9 @@ const SWITCHES: { key: "dry_run" | "show_browser" | "run_after_search"; label: s
 ];
 
 /** The safety settings. Turning dry run off asks you to confirm first. */
-export function SettingsCard({ settings, onSaved }: { settings: AutoApplySettings; onSaved: (s: AutoApplySettings) => void }) {
+export function SettingsCard({ settings, boards, onSaved }: {
+  settings: AutoApplySettings; boards: AutoApplyOverview["boards"]; onSaved: (s: AutoApplySettings) => void;
+}) {
   const [form, setForm] = useState(settings);
   const [confirming, setConfirming] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -67,6 +71,7 @@ export function SettingsCard({ settings, onSaved }: { settings: AutoApplySetting
             <Input type="number" min={1} max={100} value={form.daily_limit} onChange={(e) => number("daily_limit", e.target.value)} />
           </label>
         </div>
+        <BoardSwitches form={form} boards={boards} onChange={setForm} />
         <Button disabled={!dirty || saving} onClick={() => (settings.dry_run && !form.dry_run ? setConfirming(true) : void save())}>
           Save settings
         </Button>
@@ -76,8 +81,9 @@ export function SettingsCard({ settings, onSaved }: { settings: AutoApplySetting
           <AlertDialogHeader>
             <AlertDialogTitle>Submit applications for real?</AlertDialogTitle>
             <AlertDialogDescription>
-              Auto-apply will submit up to {form.daily_limit} applications a day in your name, to jobs scoring {form.min_score} or more,
-              using your Answer Bank and AI-written cover letters. Check a few dry-run screenshots first.
+              Auto-apply will submit up to {form.daily_limit} company-site applications a day in your name (plus up to{" "}
+              {form.board_daily_limit} per job board you turned on), to jobs scoring {form.min_score} or more, using your Answer Bank
+              and AI-written cover letters. Check a few dry-run screenshots first.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

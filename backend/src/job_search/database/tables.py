@@ -178,4 +178,9 @@ class AutoApplySettingsRecord(Base):
     daily_limit: Mapped[int] = mapped_column(Integer, default=15, server_default="15")
     show_browser: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     run_after_search: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    # Easy Apply on the job boards themselves (needs that board's login in .env); off until you turn it on.
+    naukri: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    linkedin: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    indeed: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    board_daily_limit: Mapped[int] = mapped_column(Integer, default=10, server_default="10")  # per board
     updated_at: Mapped[str] = mapped_column(Text)

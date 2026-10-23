@@ -94,6 +94,8 @@ class Filler:
                 return None, how
             first, _, last = full.strip().partition(" ")
             return (first if _FIRST.match(label) else last if _LAST.match(label) else full), how
+        if f.kind == "radio" and f.options and _RESUME.search(label):  # a board's "choose a saved resume": keep the first
+            return f.options[0], "resume"
         options = ["Yes", "No"] if f.kind == "checkbox" and not f.multi else f.options
         return self.resolve(f.label, options, f.required)
 

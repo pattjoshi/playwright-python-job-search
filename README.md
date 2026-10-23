@@ -284,7 +284,35 @@ the results. After every search (and the daily search), the ones scoring at leas
 
 Safety settings: **Applications per day** (15 to start), **Minimum match score**, **Dry run**, **Show browser**, and
 **Apply after each search** (off to start; turn it on for hands-free applying after each search).
-Jobs you apply to on LinkedIn, Naukri or Indeed themselves (Easy Apply) come in the next phase.
+#### Easy Apply on Naukri, LinkedIn and Indeed
+
+Jobs without a company link can be applied to on the board itself, with your own account:
+
+1. Add your logins to `.env` and restart the app:
+   ```
+   NAUKRI_EMAIL=you@example.com
+   NAUKRI_PASSWORD=...
+   LINKEDIN_EMAIL=...
+   LINKEDIN_PASSWORD=...
+   INDEED_EMAIL=...
+   INDEED_PASSWORD=...
+   ```
+   They stay on your computer (`.env` is never committed) and are only typed into that board's sign-in page.
+2. On **Auto-apply → Settings → Job boards**, turn on the boards you want. This also turns on **Show browser**,
+   so the first time you can type an OTP or pass a security check yourself. The login is then remembered
+   (in `data/browser-profile`), so later runs don't sign in again.
+3. From the next search on, matches on those boards are queued too. They go slowly on purpose: pauses
+   between steps, 20-45 seconds between applications on the same board, and at most **10 per board per day**
+   (change it in Settings).
+
+| Board | What happens | Dry run |
+|---|---|---|
+| Naukri | Clicks **Apply**, then answers the chat questions from your Answer Bank | Only checks you're signed in and Easy Apply is there (Naukri applies on the first click) |
+| LinkedIn | Fills every step of the **Easy Apply** pop-up, then **Submit application** | Fills every step, then discards the pop-up |
+| Indeed | **Apply now**, every page, then **Submit your application** | Fills every page, doesn't submit |
+
+**Risk:** job boards don't allow automated applying, and LinkedIn is the strictest. An account can be warned or
+restricted even at this slow pace. Start with a low daily limit and keep an eye on it.
 
 ---
 
@@ -347,6 +375,7 @@ Everything stays in the project folder on your computer:
 | `output/` | HTML / Excel / CSV reports | `KEEP_DAYS` cleanup (never the one on screen) |
 | `data/history.sqlite3` | Your account, applications, Answer Bank, auto-apply queue, applied / hidden / seen jobs and the search history | Never automatically |
 | `data/auto-apply/` | Screenshots of filled application forms and the cover letters sent | When you remove the job from Auto-apply |
+| `data/browser-profile/` | Auto-apply's browser, which keeps you signed in to the job boards | Delete it to sign out everywhere |
 | `data/cache.sqlite3` | Saved job details, AI scores, resume readings | `KEEP_DAYS` cleanup; safe to delete anytime |
 | `data/session.json` | What the page shows (resume, last results) | The **Clear** button |
 | `data/schedule.json`, `data/scheduled.log` | Daily search settings and its log | **Turn off** / log is trimmed when large |

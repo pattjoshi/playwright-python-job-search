@@ -10,7 +10,8 @@ PLATFORMS: dict[str, tuple[str, ...]] = {
     "workday": ("myworkdayjobs.com", "myworkday.com"),
 }
 NAMES = {"greenhouse": "Greenhouse", "lever": "Lever", "ashby": "Ashby", "smartrecruiters": "SmartRecruiters",
-         "workday": "Workday", "other": "Company site"}
+         "workday": "Workday", "other": "Company site", "naukri": "Naukri", "linkedin": "LinkedIn Easy Apply",
+         "indeed": "Indeed Apply"}
 # Need an account on every company before you can apply: skipped for now.
 NEEDS_ACCOUNT = {"workday"}
 # Where the form usually is, tried before "the form with the most fields".
@@ -19,6 +20,7 @@ FORM_HINTS = {
     "lever": "form#application-form, .application-form form, form[action*='lever']",
     "ashby": "[class*='ashby-application-form'], form",
     "smartrecruiters": "oc-oneclick-form, form",
+    "linkedin": ".jobs-easy-apply-modal, [role='dialog']",
 }
 
 

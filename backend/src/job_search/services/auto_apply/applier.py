@@ -32,6 +32,7 @@ class Outcome:
     message: str
     answers: list[dict] = field(default_factory=list)
     screenshot: str = ""
+    stop_platform: bool = False  # e.g. the board login failed: don't try its other jobs this run
 
 
 def apply_one(page: Page, apply_url: str, filler: Filler, dry_run: bool, screenshot: Path,
@@ -56,7 +57,7 @@ def apply_one(page: Page, apply_url: str, filler: Filler, dry_run: bool, screens
 
     log.info("Filling %d fields on %s (%s)", len(fields), page.url, NAMES.get(platform, platform))
     result = filler.fill(page, fields)
-    shot = _screenshot(page, screenshot)
+    shot = take_screenshot(page, screenshot)
     if result.missing:
         asked = "; ".join(result.missing[:5]) + ("…" if len(result.missing) > 5 else "")
         return Outcome("needs_answer", f"Waiting for your answer to: {asked}", result.answers, shot)
@@ -137,7 +138,7 @@ def _body_text(page: Page) -> str:
         return ""
 
 
-def _screenshot(page: Page, path: Path) -> str:
+def take_screenshot(page: Page, path: Path) -> str:
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         page.screenshot(path=str(path), full_page=True)
