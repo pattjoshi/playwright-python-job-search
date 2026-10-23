@@ -96,3 +96,42 @@ class ApplicationEventRecord(Base):
     from_status: Mapped[str | None] = mapped_column(Text, nullable=True)
     to_status: Mapped[str | None] = mapped_column(Text, nullable=True)
     at: Mapped[str] = mapped_column(Text)
+
+
+class AnswerRecord(Base):
+    """One question in the Answer Bank and your answer to it, used to fill in application forms."""
+
+    __tablename__ = "answers"
+    __table_args__ = (UniqueConstraint("user_id", "question"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    question: Mapped[str] = mapped_column(Text)
+    answer: Mapped[str] = mapped_column(Text, default="", server_default="")
+    category: Mapped[str] = mapped_column(Text, default="other", server_default="other")
+    kind: Mapped[str] = mapped_column(Text, default="text", server_default="text")  # text | number | yes_no | choice
+    options: Mapped[str] = mapped_column(Text, default="[]", server_default="[]")  # JSON list: choices a form offered
+    # answered | needs_review (an AI draft) | needs_answer (waiting for you)
+    status: Mapped[str] = mapped_column(Text, default="needs_answer", server_default="needs_answer")
+    source: Mapped[str] = mapped_column(Text, default="you", server_default="you")  # starter | resume | ai_draft | form | you
+    asked_by: Mapped[str] = mapped_column(Text, default="", server_default="")  # the job whose form asked it first
+    use_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    created_at: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[str] = mapped_column(Text)
+
+
+class AnswerWordingRecord(Base):
+    """Another way a form asked an answer's question ("How soon can you join?" for "Notice period").
+
+    Also remembers every match the AI made, so the same wording is never sent to the AI twice.
+    """
+
+    __tablename__ = "answer_wordings"
+    __table_args__ = (UniqueConstraint("user_id", "key"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    answer_id: Mapped[int] = mapped_column(ForeignKey("answers.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    key: Mapped[str] = mapped_column(Text)  # normalized: lower case, no punctuation
+    text: Mapped[str] = mapped_column(Text)  # as the form wrote it
+    created_at: Mapped[str] = mapped_column(Text)

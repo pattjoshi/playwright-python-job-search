@@ -16,6 +16,7 @@ from job_search.api.routes import ROUTERS
 from job_search.config import FRONTEND_BUILD_DIR, OUTPUT_DIR, UPLOAD_DIR, Settings, load_settings
 from job_search.models import Profile
 from job_search.repositories import (
+    AnswerRepository,
     ApplicationRepository,
     CacheRepository,
     JobHistoryRepository,
@@ -24,6 +25,7 @@ from job_search.repositories import (
     resume_key,
 )
 from job_search.schemas.common import ApiError
+from job_search.services.answers import AnswerAI, AnswerService
 from job_search.services.applications import ApplicationService
 from job_search.services.auth import AuthService
 from job_search.services.cleanup_service import cleanup
@@ -53,6 +55,22 @@ def default_analyzer(settings: Settings):
     return analyze
 
 
+def default_answer_ai(settings: Settings):
+    def make() -> AnswerAI | None:
+        return AnswerAI(JobMatcherLLM(settings.openai_api_key, settings.openai_model)) if settings.openai_api_key else None
+
+    return make
+
+
+def saved_resume_text(session: SessionRepository):
+    """The text of the resume on the Search page (None when there isn't one)."""
+    def read() -> str | None:
+        saved = session.resume()
+        return read_resume_text(saved["path"]) if saved else None
+
+    return read
+
+
 def create_app(
     settings: Settings | None = None,
     output_dir: Path = OUTPUT_DIR,
@@ -61,6 +79,7 @@ def create_app(
     analyzer=None,
     system_scheduler: SystemScheduler | None = None,
     frontend_dir: Path = FRONTEND_BUILD_DIR,
+    answer_ai=None,
 ) -> FastAPI:
     settings = settings or load_settings()
     data_dir = settings.history_path.parent
@@ -81,6 +100,9 @@ def create_app(
         analyzer=analyzer or default_analyzer(settings),
         auth=AuthService(UserRepository(settings.history_path)),
         applications=ApplicationService(ApplicationRepository(settings.history_path)),
+        answers=AnswerService(
+            AnswerRepository(settings.history_path), answer_ai or default_answer_ai(settings), saved_resume_text(session),
+        ),
     )
     saved = session.resume()
     if saved:  # the resume from before a restart still works without uploading it again
