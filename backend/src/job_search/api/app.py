@@ -15,8 +15,16 @@ from job_search.api.frontend import serve_frontend
 from job_search.api.routes import ROUTERS
 from job_search.config import FRONTEND_BUILD_DIR, OUTPUT_DIR, UPLOAD_DIR, Settings, load_settings
 from job_search.models import Profile
-from job_search.repositories import CacheRepository, JobHistoryRepository, SessionRepository, UserRepository, resume_key
+from job_search.repositories import (
+    ApplicationRepository,
+    CacheRepository,
+    JobHistoryRepository,
+    SessionRepository,
+    UserRepository,
+    resume_key,
+)
 from job_search.schemas.common import ApiError
+from job_search.services.applications import ApplicationService
 from job_search.services.auth import AuthService
 from job_search.services.cleanup_service import cleanup
 from job_search.services.llm_service import JobMatcherLLM
@@ -72,6 +80,7 @@ def create_app(
         scheduler=system_scheduler or SystemScheduler(data_dir),
         analyzer=analyzer or default_analyzer(settings),
         auth=AuthService(UserRepository(settings.history_path)),
+        applications=ApplicationService(ApplicationRepository(settings.history_path)),
     )
     saved = session.resume()
     if saved:  # the resume from before a restart still works without uploading it again

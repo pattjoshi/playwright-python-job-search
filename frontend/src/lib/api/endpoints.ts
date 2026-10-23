@@ -2,6 +2,10 @@
 
 import { postJson, request } from "@/lib/api/client";
 import type {
+  Application,
+  ApplicationEvent,
+  ApplicationInput,
+  ApplicationStats,
   AppConfig,
   AuthStatus,
   AuthUser,
@@ -25,6 +29,22 @@ export const authApi = {
   changePassword: (current: string, next: string) => postJson<{ ok: boolean }>("/api/auth/password", { current, new: next }),
 };
 
+export const applicationsApi = {
+  list: (q = "", status = "") =>
+    request<{ applications: Application[] }>(`/api/applications?${new URLSearchParams({ q, status })}`),
+  get: (id: number) => request<{ application: Application; events: ApplicationEvent[] }>(`/api/applications/${id}`),
+  create: (body: ApplicationInput) => postJson<{ application: Application }>("/api/applications", body),
+  update: (id: number, body: ApplicationInput) =>
+    request<{ application: Application }>(`/api/applications/${id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    }),
+  remove: (id: number) => request<{ ok: boolean }>(`/api/applications/${id}`, { method: "DELETE" }),
+  stats: () => request<ApplicationStats>("/api/applications/stats"),
+  track: (job: { source: string; job_id: string; title: string; company: string; url: string; location: string }) =>
+    postJson<{ application: Application; created: boolean }>("/api/applications/track", job),
+  importApplied: () => postJson<{ added: number }>("/api/applications/import-applied"),
+};
+
 export const api = {
   config: () => request<AppConfig>("/api/config"),
 
@@ -38,8 +58,8 @@ export const api = {
   searchStatus: (id: string) => request<SearchJob>(`/api/search/${id}`),
   stopSearch: (id: string) => postJson<{ ok: boolean }>(`/api/search/${id}/stop`),
 
-  setJobStatus: (job: { source: string; job_id: string; title?: string; company?: string; url?: string }, status: JobStatus) =>
-    postJson<{ ok: boolean; history: HistoryCounts }>("/api/jobs/status", { ...job, status }),
+  setJobStatus: (job: { source: string; job_id: string; title?: string; company?: string; url?: string; location?: string }, status: JobStatus) =>
+    postJson<{ ok: boolean; history: HistoryCounts; tracked?: boolean }>("/api/jobs/status", { ...job, status }),
   savedJobs: (status: "applied" | "hidden") =>
     request<{ jobs: SavedJob[]; history: HistoryCounts }>(`/api/history?status=${status}`),
   forgetSeen: () => postJson<{ forgotten: number; history: HistoryCounts }>("/api/history/forget"),

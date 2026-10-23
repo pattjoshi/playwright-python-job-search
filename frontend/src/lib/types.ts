@@ -192,3 +192,39 @@ export interface AuthStatus {
   setup_required: boolean;
   user: AuthUser | null;
 }
+
+export type ApplicationStatus = "saved" | "applied" | "screening" | "interview" | "offer" | "rejected" | "withdrawn";
+
+export interface Application {
+  id: number;
+  company: string;
+  title: string;
+  url: string;
+  source: string;
+  source_job_id: string | null;
+  location: string;
+  salary: string;
+  status: ApplicationStatus;
+  applied_on: string | null;
+  follow_up_on: string | null;
+  contact: string;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type ApplicationInput = Partial<Omit<Application, "id" | "created_at" | "updated_at">>;
+
+export interface ApplicationEvent {
+  kind: "created" | "status";
+  from_status: ApplicationStatus | null;
+  to_status: ApplicationStatus | null;
+  at: string;
+}
+
+export interface ApplicationStats {
+  by_status: Partial<Record<ApplicationStatus, number>>;
+  total: number;
+  per_day: { date: string; count: number }[];
+  follow_ups: Application[];
+}

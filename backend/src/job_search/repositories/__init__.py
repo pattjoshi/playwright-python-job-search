@@ -1,3 +1,4 @@
+from job_search.repositories.application_repository import ApplicationRepository
 from job_search.repositories.cache_repository import CacheRepository, profile_key, resume_key
 from job_search.repositories.history_repository import MAX_RUNS, STATUSES, JobHistoryRepository
 from job_search.repositories.schedule_repository import (
@@ -14,6 +15,7 @@ from job_search.repositories.session_repository import SessionRepository
 from job_search.repositories.user_repository import User, UserRepository
 
 __all__ = [
+    "ApplicationRepository",
     "CacheRepository",
     "profile_key",
     "resume_key",

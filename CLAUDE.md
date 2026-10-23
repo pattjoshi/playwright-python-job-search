@@ -69,6 +69,10 @@ supporting. Lower layers never import upper ones.
   `api/auth.py` (middleware: `/api/*` and `/reports/*` need a session cookie except `/api/auth/*`; cross-site
   writes refused; `current_user`/`require_owner` helpers), `api/routes/auth.py`. Tests sign in with
   `tests/auth_helpers.signed_in(client)`.
+- Application tracker: `repositories/application_repository.py` (applications + their status-change events,
+  per user; `stats()` for the dashboard), `services/applications.py` (`STATUSES`, validation in `clean()`,
+  `ApplicationService.track_job()` used by `/api/applications/track` and by marking a job applied),
+  `api/routes/applications.py`.
 - `cli/`: `serve`, `search`, `daily`, `reset-password` commands; `__main__.py` and `daily.py` are thin entry points.
 
 Tests patch `job_search.services.search.pipeline.SCRAPERS` / `.JobMatcherLLM` to fake boards and AI.
@@ -91,9 +95,10 @@ next-themes, toasts via sonner. Static export: pages become `name.html`, served 
   plus small custom parts (`stepper`, `tag-input`, `form-field`, `step-title`, `chip`).
 - `components/layout/`: `AppShell`, `AppSidebar`, `Topbar`, `nav.ts` (sidebar items; `soon` = later phase),
   `PageHeader`. Feature folders: `dashboard/`, `search/`, `resume/`, `search-form/`, `daily/`, `progress/`,
-  `results/`, `my-jobs/`, `settings/`, `coming-soon/`.
+  `results/`, `my-jobs/`, `applications/` (board with dnd-kit drag and drop, table, form dialog, details
+  sheet; `statuses.ts` holds the status labels and colours), `settings/`, `coming-soon/`.
 - `hooks/`: `useSearchForm`, `useSearchJob`, `useResume`, `useJobHistory`, `useDailySearch`,
-  `useSessionRestore`, `useRuns`.
+  `useSessionRestore`, `useRuns`, `useApplications` (optimistic moves with rollback), `useApplicationStats`.
 - `lib/`: `api/` (typed client), `types.ts` (mirrors the API JSON), `format.ts`, `estimate.ts`, `funnel.ts`,
   `storage.ts`, `constants.ts`, `utils.ts` (`cn`).
 

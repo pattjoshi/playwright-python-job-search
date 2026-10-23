@@ -13,7 +13,7 @@ interface SavedJobsListProps {
   status: "applied" | "hidden";
   names: Record<string, string>;
   onCounts: (counts: HistoryCounts) => void;
-  onUndo: (job: SavedJob, status: JobStatus) => Promise<void>;
+  onUndo: (job: SavedJob, status: JobStatus) => Promise<unknown>;
 }
 
 const EMPTY_TEXT = {

@@ -17,7 +17,7 @@ interface MyJobsSheetProps {
   counts: HistoryCounts;
   sites: SiteConfig[];
   onCounts: (counts: HistoryCounts) => void;
-  onUndo: (job: SavedJob, status: JobStatus) => Promise<void>;
+  onUndo: (job: SavedJob, status: JobStatus) => Promise<unknown>;
 }
 
 /** Side panel with your applied and hidden jobs, and the history of searches. */

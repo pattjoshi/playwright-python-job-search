@@ -4,6 +4,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Request
 
+from job_search.api.auth import current_user
 from job_search.api.dependencies import ApiContext
 from job_search.repositories import STATUSES
 from job_search.schemas.common import ApiError
@@ -23,11 +24,12 @@ def build_router(ctx: ApiContext) -> APIRouter:
         source, job_id, status = (str(body.get(key, "")) for key in ("source", "job_id", "status"))
         if source not in SCRAPERS or not job_id or status not in STATUSES:
             raise ApiError(f"Need a known source, a job_id and a status ({', '.join(STATUSES)}).")
-        ctx.history.set_status(
-            source, job_id, status,
-            title=str(body.get("title", ""))[:300], company=str(body.get("company", ""))[:200], url=str(body.get("url", ""))[:1000],
-        )
-        return {"ok": True, "history": ctx.history.counts()}
+        job = {key: str(body.get(key, ""))[:limit] for key, limit in (("title", 300), ("company", 200), ("url", 1000), ("location", 200))}
+        ctx.history.set_status(source, job_id, status, title=job["title"], company=job["company"], url=job["url"])
+        tracked = False
+        if status == "applied":  # also keep it in the application tracker
+            _, tracked = ctx.applications.track_job(current_user(request).id, {**job, "source": source, "job_id": job_id}, "applied")
+        return {"ok": True, "history": ctx.history.counts(), "tracked": tracked}
 
     @router.get("/api/history")
     def list_history(status: str = "applied"):

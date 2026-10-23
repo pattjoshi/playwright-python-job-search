@@ -7,6 +7,8 @@ import { safeUrl, scoreBand } from "@/lib/format";
 import type { Job, JobStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+import { TrackButton } from "./TrackButton";
+
 interface JobCardProps {
   job: Job;
   rank: number;
@@ -49,6 +51,7 @@ export function JobCard({ job, rank, applied, siteName, onSetStatus }: JobCardPr
             <Button variant="outline" size="sm" onClick={() => onSetStatus("seen")}>Undo applied</Button>
           ) : (
             <>
+              <TrackButton job={job} />
               <Button variant="outline" size="sm" onClick={() => onSetStatus("applied")}>✓ Mark applied</Button>
               <Button variant="ghost" size="sm" onClick={() => onSetStatus("hidden")}>Hide</Button>
             </>
