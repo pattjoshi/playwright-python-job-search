@@ -1,4 +1,4 @@
-import { ExternalLink, Image as ImageIcon, RotateCcw, Trash2 } from "lucide-react";
+import { Download, ExternalLink, Image as ImageIcon, MonitorPlay, RotateCcw, Trash2 } from "lucide-react";
 import Link from "next/link";
 
 import {
@@ -16,11 +16,13 @@ import { PLATFORM_NAMES, STATUS_BADGE } from "./meta";
 interface AutoApplyJobRowProps {
   job: AutoApplyJob;
   onRetry: (job: AutoApplyJob) => void;
+  onTry: (job: AutoApplyJob) => void;
   onRemove: (job: AutoApplyJob) => void;
+  busy: boolean;
 }
 
 /** One job: what happened, what was put in the form, the screenshot, and retry / remove. */
-export function AutoApplyJobRow({ job, onRetry, onRemove }: AutoApplyJobRowProps) {
+export function AutoApplyJobRow({ job, onRetry, onTry, onRemove, busy }: AutoApplyJobRowProps) {
   const badge = STATUS_BADGE[job.status];
   const company = safeUrl(job.apply_url);
   const posting = safeUrl(job.job_url);
@@ -65,6 +67,16 @@ export function AutoApplyJobRow({ job, onRetry, onRemove }: AutoApplyJobRowProps
         {company ? <Button asChild variant="outline" size="sm"><a href={company} target="_blank" rel="noopener noreferrer">Application page <ExternalLink /></a></Button> : null}
         {posting ? <Button asChild variant="ghost" size="sm"><a href={posting} target="_blank" rel="noopener noreferrer">Job posting <ExternalLink /></a></Button> : null}
         {canRetry ? <Button variant="outline" size="sm" onClick={() => onRetry(job)}><RotateCcw /> {job.status === "filled" ? "Apply again" : "Retry"}</Button> : null}
+        {job.status !== "running" && job.status !== "submitted" ? (
+          <Button variant="outline" size="sm" disabled={busy} onClick={() => onTry(job)} title="Run just this job now, with the browser visible">
+            <MonitorPlay /> Try this job
+          </Button>
+        ) : null}
+        {job.has_page ? (
+          <Button asChild variant="ghost" size="sm" title="The page as it was when this job stopped: send it to get the problem fixed">
+            <a href={autoApplyApi.pageUrl(job.id)} download><Download /> Saved page</a>
+          </Button>
+        ) : null}
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" aria-label={`Remove ${job.title} at ${job.company}`}>

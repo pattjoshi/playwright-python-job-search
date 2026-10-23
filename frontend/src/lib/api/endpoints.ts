@@ -77,6 +77,9 @@ export const autoApplyApi = {
   stop: () => postJson<{ run: AutoApplyRun }>("/api/auto-apply/stop"),
   retry: (id: number) => postJson<{ job: AutoApplyJob }>(`/api/auto-apply/${id}/retry`),
   remove: (id: number) => request<{ ok: boolean }>(`/api/auto-apply/${id}`, { method: "DELETE" }),
+  signIn: (board: string) => postJson<{ run: AutoApplyRun }>(`/api/auto-apply/boards/${board}/sign-in`),
+  tryJob: (id: number) => postJson<{ run: AutoApplyRun }>(`/api/auto-apply/${id}/try`),
+  pageUrl: (id: number) => `/api/auto-apply/${id}/page`,
   screenshotUrl: (id: number, version: string) => `/api/auto-apply/${id}/screenshot?v=${encodeURIComponent(version)}`,
 };
 

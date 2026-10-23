@@ -35,12 +35,13 @@ export interface AutoApplyJob {
   screenshot: string;
   attempts: number;
   finished_at: string | null;
+  has_page: boolean; // the page was saved when this job didn't go through (for fixing)
   created_at: string;
   updated_at: string;
 }
 
 export interface AutoApplyRun {
-  status: "idle" | "running" | "stopping" | "done" | "stopped" | "error";
+  status: "idle" | "running" | "stopping" | "signing_in" | "done" | "stopped" | "error";
   started_at: string | null;
   finished_at: string | null;
   logs: string[];
@@ -53,6 +54,6 @@ export interface AutoApplyOverview {
   jobs: AutoApplyJob[];
   today: number;
   remaining: number;
-  boards: Record<BoardId, { today: number; has_login: boolean }>;
+  boards: Record<BoardId, { today: number; has_login: boolean; signed_in: boolean }>;
   run: AutoApplyRun;
 }

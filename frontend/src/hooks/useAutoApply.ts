@@ -31,7 +31,7 @@ export function useAutoApply() {
     };
   }, []);
 
-  const active = data?.run.status === "running" || data?.run.status === "stopping";
+  const active = ["running", "stopping", "signing_in"].includes(data?.run.status ?? "");
   useEffect(() => {
     if (!active) return;
     const timer = window.setInterval(() => void reload(), POLL_MS);

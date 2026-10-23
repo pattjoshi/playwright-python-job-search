@@ -288,22 +288,18 @@ Safety settings: **Applications per day** (15 to start), **Minimum match score**
 
 Jobs without a company link can be applied to on the board itself, with your own account:
 
-1. Add your logins to `.env` and restart the app:
-   ```
-   NAUKRI_EMAIL=you@example.com
-   NAUKRI_PASSWORD=...
-   LINKEDIN_EMAIL=...
-   LINKEDIN_PASSWORD=...
-   INDEED_EMAIL=...
-   INDEED_PASSWORD=...
-   ```
-   They stay on your computer (`.env` is never committed) and are only typed into that board's sign-in page.
-2. On **Auto-apply → Settings → Job boards**, turn on the boards you want. This also turns on **Show browser**,
-   so the first time you can type an OTP or pass a security check yourself. The login is then remembered
-   (in `data/browser-profile`), so later runs don't sign in again.
+1. On **Auto-apply → Settings → Job boards**, press **Sign in** next to a board. A browser window opens on that
+   board's login page: log in yourself (OTP included). Auto-apply's browser stays signed in from then on
+   (in `data/browser-profile`), and your password is never saved.
+   *Optional:* instead, put `NAUKRI_EMAIL` / `NAUKRI_PASSWORD` (and `LINKEDIN_…`, `INDEED_…`) in `.env` and the
+   app types them for you.
+2. Turn on the boards you want. This also turns on **Show browser**, so you can pass a security check if one appears.
 3. From the next search on, matches on those boards are queued too. They go slowly on purpose: pauses
    between steps, 20-45 seconds between applications on the same board, and at most **10 per board per day**
    (change it in Settings).
+
+If a job doesn't go through, press **Try this job** to watch it in a visible browser, and download its
+**Saved page** (the page as it was when it stopped) to send for a fix.
 
 | Board | What happens | Dry run |
 |---|---|---|

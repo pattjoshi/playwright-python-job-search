@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAutoApply } from "@/hooks/useAutoApply";
 import { autoApplyApi } from "@/lib/api/endpoints";
-import type { AutoApplyJob } from "@/lib/types";
+import type { AutoApplyJob, BoardId } from "@/lib/types";
 
 import { AutoApplyJobRow } from "./AutoApplyJobRow";
 import { firstTab, inTab, type QueueTab, TABS } from "./meta";
@@ -45,6 +45,10 @@ export function AutoApplyPage() {
   });
   const retry = (job: AutoApplyJob) => act(() => autoApplyApi.retry(job.id), `${job.company} is back in the queue`);
   const remove = (job: AutoApplyJob) => act(() => autoApplyApi.remove(job.id), "Removed");
+  const tryJob = (job: AutoApplyJob) => act(() => autoApplyApi.tryJob(job.id), "Trying it now: watch the browser window");
+  const signIn = (board: BoardId) =>
+    act(() => autoApplyApi.signIn(board), "A browser window opened: sign in there (you have 5 minutes)");
+  const running = ["running", "stopping", "signing_in"].includes(data?.run.status ?? "");
 
   return (
     <>
@@ -88,14 +92,17 @@ export function AutoApplyPage() {
               </TabsList>
             </Tabs>
             <ul className="grid grid-cols-1 gap-2">
-              {shown.map((job) => <AutoApplyJobRow key={job.id} job={job} onRetry={retry} onRemove={remove} />)}
+              {shown.map((job) => <AutoApplyJobRow key={job.id} job={job} onRetry={retry} onTry={tryJob} onRemove={remove} busy={busy || running} />)}
             </ul>
             {!shown.length ? (
               <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">{TABS.find((t) => t.id === tab)!.empty}</p>
             ) : null}
           </div>
           <div className="grid grid-cols-1 gap-4 lg:sticky lg:top-20">
-            <SettingsCard key={JSON.stringify(data.settings)} settings={data.settings} boards={data.boards} onSaved={() => void reload()} />
+            <SettingsCard
+              key={JSON.stringify(data.settings)} settings={data.settings} boards={data.boards} onSaved={() => void reload()}
+              onSignIn={signIn} busy={busy || running}
+            />
           </div>
         </div>
       ) : null}

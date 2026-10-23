@@ -1,3 +1,6 @@
+import { LogIn } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import type { AutoApplyOverview, AutoApplySettings, BoardId } from "@/lib/types";
@@ -8,10 +11,18 @@ interface BoardSwitchesProps {
   form: AutoApplySettings;
   boards: AutoApplyOverview["boards"];
   onChange: (form: AutoApplySettings) => void;
+  onSignIn: (board: BoardId) => void;
+  busy: boolean;
 }
 
-/** Easy Apply on each job board: off until you turn it on, and only with that board's login in .env. */
-export function BoardSwitches({ form, boards, onChange }: BoardSwitchesProps) {
+function status(info: AutoApplyOverview["boards"][BoardId]): string {
+  if (info.signed_in) return "Signed in";
+  if (info.has_login) return "Login saved in .env";
+  return "Not signed in yet: press Sign in";
+}
+
+/** Easy Apply on each job board: off until you turn it on. Sign in once in the app's browser (or keep a login in .env). */
+export function BoardSwitches({ form, boards, onChange, onSignIn, busy }: BoardSwitchesProps) {
   const toggle = (board: BoardId, on: boolean) =>
     onChange({ ...form, [board]: on, show_browser: on ? true : form.show_browser }); // watch it, solve OTPs and checks
   return (
@@ -19,26 +30,26 @@ export function BoardSwitches({ form, boards, onChange }: BoardSwitchesProps) {
       <div>
         <p className="text-sm font-medium">Job boards (Easy Apply)</p>
         <p className="text-xs text-muted-foreground">
-          Applies on the board itself with your login. Slow and careful, but boards may still restrict accounts that apply automatically.
+          Applies on the board itself with your account. Press Sign in and log in once in the window that opens (OTP included); it
+          stays signed in. Slow and careful, but boards may still restrict accounts that apply automatically.
         </p>
       </div>
       {(Object.keys(BOARD_NAMES) as BoardId[]).map((board) => {
         const info = boards[board];
         return (
-          <label key={board} className="flex items-start gap-3">
+          <div key={board} className="flex items-start gap-3">
             <Switch
-              checked={form[board]} disabled={!info.has_login && !form[board]} onCheckedChange={(on) => toggle(board, on)}
-              aria-label={`${BOARD_NAMES[board]} Easy Apply`} className="mt-0.5"
+              checked={form[board]} onCheckedChange={(on) => toggle(board, on)} aria-label={`${BOARD_NAMES[board]} Easy Apply`}
+              className="mt-0.5"
             />
-            <span className="grid gap-0.5">
+            <span className="grid min-w-0 flex-1 gap-0.5">
               <span className="text-sm font-medium">{BOARD_NAMES[board]}</span>
-              <span className="text-xs text-muted-foreground">
-                {info.has_login
-                  ? `${info.today} of ${form.board_daily_limit} today`
-                  : `Add ${board.toUpperCase()}_EMAIL and ${board.toUpperCase()}_PASSWORD to .env, then restart`}
-              </span>
+              <span className="text-xs text-muted-foreground">{status(info)} · {info.today} of {form.board_daily_limit} today</span>
             </span>
-          </label>
+            <Button variant="outline" size="sm" disabled={busy} onClick={() => onSignIn(board)} aria-label={`Sign in to ${BOARD_NAMES[board]}`}>
+              <LogIn /> {info.signed_in ? "Sign in again" : "Sign in"}
+            </Button>
+          </div>
         );
       })}
       <label className="grid gap-1.5 text-sm font-medium">

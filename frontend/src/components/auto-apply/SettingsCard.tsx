@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { autoApplyApi } from "@/lib/api/endpoints";
-import type { AutoApplyOverview, AutoApplySettings } from "@/lib/types";
+import type { AutoApplyOverview, AutoApplySettings, BoardId } from "@/lib/types";
 
 import { BoardSwitches } from "./BoardSwitches";
 
@@ -23,8 +23,9 @@ const SWITCHES: { key: "dry_run" | "show_browser" | "run_after_search"; label: s
 ];
 
 /** The safety settings. Turning dry run off asks you to confirm first. */
-export function SettingsCard({ settings, boards, onSaved }: {
+export function SettingsCard({ settings, boards, onSaved, onSignIn, busy }: {
   settings: AutoApplySettings; boards: AutoApplyOverview["boards"]; onSaved: (s: AutoApplySettings) => void;
+  onSignIn: (board: BoardId) => void; busy: boolean;
 }) {
   const [form, setForm] = useState(settings);
   const [confirming, setConfirming] = useState(false);
@@ -71,7 +72,7 @@ export function SettingsCard({ settings, boards, onSaved }: {
             <Input type="number" min={1} max={100} value={form.daily_limit} onChange={(e) => number("daily_limit", e.target.value)} />
           </label>
         </div>
-        <BoardSwitches form={form} boards={boards} onChange={setForm} />
+        <BoardSwitches form={form} boards={boards} onChange={setForm} onSignIn={onSignIn} busy={busy} />
         <Button disabled={!dirty || saving} onClick={() => (settings.dry_run && !form.dry_run ? setConfirming(true) : void save())}>
           Save settings
         </Button>
