@@ -43,3 +43,7 @@ export const savePreferences = (prefs: Preferences) => write(PREFS_KEY, prefs);
 export const loadSavedKeywords = (): string[] | null => read<{ keywords?: string[] }>(SESSION_KEY)?.keywords ?? null;
 export const saveKeywords = (keywords: string[]) => write(SESSION_KEY, { keywords });
 export const clearSavedKeywords = () => write(SESSION_KEY, null);
+
+const TRACKER_VIEW_KEY = "job-search-tracker-view";
+export const loadTrackerView = (): "board" | "table" => (read<string>(TRACKER_VIEW_KEY) === "table" ? "table" : "board");
+export const saveTrackerView = (view: "board" | "table") => write(TRACKER_VIEW_KEY, view);

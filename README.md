@@ -177,7 +177,8 @@ you asked for, a yellow hint tells you which filter removed the most and what to
   - a one-line reason for the score
 - Buttons on each job:
   - **View job ↗**: opens the job on the site, where you apply
-  - **✓ Mark applied**: tracks it in *My jobs* and never shows it again
+  - **Track**: adds the job to **Applications** as *Saved*, so you can follow it there
+  - **✓ Mark applied**: tracks it in *My jobs* and *Applications* (as *Applied*) and never shows it again
   - **Hide**: never show this job again (**Undo** is right there)
 - **Open report** opens the same results as a standalone HTML page; **Download Excel** gets every scored job.
 
@@ -214,6 +215,22 @@ On the **Search jobs** page, click **My jobs** (top right of the page).
   progress and results (including jobs you marked applied).
 - Click **Clear** (top right of the Search jobs page) to remove the **resume, keywords and results** from the page.
   It asks you to confirm first. **Your settings, applied/hidden jobs, search history and daily search are kept.**
+
+### Step 10 · Track your applications
+
+Click **Applications** in the sidebar.
+
+![Applications](docs/screenshots/11-applications.png)
+
+- **Board**: one column per stage (Saved, Applied, Screening, Interview, Offer, Rejected, Withdrawn).
+  **Drag a card** to another column to move it (or focus it and use Space, the arrow keys and Space).
+- **Table**: the same applications as rows. Click a column heading to sort, and filter by status.
+- **Add application** for jobs you found elsewhere (company, role, link, location, salary, contact,
+  applied and follow-up dates, notes). **Import applied jobs** adds the jobs you already marked applied.
+- Click a card or row to open its **details**: change the status, open the job, see its timeline,
+  **Edit** or **Delete** it.
+- The **Dashboard** shows how many applications are in each stage, how many you applied to each day
+  for the last two weeks, and your next **follow-ups** (overdue ones in red).
 
 ---
 
@@ -274,7 +291,7 @@ Everything stays in the project folder on your computer:
 |---|---|---|
 | `uploads/` | Resumes you uploaded | `KEEP_DAYS` cleanup (never the one in use) |
 | `output/` | HTML / Excel / CSV reports | `KEEP_DAYS` cleanup (never the one on screen) |
-| `data/history.sqlite3` | Applied / hidden / seen jobs and the search history | Never automatically |
+| `data/history.sqlite3` | Your account, applications, applied / hidden / seen jobs and the search history | Never automatically |
 | `data/cache.sqlite3` | Saved job details, AI scores, resume readings | `KEEP_DAYS` cleanup; safe to delete anytime |
 | `data/session.json` | What the page shows (resume, last results) | The **Clear** button |
 | `data/schedule.json`, `data/scheduled.log` | Daily search settings and its log | **Turn off** / log is trimmed when large |
@@ -294,13 +311,14 @@ backend/                     Python package `job_search` (pip install -r require
     config/                  settings from .env, project paths, city list
     models/                  plain dataclasses: Job, Profile, SearchOptions, Schedule...
     database/                SQLAlchemy models + Alembic migrations (run automatically on start)
-    repositories/            job/run history (SQLAlchemy), cache, schedule and session storage
+    repositories/            job/run history, users, applications (SQLAlchemy), cache, schedule and session storage
     schemas/                 API errors, request validation, response serializers
     services/
       search/                the search: runner -> pipeline -> sites / filters / profile
       scraping/              one browser per site + linkedin.py, naukri.py, indeed.py
       reporting/             HTML / Excel / CSV reports
       llm_service.py         OpenAI: resume reading, parallel job scoring, token usage
+      applications.py        application tracker: validation, status changes, tracking jobs from results
       search_manager.py      runs one search at a time in the background for the web page
       schedule_service.py    daily search (Windows Task Scheduler / cron)
   tests/                     unit/ (fast) and integration/ (headless browser, fakes)

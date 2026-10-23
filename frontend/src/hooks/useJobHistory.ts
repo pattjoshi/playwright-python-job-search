@@ -22,7 +22,7 @@ export function useJobHistory(initial: HistoryCounts) {
 
   const setStatus = useCallback(async (job: Pick<Job, "source" | "job_id"> & Partial<Job>, status: JobStatus) => {
     const body = await api.setJobStatus(
-      { source: job.source, job_id: job.job_id, title: job.title, company: job.company, url: job.url },
+      { source: job.source, job_id: job.job_id, title: job.title, company: job.company, url: job.url, location: job.location },
       status,
     );
     setStatuses((current) => {
@@ -32,6 +32,7 @@ export function useJobHistory(initial: HistoryCounts) {
       return next;
     });
     setCounts(body.history);
+    return body;
   }, []);
 
   const refresh = useCallback(async () => {

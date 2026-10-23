@@ -106,9 +106,10 @@ function useSearchSessionValue() {
 
   const setJobStatus = async (job: Job, status: JobStatus) => {
     try {
-      await history.setStatus(job, status);
+      const { tracked } = await history.setStatus(job, status);
       if (status === "applied") {
         toast.success(`Marked “${job.title}” as applied`, {
+          description: tracked ? "Added to Applications" : undefined,
           action: { label: "Undo", onClick: () => void history.setStatus(job, "seen") },
         });
       }
