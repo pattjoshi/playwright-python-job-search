@@ -70,6 +70,7 @@ export interface Job {
   matched_skills: string[];
   missing_skills: string[];
   status?: JobStatus | null; // only on a search restored from the saved session
+  apply_url?: string; // the company's own application page ("Apply on company site")
 }
 
 export interface RunStats {
@@ -230,3 +231,4 @@ export interface ApplicationStats {
 }
 
 export * from "./answer-types";
+export * from "./auto-apply-types";

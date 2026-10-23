@@ -29,7 +29,14 @@ preferences...) -> found=false and an empty answer. For yes/no questions answer 
 the resume clearly says so. Keep answers short, the way a form expects.
 Return JSON: {"results": [{"id": <id>, "found": <bool>, "answer": "<text>"}]}"""
 
+WRITE_PROMPT = """You write for a candidate applying to one job. Use ONLY facts from the RESUME; never invent experience,
+numbers, employers or skills. Make it specific to this job and company, in the first person, plain and warm,
+with no placeholders like [Company] and no address block or sign-off name.
+If the QUESTION is "Cover letter": 120-180 words in 2-3 short paragraphs. Otherwise answer the question in 2-4 sentences.
+Return JSON: {"text": "<text>"}"""
+
 MAX_RESUME_CHARS = 12000
+MAX_JOB_CHARS = 5000
 
 MATCH_SCHEMA = {
     "type": "object", "additionalProperties": False, "required": ["match_id"],
@@ -38,6 +45,9 @@ MATCH_SCHEMA = {
 DRAFT_SCHEMA = {
     "type": "object", "additionalProperties": False, "required": ["found", "answer", "category"],
     "properties": {"found": {"type": "boolean"}, "answer": {"type": "string"}, "category": {"type": "string"}},
+}
+WRITE_SCHEMA = {
+    "type": "object", "additionalProperties": False, "required": ["text"], "properties": {"text": {"type": "string"}},
 }
 FILL_SCHEMA = {
     "type": "object", "additionalProperties": False, "required": ["results"],
@@ -84,3 +94,11 @@ class AnswerAI:
             for item in data.get("results") or []
             if isinstance(item, dict) and item.get("id") in ids and item.get("found") and str(item.get("answer") or "").strip()
         }
+
+    def write_for_job(self, question: str, title: str, company: str, description: str, resume_text: str) -> str:
+        """A cover letter (question "Cover letter") or a short answer like "Why do you want to join us?"."""
+        user = (
+            f"QUESTION: {question}\n\nJOB: {title} at {company}\n{description[:MAX_JOB_CHARS]}\n\n"
+            f"RESUME:\n{resume_text[:MAX_RESUME_CHARS]}"
+        )
+        return str(self.llm.ask_json(WRITE_PROMPT, user, "job_writing", WRITE_SCHEMA).get("text") or "").strip()

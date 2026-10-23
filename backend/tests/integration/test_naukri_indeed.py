@@ -85,4 +85,18 @@ def test_indeed_fetch_description(browser):
     IndeedScraper(context, delay_range=(0, 0)).fetch_description(job)
 
     assert job.description == "Own our Playwright test suite."
+    assert job.apply_url == ""
+    context.close()
+
+
+def test_indeed_fetch_description_finds_company_apply_link(browser):
+    context = browser.new_context()
+    page = ('<div id="jobDescriptionText"><p>QA role</p></div>'
+            '<div id="applyButtonLinkContainer"><a href="/rc/clk?jk=x1&amp;from=vj">Apply on company site</a></div>')
+    context.route("**/viewjob*", lambda route: route.fulfill(body=page, content_type="text/html"))
+    job = Job("indeed", "x1", "QA", "Co", "Pune", "https://in.indeed.com/viewjob?jk=x1")
+
+    IndeedScraper(context, delay_range=(0, 0)).fetch_description(job)
+
+    assert job.apply_url == "https://in.indeed.com/rc/clk?jk=x1&from=vj"
     context.close()

@@ -1,6 +1,6 @@
 """Local cache (SQLite) so repeat and daily runs skip work they've already done.
 
-  descriptions  job details already opened  -> not opened again
+  job_details   job pages already opened (description, company apply link) -> not opened again
   scores        AI scores for a job + this resume profile + model + prompt -> not scored again
   profiles      AI reading of a resume file (by content hash) + model -> not sent again
 
@@ -18,9 +18,10 @@ from job_search.database import Database
 from job_search.models import Job, Profile
 
 _SCHEMA = """
-CREATE TABLE IF NOT EXISTS descriptions (
+DROP TABLE IF EXISTS descriptions;  -- replaced by job_details (it had no apply link); the cache is disposable
+CREATE TABLE IF NOT EXISTS job_details (
     source TEXT NOT NULL, job_id TEXT NOT NULL,
-    description TEXT NOT NULL, experience TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL, experience TEXT NOT NULL DEFAULT '', apply_url TEXT NOT NULL DEFAULT '',
     saved_at TEXT NOT NULL,
     PRIMARY KEY (source, job_id)
 );
@@ -54,20 +55,21 @@ class CacheRepository:
         with self._db.lock, self._db.connect() as db:
             for job in jobs:
                 row = db.execute(
-                    "SELECT description, experience FROM descriptions WHERE source = ? AND job_id = ?",
+                    "SELECT description, experience, apply_url FROM job_details WHERE source = ? AND job_id = ?",
                     (job.source, job.job_id),
                 ).fetchone()
                 if row:
                     job.description = row[0]
                     job.experience = job.experience or row[1]
+                    job.apply_url = job.apply_url or row[2]
                 else:
                     missing.append(job)
         return missing
 
     def save_descriptions(self, jobs: list[Job]) -> None:
-        rows = [(j.source, j.job_id, j.description, j.experience, _now()) for j in jobs if j.description]
+        rows = [(j.source, j.job_id, j.description, j.experience, j.apply_url, _now()) for j in jobs if j.description]
         with self._db.lock, self._db.connect() as db:
-            db.executemany("INSERT OR REPLACE INTO descriptions VALUES (?, ?, ?, ?, ?)", rows)
+            db.executemany("INSERT OR REPLACE INTO job_details VALUES (?, ?, ?, ?, ?, ?)", rows)
 
     # ---------- AI scores ----------
 
@@ -113,7 +115,7 @@ class CacheRepository:
         cutoff = (datetime.now() - timedelta(days=days)).isoformat(timespec="seconds")
         removed = 0
         with self._db.lock, self._db.connect() as db:
-            for table in ("descriptions", "scores", "profiles"):
+            for table in ("job_details", "scores", "profiles"):
                 removed += db.execute(f"DELETE FROM {table} WHERE saved_at < ?", (cutoff,)).rowcount
         return removed
 

@@ -4,8 +4,9 @@ from job_search.services.answers import AnswerAI
 
 
 class FakeAnswerLLM:
-    def __init__(self, match=None, draft=None, fill=None):
-        self.replies = {"question_match": match or {"match_id": None},
+    def __init__(self, match=None, draft=None, fill=None, writing=None):
+        self.replies = {"job_writing": writing or (lambda user: {"text": f"Letter: {user.splitlines()[0]}"}),
+                        "question_match": match or {"match_id": None},
                         "answer_draft": draft or {"found": False, "answer": "", "category": "other"},
                         "answer_fill": fill or {"results": []}}
         self.calls: list[tuple[str, str]] = []

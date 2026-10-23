@@ -18,6 +18,7 @@ from playwright.sync_api import Page
 from job_search.models import Job
 from job_search.services.location_service import is_remote
 from job_search.services.matching_service import parse_relative_age
+from job_search.services.scraping.apply_links import external_apply_url
 from job_search.services.scraping.base import BaseScraper
 
 log = logging.getLogger(__name__)
@@ -150,6 +151,8 @@ def parse_api_jobs(data: dict) -> list[Job]:
                 hours_ago=hours_ago,
                 description=description,
                 experience=placeholders.get("experience", ""),
+                # Set for "Apply on company site" jobs; most Naukri jobs are applied to on Naukri itself.
+                apply_url=external_apply_url(str(item.get("applyRedirectUrl") or ""), board_hosts=("naukri.com",)),
             )
         )
     return jobs

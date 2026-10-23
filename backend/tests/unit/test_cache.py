@@ -46,6 +46,6 @@ def test_cache_delete_older_than(tmp_path):
     cache = CacheRepository(tmp_path / "c.sqlite3")
     cache.save_descriptions([job("old", description="x"), job("new", description="y")])
     with cache._db.connect() as db:
-        db.execute("UPDATE descriptions SET saved_at = '2000-01-01T00:00:00' WHERE job_id = 'old'")
+        db.execute("UPDATE job_details SET saved_at = '2000-01-01T00:00:00' WHERE job_id = 'old'")
     assert cache.delete_older_than(30) == 1
     assert [j.job_id for j in cache.fill_descriptions([job("old"), job("new")])] == ["old"]

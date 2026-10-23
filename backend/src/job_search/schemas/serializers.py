@@ -56,6 +56,7 @@ def job_to_dict(job: Job) -> dict:
         "match_reason": job.match_reason,
         "matched_skills": job.matched_skills,
         "missing_skills": job.missing_skills,
+        "apply_url": job.apply_url,
     }
 
 

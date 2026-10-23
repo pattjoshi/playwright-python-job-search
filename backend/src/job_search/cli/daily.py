@@ -2,13 +2,14 @@
 
 import logging
 import sys
+import threading
 import webbrowser
 from datetime import datetime
 from pathlib import Path
 
 from job_search.cli.logs import setup_logging
 from job_search.config import load_settings
-from job_search.repositories import LOG_FILE, load_schedule, save_state
+from job_search.repositories import LOG_FILE, SessionRepository, UserRepository, load_schedule, save_state
 from job_search.services.cleanup_service import cleanup
 from job_search.services.schedule_service import options_from_dict
 from job_search.services.search import run
@@ -50,7 +51,25 @@ def main(_argv: list[str] | None = None) -> int:
     if schedule.open_report:
         webbrowser.open(Path(result.html_path).resolve().as_uri())
     try:
+        auto_apply_matches(settings, result.jobs)
+    except Exception:  # auto-apply problems are logged; the search itself succeeded
+        log.exception("Auto-apply after the daily search failed")
+    try:
         cleanup(settings.keep_days, data_dir, Path(options.resume_path).parent, options.output_dir, settings.cache_path)
     except Exception:  # housekeeping must never fail the daily run
         log.exception("Cleanup failed")
     return 0
+
+
+def auto_apply_matches(settings, jobs) -> None:
+    """Queue the search's matches for auto-apply, and apply now if "run after each search" is on."""
+    from job_search.api.app import build_auto_apply
+
+    owner = UserRepository(settings.history_path).owner_id()
+    if owner is None:
+        return
+    service = build_auto_apply(settings, SessionRepository(settings.history_path.parent)).service
+    added = service.queue_jobs(owner, jobs)
+    log.info("Auto-apply: %d new job%s queued", added, "" if added == 1 else "s")
+    if service.repo.settings(owner)["run_after_search"]:
+        service.run(owner, threading.Event(), log.info)

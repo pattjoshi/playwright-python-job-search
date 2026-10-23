@@ -129,6 +129,11 @@ def test_resolve_saved_matched_drafted_new(repo):
     assert make(repo, ai).resolve(1, "do you hold a us work visa")["answer"] == "No"  # ...and it's reused
 
 
+def test_optional_questions_you_have_not_answered_are_not_added(repo):
+    result = make(repo).resolve(1, "Twitter handle", add_if_missing=False)
+    assert result == {"how": "skipped", "answer": None, "entry": None} and repo.for_user(1) == []
+
+
 def test_resolve_without_ai_or_resume_adds_the_question(repo):
     result = make(repo, ai=None).resolve(1, "Expected CTC?")
     assert result["how"] == "new" and result["entry"]["source"] == "form"

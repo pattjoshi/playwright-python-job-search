@@ -78,6 +78,14 @@ supporting. Lower layers never import upper ones.
   saved wording → AI match → AI draft from the resume (`needs_review`) → else added as `needs_answer`; the AI never
   invents personal facts; `starters.py`, `ai.py` prompts, `matching.py`), `api/routes/answers.py`. `create_app(answer_ai=)`
   takes a factory so tests use `tests/answer_fakes.py` instead of OpenAI.
+- Auto-apply: scrapers set `Job.apply_url` (the company page behind "Apply on company site";
+  `services/scraping/apply_links.py`), cached in `job_details`. `repositories/auto_apply_repository.py` (queue + settings),
+  `services/auto_apply/`: `service.py` (queue rules, limits, `run()`), `applier.py` (`apply_one`: open → click Apply →
+  read form → fill → screenshot → submit → confirm), `form_fields.py` (in-page JS reads fields and tags them `data-ja`),
+  `filler.py` (resume upload, AI cover letter, else `AnswerService.resolve`; only required unknowns are added to the
+  bank), `platforms.py`, `manager.py` (background thread). Queued after each search via `SearchManager(after_search=)`
+  and `cli/daily.auto_apply_matches`. `create_app(auto_apply_browser=)`; tests use saved forms in `tests/fixtures/forms`
+  served locally (`tests/integration/form_site.py`); never open real career pages in tests.
 - `cli/`: `serve`, `search`, `daily`, `reset-password` commands; `__main__.py` and `daily.py` are thin entry points.
 
 Tests patch `job_search.services.search.pipeline.SCRAPERS` / `.JobMatcherLLM` to fake boards and AI.
@@ -102,11 +110,12 @@ next-themes, toasts via sonner. Static export: pages become `name.html`, served 
   `PageHeader`. Feature folders: `dashboard/`, `search/`, `resume/`, `search-form/`, `daily/`, `progress/`,
   `results/`, `my-jobs/`, `applications/` (board with dnd-kit drag and drop, table, form dialog, details
   sheet; `statuses.ts` holds the status labels and colours), `answers/` (Answer Bank: tabs by status, rows
-  grouped by category with an answer box shaped by `kind`, form dialog, Test a question card; `meta.ts`), `settings/`,
+  grouped by category with an answer box shaped by `kind`, form dialog, Test a question card; `meta.ts`), `auto-apply/`
+  (run card, queue tabs, job rows, settings with a confirm before leaving dry run), `settings/`,
   `coming-soon/`.
 - `hooks/`: `useSearchForm`, `useSearchJob`, `useResume`, `useJobHistory`, `useDailySearch`,
   `useSessionRestore`, `useRuns`, `useApplications` (optimistic moves with rollback), `useApplicationStats`,
-  `useAnswers`.
+  `useAnswers`, `useAutoApply` (polls while a run is going).
 - `lib/`: `api/` (typed client), `types.ts` (mirrors the API JSON), `format.ts`, `estimate.ts`, `funnel.ts`,
   `storage.ts`, `constants.ts`, `utils.ts` (`cn`).
 

@@ -132,11 +132,13 @@ class AnswerService:
             filled += 1
         return filled
 
-    def resolve(self, user_id: int, question: str, options: list[str] | None = None, asked_by: str = "") -> dict:
+    def resolve(self, user_id: int, question: str, options: list[str] | None = None, asked_by: str = "",
+                add_if_missing: bool = True) -> dict:
         """Find (or draft, or add) the answer to a form question.
 
-        Returns {"how": saved|matched|drafted|new, "answer": text to put in the form or None, "entry": the bank entry}.
+        Returns {"how": saved|matched|drafted|new|skipped, "answer": text to put in the form or None, "entry": the bank entry}.
         A draft is used right away (and waits for your review); a "needs answer" question gives None.
+        With add_if_missing False (an optional field), a question you have no answer for is skipped, not added.
         """
         question = str(question or "").strip()[:_LIMITS["question"]]
         options = _texts(options or [], "Options", 30, 200)
@@ -150,6 +152,8 @@ class AnswerService:
             if match_id:
                 self.repo.add_wording(user_id, match_id, key, question)
                 entry, how = self.repo.get(user_id, match_id), "matched"
+        if entry is None and not add_if_missing:
+            return {"how": "skipped", "answer": None, "entry": None}
         if entry is None:
             entry, how = self._add_from_form(user_id, question, options, asked_by[:_LIMITS["asked_by"]], ai)
         usable = entry["status"] != "needs_answer" and bool(entry["answer"])
