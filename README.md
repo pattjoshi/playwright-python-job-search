@@ -310,6 +310,28 @@ If a job doesn't go through, press **Try this job** to watch it in a visible bro
 **Risk:** job boards don't allow automated applying, and LinkedIn is the strictest. An account can be warned or
 restricted even at this slow pace. Start with a low daily limit and keep an eye on it.
 
+### Step 13 · Notes
+
+Click **Notes** in the sidebar: Notion-style pages for company research, interview prep and plans.
+
+- **New page**, give it a title and an icon. Hover a page in the list and press **+** to put a page inside it
+  (e.g. *Interview prep → Infosys → Round 1*). Use **Move to** above a page to move it, or the bin to delete it
+  (the pages inside go with it).
+- Type **/** in a line for the block menu, or use Markdown shortcuts at the start of a line:
+
+| Type | Gets you |
+|---|---|
+| `# ` `## ` `### ` | Headings |
+| `- ` | Bulleted list (Enter continues it, Enter on an empty item ends it) |
+| `1. ` | Numbered list |
+| `[] ` | To-do with a checkbox |
+| `> ` | Quote |
+| ```` ``` ```` | Code |
+| `---` | Divider |
+
+- Drag the ⋮⋮ handle to reorder blocks. **Backspace** at the start of a line turns it back into text, then joins
+  it to the line above. Everything saves by itself ("Saved" at the top right).
+
 ---
 
 ## 4. Tips and troubleshooting
@@ -369,7 +391,7 @@ Everything stays in the project folder on your computer:
 |---|---|---|
 | `uploads/` | Resumes you uploaded | `KEEP_DAYS` cleanup (never the one in use) |
 | `output/` | HTML / Excel / CSV reports | `KEEP_DAYS` cleanup (never the one on screen) |
-| `data/history.sqlite3` | Your account, applications, Answer Bank, auto-apply queue, applied / hidden / seen jobs and the search history | Never automatically |
+| `data/history.sqlite3` | Your account, applications, Answer Bank, notes, auto-apply queue, applied / hidden / seen jobs and the search history | Never automatically |
 | `data/auto-apply/` | Screenshots of filled application forms and the cover letters sent | When you remove the job from Auto-apply |
 | `data/browser-profile/` | Auto-apply's browser, which keeps you signed in to the job boards | Delete it to sign out everywhere |
 | `data/cache.sqlite3` | Saved job details, AI scores, resume readings | `KEEP_DAYS` cleanup; safe to delete anytime |

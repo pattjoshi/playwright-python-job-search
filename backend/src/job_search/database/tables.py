@@ -184,3 +184,19 @@ class AutoApplySettingsRecord(Base):
     indeed: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     board_daily_limit: Mapped[int] = mapped_column(Integer, default=10, server_default="10")  # per board
     updated_at: Mapped[str] = mapped_column(Text)
+
+
+class NoteRecord(Base):
+    """A notes page (Notion-style): a title, an icon and a list of blocks. Pages can sit inside other pages."""
+
+    __tablename__ = "notes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    parent_id: Mapped[int | None] = mapped_column(ForeignKey("notes.id", ondelete="CASCADE"), nullable=True, index=True)
+    title: Mapped[str] = mapped_column(Text, default="", server_default="")
+    icon: Mapped[str] = mapped_column(Text, default="", server_default="")  # an emoji
+    content: Mapped[str] = mapped_column(Text, default="[]", server_default="[]")  # JSON list of blocks
+    position: Mapped[int] = mapped_column(Integer, default=0, server_default="0")  # order among siblings
+    created_at: Mapped[str] = mapped_column(Text)
+    updated_at: Mapped[str] = mapped_column(Text)

@@ -3,6 +3,9 @@
 import { postJson, request } from "@/lib/api/client";
 import type {
   Answer,
+  Block,
+  NotePage,
+  NoteSummary,
   AutoApplyJob,
   AutoApplyOverview,
   AutoApplyRun,
@@ -81,6 +84,20 @@ export const autoApplyApi = {
   tryJob: (id: number) => postJson<{ run: AutoApplyRun }>(`/api/auto-apply/${id}/try`),
   pageUrl: (id: number) => `/api/auto-apply/${id}/page`,
   screenshotUrl: (id: number, version: string) => `/api/auto-apply/${id}/screenshot?v=${encodeURIComponent(version)}`,
+};
+
+export const notesApi = {
+  tree: () => request<{ pages: NoteSummary[] }>("/api/notes"),
+  get: (id: number) => request<{ page: NotePage }>(`/api/notes/${id}`),
+  create: (body: { title?: string; icon?: string; parent_id?: number | null; content?: Block[] }) =>
+    postJson<{ page: NotePage }>("/api/notes", body),
+  update: (id: number, body: { title?: string; icon?: string; content?: Block[] }) =>
+    request<{ page: NotePage }>(`/api/notes/${id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    }),
+  move: (id: number, parentId: number | null, position: number) =>
+    postJson<{ pages: NoteSummary[] }>(`/api/notes/${id}/move`, { parent_id: parentId, position }),
+  remove: (id: number) => request<{ ok: boolean }>(`/api/notes/${id}`, { method: "DELETE" }),
 };
 
 export const api = {

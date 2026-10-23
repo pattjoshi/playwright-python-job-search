@@ -21,6 +21,7 @@ from job_search.repositories import (
     AutoApplyRepository,
     CacheRepository,
     JobHistoryRepository,
+    NoteRepository,
     SessionRepository,
     UserRepository,
     resume_key,
@@ -32,6 +33,7 @@ from job_search.services.auth import AuthService
 from job_search.services.auto_apply import AutoApplyManager, AutoApplyService, open_browser
 from job_search.services.cleanup_service import cleanup
 from job_search.services.llm_service import JobMatcherLLM
+from job_search.services.notes import NoteService
 from job_search.services.resume_service import read_resume_text
 from job_search.services.schedule_service import SystemScheduler
 from job_search.services.search import run
@@ -137,6 +139,7 @@ def create_app(
         applications=applications,
         answers=answers,
         auto_apply=auto_apply,
+        notes=NoteService(NoteRepository(settings.history_path)),
     )
     saved = session.resume()
     if saved:  # the resume from before a restart still works without uploading it again
