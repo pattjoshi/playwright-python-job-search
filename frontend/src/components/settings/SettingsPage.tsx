@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useConfig } from "@/providers/ConfigProvider";
 import { useSearchSession } from "@/providers/SearchSessionProvider";
 
+import { AccountCard } from "./AccountCard";
 import { AppearanceCard } from "./AppearanceCard";
 
 const DATA_FOLDERS = [
@@ -23,8 +24,9 @@ export function SettingsPage() {
   const { history, forgetSeen } = useSearchSession();
   return (
     <>
-      <PageHeader title="Settings" description="Appearance, your AI key and where your data lives." />
+      <PageHeader title="Settings" description="Your account, appearance, AI key and where your data lives." />
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <AccountCard />
         <AppearanceCard />
         <Card>
           <CardHeader>

@@ -65,7 +65,11 @@ supporting. Lower layers never import upper ones.
 - `api/app.py`: `create_app(settings, output_dir, upload_dir, runner, analyzer, system_scheduler,
   frontend_dir)`, the factory tests use with fakes. `api/routes/*`: one `build_router(ctx)` per resource.
   `ApiError` becomes `{"error": message}`. The built page is mounted last at `/`.
-- `cli/`: `serve`, `search`, `daily` commands; `__main__.py` and `daily.py` are thin entry points.
+- Auth: `services/auth/` (`AuthService`, scrypt `passwords.py`, `LoginThrottle`), `repositories/user_repository.py`,
+  `api/auth.py` (middleware: `/api/*` and `/reports/*` need a session cookie except `/api/auth/*`; cross-site
+  writes refused; `current_user`/`require_owner` helpers), `api/routes/auth.py`. Tests sign in with
+  `tests/auth_helpers.signed_in(client)`.
+- `cli/`: `serve`, `search`, `daily`, `reset-password` commands; `__main__.py` and `daily.py` are thin entry points.
 
 Tests patch `job_search.services.search.pipeline.SCRAPERS` / `.JobMatcherLLM` to fake boards and AI.
 Calling `run()` always starts real Chromium (via `SiteSession`), so such tests live in `integration/`.
@@ -75,8 +79,10 @@ Calling `run()` always starts real Chromium (via `SiteSession`), so such tests l
 Tailwind CSS v4 + shadcn/ui (new-york). Theme tokens in `styles/theme.css` (light + `.dark`), dark mode via
 next-themes, toasts via sonner. Static export: pages become `name.html`, served by the backend at `/name`.
 
-- `app/layout.tsx` (theme provider, toaster); `app/page.tsx` redirects to `/dashboard`;
-  `app/(app)/layout.tsx` wraps every page in `ConfigProvider` → `SearchSessionProvider` → `AppShell`;
+- `app/layout.tsx` (theme provider, toaster); `app/page.tsx` is the public home page (`components/home/`);
+  `app/login/page.tsx` signs in or creates the first account (`components/auth/`);
+  `app/(app)/layout.tsx` wraps every page in `AuthProvider` (guard) → `ConfigProvider` → `SearchSessionProvider` → `AppShell`;
+  any 401 from the API redirects to `/login?next=…`;
   `app/(app)/<page>/page.tsx` exports metadata and renders a feature component.
 - `providers/`: `ConfigProvider` (`useConfig`, loads `/api/config` once), `SearchSessionProvider`
   (`useSearchSession`: form, resume, running search, history, daily search and actions; lives above the

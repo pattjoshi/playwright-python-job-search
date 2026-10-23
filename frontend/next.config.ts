@@ -17,6 +17,7 @@ const nextConfig: NextConfig = {
         },
       }
     : { output: "export" }),
+  images: { unoptimized: true }, // static export: images are served as they are
   reactStrictMode: true,
   poweredByHeader: false,
 };

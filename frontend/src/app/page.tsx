@@ -1,11 +1,5 @@
-"use client";
+import { HomePage } from "@/components/home/HomePage";
 
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
-
-/** For now the app opens on the dashboard (Phase 1 turns this into the home page). */
-export default function RootPage() {
-  const router = useRouter();
-  useEffect(() => router.replace("/dashboard"), [router]);
-  return null;
+export default function Page() {
+  return <HomePage />;
 }

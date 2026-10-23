@@ -91,7 +91,11 @@ press **Ctrl+C** in it to stop the app. The page only works on your computer (it
 
 ## 3. How to use the website, step by step
 
-The app opens on the **Dashboard** (your counts, the latest matches, the daily search and recent searches).
+**First time:** the page asks you to **create your account** (name, email, password). It protects your resume,
+jobs and history on this computer. Next time you just **sign in**. Forgot the password? In the project folder run
+`python -m job_search reset-password --email you@example.com`.
+
+`http://127.0.0.1:8000` shows the **home page**; click **Get started** or **Open dashboard**. After signing in, the app opens on the **Dashboard** (your counts, the latest matches, the daily search and recent searches).
 Use the **sidebar** to move between pages; the light/dark switch is at the top right.
 
 Open **Search jobs** in the sidebar. The **left side** is where you set up the search; the **right side** shows
@@ -325,6 +329,9 @@ cd backend && ruff check . && pytest            # backend
 cd frontend && npm run lint && npm run typecheck && npm test && npm run build   # frontend
 python scripts/check_file_length.py             # every code file under 250 lines
 ```
+
+**Accounts and access:** every `/api` and `/reports` request needs a signed-in user (session cookie;
+`/api/auth/*` is the only public part). Owner-only actions use `require_owner(request)` from `api/auth.py`.
 
 **Database changes:** edit `backend/src/job_search/database/tables.py`, then create a migration with
 `cd backend && alembic revision --autogenerate --rev-id 0002 -m "what changed"`. The app applies it on start.
