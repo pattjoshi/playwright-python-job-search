@@ -9,7 +9,13 @@ export interface AutoApplySettings {
   daily_limit: number;
   show_browser: boolean;
   run_after_search: boolean;
+  naukri: boolean;
+  linkedin: boolean;
+  indeed: boolean;
+  board_daily_limit: number;
 }
+
+export type BoardId = "naukri" | "linkedin" | "indeed";
 
 export interface AutoApplyJob {
   id: number;
@@ -47,5 +53,6 @@ export interface AutoApplyOverview {
   jobs: AutoApplyJob[];
   today: number;
   remaining: number;
+  boards: Record<BoardId, { today: number; has_login: boolean }>;
   run: AutoApplyRun;
 }

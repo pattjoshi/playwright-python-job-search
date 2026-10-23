@@ -86,6 +86,11 @@ supporting. Lower layers never import upper ones.
   bank), `platforms.py`, `manager.py` (background thread). Queued after each search via `SearchManager(after_search=)`
   and `cli/daily.auto_apply_matches`. `create_app(auto_apply_browser=)`; tests use saved forms in `tests/fixtures/forms`
   served locally (`tests/integration/form_site.py`); never open real career pages in tests.
+  Board Easy Apply: `services/auto_apply/boards/` (`base.Board`: `ensure_login`, human pacing, security-check waits,
+  `step_through` Next→Submit; `naukri.py` chat questions, `linkedin.py` pop-up, `indeed.py` new tab). Logins come
+  from `Settings.board_logins` (`NAUKRI_EMAIL`/`_PASSWORD`…, `repr=False`); `browser.py` keeps a persistent profile in
+  `data/browser-profile`. Per-board switches + `board_daily_limit` in settings; tests pass `board_base_url` and
+  `pace=0` to use the saved board pages in `tests/fixtures/forms`.
 - `cli/`: `serve`, `search`, `daily`, `reset-password` commands; `__main__.py` and `daily.py` are thin entry points.
 
 Tests patch `job_search.services.search.pipeline.SCRAPERS` / `.JobMatcherLLM` to fake boards and AI.

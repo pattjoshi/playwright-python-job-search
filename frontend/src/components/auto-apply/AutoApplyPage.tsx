@@ -50,7 +50,7 @@ export function AutoApplyPage() {
     <>
       <PageHeader
         title="Auto-apply"
-        description="Applies to your best matches on company career pages (Greenhouse, Lever, Ashby, SmartRecruiters and others) using your Answer Bank."
+        description="Applies to your best matches on company career pages (Greenhouse, Lever, Ashby, SmartRecruiters…) and, if you turn them on, with Easy Apply on Naukri, LinkedIn and Indeed, using your Answer Bank."
         actions={<Button variant="outline" onClick={queueLastSearch} disabled={busy}><ListPlus /> Add matches from last search</Button>}
       />
       {error ? <p className="mb-4 text-sm text-destructive">{error}</p> : null}
@@ -95,7 +95,7 @@ export function AutoApplyPage() {
             ) : null}
           </div>
           <div className="grid grid-cols-1 gap-4 lg:sticky lg:top-20">
-            <SettingsCard key={JSON.stringify(data.settings)} settings={data.settings} onSaved={() => void reload()} />
+            <SettingsCard key={JSON.stringify(data.settings)} settings={data.settings} boards={data.boards} onSaved={() => void reload()} />
           </div>
         </div>
       ) : null}

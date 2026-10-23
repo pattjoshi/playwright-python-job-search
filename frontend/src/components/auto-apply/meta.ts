@@ -13,8 +13,10 @@ export const STATUS_BADGE: Record<AutoApplyStatus, { label: string; className: s
 
 export const PLATFORM_NAMES: Record<string, string> = {
   greenhouse: "Greenhouse", lever: "Lever", ashby: "Ashby", smartrecruiters: "SmartRecruiters", workday: "Workday",
-  other: "Company site",
+  other: "Company site", naukri: "Naukri", linkedin: "LinkedIn Easy Apply", indeed: "Indeed Apply",
 };
+
+export const BOARD_NAMES = { naukri: "Naukri", linkedin: "LinkedIn", indeed: "Indeed" } as const;
 
 export type QueueTab = "waiting" | "needs" | "done";
 
