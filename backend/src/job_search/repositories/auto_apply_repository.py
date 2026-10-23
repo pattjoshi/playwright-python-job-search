@@ -10,7 +10,10 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from job_search.database import get_engine
 from job_search.database.tables import AutoApplyJobRecord, AutoApplySettingsRecord
 
-DEFAULT_SETTINGS = {"dry_run": True, "min_score": 75, "daily_limit": 15, "show_browser": False, "run_after_search": False}
+DEFAULT_SETTINGS = {
+    "dry_run": True, "min_score": 75, "daily_limit": 15, "show_browser": False, "run_after_search": False,
+    "naukri": False, "linkedin": False, "indeed": False, "board_daily_limit": 10,
+}
 SETTINGS = tuple(DEFAULT_SETTINGS)
 FIELDS = (
     "source", "source_job_id", "title", "company", "location", "job_url", "apply_url", "platform", "score",
@@ -79,12 +82,13 @@ class AutoApplyRepository:
             row = db.execute(query.where(_Job.user_id == user_id, _Job.id == job_id)).first()
         return _row(row) if row else None
 
-    def next_queued(self, user_id: int) -> dict | None:
-        """The best-matching job still waiting."""
-        query = (select(_Job.id).where(_Job.user_id == user_id, _Job.status == "queued")
-                 .order_by(_Job.score.desc().nulls_last(), _Job.id).limit(1))
+    def next_queued(self, user_id: int, skip_platforms: tuple[str, ...] = ()) -> dict | None:
+        """The best-matching job still waiting (leaving out platforms that hit their limit or can't sign in)."""
+        query = select(_Job.id).where(_Job.user_id == user_id, _Job.status == "queued")
+        if skip_platforms:
+            query = query.where(_Job.platform.not_in(skip_platforms))
         with self._engine.connect() as db:
-            job_id = db.execute(query).scalar()
+            job_id = db.execute(query.order_by(_Job.score.desc().nulls_last(), _Job.id).limit(1)).scalar()
         return self.get(user_id, job_id) if job_id else None
 
     def update(self, user_id: int, job_id: int, fields: dict) -> dict | None:
@@ -99,11 +103,13 @@ class AutoApplyRepository:
         with self._engine.begin() as db:
             return db.execute(delete(_Job).where(_Job.user_id == user_id, _Job.id == job_id)).rowcount > 0
 
-    def done_today(self, user_id: int, today: str) -> int:
-        """Applications finished today that count toward the daily limit."""
-        query = select(func.count()).where(_Job.user_id == user_id, _Job.status.in_(COUNTED), _Job.finished_at.startswith(today))
+    def done_today(self, user_id: int, today: str) -> dict[str, int]:
+        """{platform: applications finished today} that count toward the daily limits."""
+        query = (select(_Job.platform, func.count())
+                 .where(_Job.user_id == user_id, _Job.status.in_(COUNTED), _Job.finished_at.startswith(today))
+                 .group_by(_Job.platform))
         with self._engine.connect() as db:
-            return db.execute(query).scalar() or 0
+            return dict(db.execute(query).all())
 
     def requeue_interrupted(self) -> None:
         """Jobs left "running" by an app that was closed mid-run go back in the queue."""

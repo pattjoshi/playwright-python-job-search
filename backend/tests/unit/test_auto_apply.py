@@ -91,3 +91,23 @@ def test_daily_search_queues_matches(tmp_path):
     service = make_service(tmp_path)  # creates the owner account
     auto_apply_matches(Settings(openai_api_key="", history_path=tmp_path / "h.sqlite3"), [job("1"), job("2", score=10)])
     assert [j["source_job_id"] for j in service.repo.for_user(1)] == ["1"]  # run_after_search is off: queued only
+
+
+def test_board_limits_and_logins(monkeypatch):
+    from job_search.config.settings import load_settings
+    from job_search.services.auto_apply.service import remaining_today
+
+    settings = {"daily_limit": 15, "board_daily_limit": 10}
+    left = remaining_today(settings, {"lever": 3, "other": 2, "naukri": 10, "linkedin": 4})
+    assert left == {"company": 10, "naukri": 0, "linkedin": 6, "indeed": 10}
+    with pytest.raises(AutoApplyError):
+        clean_settings({"board_daily_limit": 51})
+    assert clean_settings({"naukri": True, "board_daily_limit": 5}) == {"naukri": True, "board_daily_limit": 5}
+
+    monkeypatch.setenv("NAUKRI_EMAIL", "om@example.com")
+    monkeypatch.setenv("NAUKRI_PASSWORD", "s3cret-pass")
+    monkeypatch.setenv("LINKEDIN_EMAIL", "om@example.com")  # no password: LinkedIn isn't set up
+    monkeypatch.delenv("LINKEDIN_PASSWORD", raising=False)
+    loaded = load_settings()
+    assert loaded.board_logins.get("naukri") == ("om@example.com", "s3cret-pass") and "linkedin" not in loaded.board_logins
+    assert "s3cret-pass" not in repr(loaded)  # never printed in logs or errors

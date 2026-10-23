@@ -90,7 +90,8 @@ def build_auto_apply(settings: Settings, session: SessionRepository, answer_ai=N
     return AutoApplyManager(AutoApplyService(
         AutoApplyRepository(path), answers, ApplicationService(ApplicationRepository(path)), path.parent / "auto-apply",
         saved_resume_path(session), saved_resume_text(session), answer_ai,
-        browser or (lambda headless: open_browser(headless, settings.chromium_executable)),
+        browser or (lambda headless: open_browser(headless, settings.chromium_executable, path.parent / "browser-profile")),
+        board_logins=settings.board_logins,
     ))
 
 
