@@ -13,6 +13,7 @@ from job_search.config import Settings
 from job_search.models import Job, Profile, SearchResult
 from job_search.services.cleanup_service import cleanup
 from job_search.services.matching_service import SearchStopped
+from tests.auth_helpers import signed_in
 
 PROFILE = Profile(current_title="GenAI Engineer", skills=["Python"], years_experience=3,
                   locations=["Bangalore"], search_queries=["GenAI Engineer"], summary="GenAI engineer")
@@ -56,7 +57,7 @@ def make_app(tmp_path):
         runner = runner or FakeRunner(output)
         app = create_app(Settings("key", history_path=tmp_path / "data" / "history.sqlite3"), output_dir=output,
                          upload_dir=tmp_path / "uploads", runner=runner, analyzer=analyzer, system_scheduler=FakeScheduler())
-        return TestClient(app), runner
+        return signed_in(TestClient(app)), runner
 
     make.analyzer_calls = analyzer_calls
     return make

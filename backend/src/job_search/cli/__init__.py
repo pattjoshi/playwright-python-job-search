@@ -3,11 +3,12 @@
   serve   the local web app (default when no command is given)
   search  a one-off search from the command line
   daily   run the saved daily search once
+  reset-password   set a new sign-in password (if you forgot it)
 """
 
 import sys
 
-USAGE = "usage: python -m job_search {serve,search,daily} [options]   (add --help after a command for its options)"
+USAGE = "usage: python -m job_search {serve,search,daily,reset-password} [options]   (add --help after a command for its options)"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -28,5 +29,9 @@ def main(argv: list[str] | None = None) -> int:
         from job_search.cli import daily
 
         return daily.main(rest)
+    if command == "reset-password":
+        from job_search.cli import reset_password
+
+        return reset_password.main(rest)
     print(USAGE, file=sys.stderr)
     return 2

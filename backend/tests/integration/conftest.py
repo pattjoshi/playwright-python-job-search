@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 
 from job_search.api.app import create_app
 from job_search.config import Settings
+from tests.auth_helpers import signed_in
 from tests.integration.web_support import PROFILE, FakeRunner, FakeScheduler
 
 
@@ -21,6 +22,6 @@ def make_client(tmp_path):
             system_scheduler=scheduler or FakeScheduler(),
             frontend_dir=tmp_path / "frontend",
         )
-        return TestClient(app), runner
+        return signed_in(TestClient(app)), runner
 
     return make

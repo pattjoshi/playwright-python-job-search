@@ -7,6 +7,7 @@ from pathlib import Path
 from job_search.config import Settings
 from job_search.models import Profile
 from job_search.repositories import JobHistoryRepository, SessionRepository
+from job_search.services.auth import AuthService
 from job_search.services.schedule_service import SystemScheduler
 from job_search.services.search_manager import SearchManager
 
@@ -22,4 +23,5 @@ class ApiContext:
     session: SessionRepository
     scheduler: SystemScheduler
     analyzer: Callable[[Path], Profile]
+    auth: AuthService
     resumes: dict[str, dict] = field(default_factory=dict)

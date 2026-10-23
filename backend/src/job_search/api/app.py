@@ -9,13 +9,15 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from job_search.api.auth import install_auth
 from job_search.api.dependencies import ApiContext
 from job_search.api.frontend import serve_frontend
 from job_search.api.routes import ROUTERS
 from job_search.config import FRONTEND_BUILD_DIR, OUTPUT_DIR, UPLOAD_DIR, Settings, load_settings
 from job_search.models import Profile
-from job_search.repositories import CacheRepository, JobHistoryRepository, SessionRepository, resume_key
+from job_search.repositories import CacheRepository, JobHistoryRepository, SessionRepository, UserRepository, resume_key
 from job_search.schemas.common import ApiError
+from job_search.services.auth import AuthService
 from job_search.services.cleanup_service import cleanup
 from job_search.services.llm_service import JobMatcherLLM
 from job_search.services.resume_service import read_resume_text
@@ -69,6 +71,7 @@ def create_app(
         session=session,
         scheduler=system_scheduler or SystemScheduler(data_dir),
         analyzer=analyzer or default_analyzer(settings),
+        auth=AuthService(UserRepository(settings.history_path)),
     )
     saved = session.resume()
     if saved:  # the resume from before a restart still works without uploading it again
@@ -80,6 +83,7 @@ def create_app(
     async def handle_api_error(_request: Request, exc: ApiError):
         return JSONResponse({"error": exc.message}, status_code=exc.status)
 
+    install_auth(app, ctx.auth)
     for build_router in ROUTERS:
         app.include_router(build_router(ctx))
     serve_frontend(app, frontend_dir)
