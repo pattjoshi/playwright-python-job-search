@@ -8,7 +8,7 @@ interface PageHeaderProps {
 export function PageHeader({ title, description, actions }: PageHeaderProps) {
   return (
     <div className="mb-6 flex flex-wrap items-end gap-3">
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 basis-72">
         <h2 className="text-2xl font-bold tracking-tight">{title}</h2>
         {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
       </div>

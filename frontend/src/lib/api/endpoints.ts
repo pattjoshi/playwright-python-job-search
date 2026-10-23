@@ -2,6 +2,8 @@
 
 import { postJson, request } from "@/lib/api/client";
 import type {
+  Answer,
+  AnswerInput,
   Application,
   ApplicationEvent,
   ApplicationInput,
@@ -18,6 +20,7 @@ import type {
   SearchJob,
   SearchRequest,
   SessionState,
+  TryResult,
 } from "@/lib/types";
 
 export const authApi = {
@@ -43,6 +46,20 @@ export const applicationsApi = {
   track: (job: { source: string; job_id: string; title: string; company: string; url: string; location: string }) =>
     postJson<{ application: Application; created: boolean }>("/api/applications/track", job),
   importApplied: () => postJson<{ added: number }>("/api/applications/import-applied"),
+};
+
+export const answersApi = {
+  list: () => request<{ answers: Answer[] }>("/api/answers"),
+  create: (body: AnswerInput) => postJson<{ answer: Answer }>("/api/answers", body),
+  update: (id: number, body: AnswerInput) =>
+    request<{ answer: Answer }>(`/api/answers/${id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+    }),
+  approve: (id: number) => postJson<{ answer: Answer }>(`/api/answers/${id}/approve`),
+  remove: (id: number) => request<{ ok: boolean }>(`/api/answers/${id}`, { method: "DELETE" }),
+  addStarters: () => postJson<{ added: number }>("/api/answers/starters"),
+  fillFromResume: () => postJson<{ filled: number }>("/api/answers/fill-from-resume"),
+  tryQuestion: (question: string, options: string[]) => postJson<TryResult>("/api/answers/try", { question, options }),
 };
 
 export const api = {

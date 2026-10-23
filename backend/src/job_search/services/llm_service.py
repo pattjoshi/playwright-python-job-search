@@ -91,7 +91,7 @@ class JobMatcherLLM:
         self._usage_lock = threading.Lock()  # scoring batches finish on several threads
 
     def extract_profile(self, resume_text: str) -> Profile:
-        data = self._ask_json(PROFILE_PROMPT, resume_text, "resume_profile", PROFILE_SCHEMA)
+        data = self.ask_json(PROFILE_PROMPT, resume_text, "resume_profile", PROFILE_SCHEMA)
         return Profile(
             current_title=str(data.get("current_title") or ""),
             target_titles=_str_list(data.get("target_titles")),
@@ -145,7 +145,7 @@ class JobMatcherLLM:
                 for job in batch
             ]
             user = f"CANDIDATE:\n{candidate_json}\n\nJOBS:\n{json.dumps(payload)}"
-            return self._ask_json(SCORING_PROMPT, user, "job_scores", SCORES_SCHEMA)
+            return self.ask_json(SCORING_PROMPT, user, "job_scores", SCORES_SCHEMA)
 
         log.info("Scoring %d jobs in %d batches (%d at a time)", len(jobs), len(batches), self.concurrency)
         done = 0
@@ -176,7 +176,8 @@ class JobMatcherLLM:
             job.matched_skills = _str_list(result.get("matched_skills"))
             job.missing_skills = _str_list(result.get("missing_skills"))
 
-    def _ask_json(self, system: str, user: str, schema_name: str, schema: dict) -> dict:
+    def ask_json(self, system: str, user: str, schema_name: str, schema: dict) -> dict:
+        """One chat request whose reply follows `schema` (strict JSON schema, or JSON mode as a fallback)."""
         messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
         response = None
         if self._structured:

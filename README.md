@@ -232,6 +232,31 @@ Click **Applications** in the sidebar.
 - The **Dashboard** shows how many applications are in each stage, how many you applied to each day
   for the last two weeks, and your next **follow-ups** (overdue ones in red).
 
+### Step 11 · Answer Bank (answers for application forms)
+
+Click **Answer Bank** in the sidebar. These are the answers auto-apply will put into application forms.
+
+![Answer Bank](docs/screenshots/12-answer-bank.png)
+
+1. Click **Add common questions**: about 25 questions forms ask most (notice period, expected CTC,
+   relocation, work authorization…). If your resume is on the Search jobs page, the AI fills in what your
+   resume says (name, email, experience, skills).
+2. **Needs review**: answers the AI wrote. Check each one and click **Approve**, or change it and **Save answer**.
+3. **Needs answer**: questions only you can answer (salary, notice period…). Write the answer once.
+
+How a form question gets its answer:
+
+| The question is… | What happens |
+|---|---|
+| One you saved, in any wording you saved | Your answer is used |
+| Worded differently ("How soon can you join?" for "Notice period") | The AI recognises it, uses your answer and remembers that wording |
+| Not saved, but your resume answers it | The AI drafts an answer from your resume; it goes to **Needs review** |
+| Not in your resume or the bank | **The AI never guesses.** It's added to **Needs answer** for you to write |
+
+- **Test a question** (right side) shows exactly what auto-apply will do with any question.
+- Click the pencil to change a question, its category, its answer type (text, number, Yes/No, options) and the
+  **other wordings** forms use for it.
+
 ---
 
 ## 4. Tips and troubleshooting
@@ -291,7 +316,7 @@ Everything stays in the project folder on your computer:
 |---|---|---|
 | `uploads/` | Resumes you uploaded | `KEEP_DAYS` cleanup (never the one in use) |
 | `output/` | HTML / Excel / CSV reports | `KEEP_DAYS` cleanup (never the one on screen) |
-| `data/history.sqlite3` | Your account, applications, applied / hidden / seen jobs and the search history | Never automatically |
+| `data/history.sqlite3` | Your account, applications, Answer Bank, applied / hidden / seen jobs and the search history | Never automatically |
 | `data/cache.sqlite3` | Saved job details, AI scores, resume readings | `KEEP_DAYS` cleanup; safe to delete anytime |
 | `data/session.json` | What the page shows (resume, last results) | The **Clear** button |
 | `data/schedule.json`, `data/scheduled.log` | Daily search settings and its log | **Turn off** / log is trimmed when large |
@@ -311,7 +336,7 @@ backend/                     Python package `job_search` (pip install -r require
     config/                  settings from .env, project paths, city list
     models/                  plain dataclasses: Job, Profile, SearchOptions, Schedule...
     database/                SQLAlchemy models + Alembic migrations (run automatically on start)
-    repositories/            job/run history, users, applications (SQLAlchemy), cache, schedule and session storage
+    repositories/            job/run history, users, applications, answers (SQLAlchemy), cache, schedule, session
     schemas/                 API errors, request validation, response serializers
     services/
       search/                the search: runner -> pipeline -> sites / filters / profile
@@ -319,6 +344,7 @@ backend/                     Python package `job_search` (pip install -r require
       reporting/             HTML / Excel / CSV reports
       llm_service.py         OpenAI: resume reading, parallel job scoring, token usage
       applications.py        application tracker: validation, status changes, tracking jobs from results
+      answers/               Answer Bank: starter questions, AI matching and drafts, answering form questions
       search_manager.py      runs one search at a time in the background for the web page
       schedule_service.py    daily search (Windows Task Scheduler / cron)
   tests/                     unit/ (fast) and integration/ (headless browser, fakes)
