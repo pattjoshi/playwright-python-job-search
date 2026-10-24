@@ -119,6 +119,11 @@ def test_naukri_combines_cities():
     )
     naukri = NaukriScraper(context=None)
     assert search_locations(naukri, ["Pune", "Remote", "Bengaluru"]) == ["Pune, Bengaluru", "Remote"]
+    # A long city list goes in groups of three: one long list finds fewer jobs than the cities alone.
+    cities = ["Hyderabad", "Remote", "Chennai", "Pune", "Delhi", "Mumbai", "Bengaluru", "Kochi"]
+    assert search_locations(naukri, cities) == [
+        "Hyderabad, Chennai, Pune", "Delhi, Mumbai, Bengaluru", "Kochi", "Remote",
+    ]
     assert search_locations(naukri, ["Remote"]) == ["Remote"]
     linkedin = LinkedInScraper(context=None)
     assert search_locations(linkedin, ["Pune", "Remote"]) == ["Pune", "Remote"]

@@ -25,7 +25,7 @@ def test_defaults_when_nothing_is_set(env):
     settings = load_settings()
     assert settings.resume is None
     assert settings.keywords == []
-    assert (settings.results, settings.hours, settings.top, settings.max_pages) == (10, 24, 40, 3)
+    assert (settings.results, settings.hours, settings.top, settings.max_pages) == (10, 24, 40, 5)
 
 
 def test_reads_search_settings(env):

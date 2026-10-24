@@ -18,7 +18,9 @@ PROFILE_PROMPT = """You are a career assistant. Read the resume and return a JSO
 - "skills": up to 20 key technical and domain skills, most important first
 - "years_experience": total professional experience in years (number, or null if unclear)
 - "locations": cities/countries they live in or prefer, most likely first (empty list if unknown)
-- "search_queries": 2-4 short job-board search phrases (like "Python Automation Engineer") that would find the best-matching jobs
+- "search_queries": 6-10 job titles to type into a job board's search box so no fitting job is missed: their main title
+  first, then close variants and other common names for the same roles (like "GenAI Engineer", "LLM Engineer",
+  "AI Engineer", "Generative AI Developer"). Each is 1-4 words and only a job title: no skills, tools or places
 - "summary": one sentence describing the candidate
 Return only JSON."""
 

@@ -119,8 +119,11 @@ a message pops up when it's done.
 
 ![What to look for](docs/screenshots/03-what-to-look-for.png)
 
-1. **Keywords**: filled in from your resume. Type a new one and press **Enter** to add it; click **×** to
-   remove one. Fewer keywords = faster search.
+1. **Keywords**: filled in from your resume as 6–10 short job titles: your main title plus the other names
+   the same job is posted under (for example *GenAI Engineer*, *LLM Engineer*, *AI Engineer*), so you don't miss
+   posts. Type a new one and press **Enter** to add it; click **×** to remove one. Keep them to short job titles:
+   Naukri wants every word to match, so "GenAI Engineer Python FastAPI LangChain" finds almost nothing (the page
+   warns you). Your skills are used for scoring, not searching. Fewer keywords = faster search.
 2. **Locations**: click the box and pick one or more cities, or **Remote** (work from home).
    Type to filter (e.g. `hyd` + **Enter** picks Hyderabad). You can also type any other city and choose
    **Add "…"**. Leave it empty to use the city from your resume.
@@ -383,7 +386,7 @@ command line). See `.env.example` for the full list with comments.
 | `HOURS` | 24 | Only jobs posted within this many hours |
 | `ONLY_NEW` | false | Skip jobs shown before |
 | `SITES` | all | `linkedin, naukri, indeed` |
-| `TOP` / `MAX_PAGES` | 40 / 3 | Jobs scored per site / result pages per search |
+| `TOP` / `MAX_PAGES` | 40 / 5 | Jobs scored per site / result pages per search |
 | `PARALLEL_SITES` | true | Search sites at the same time |
 | `KEEP_DAYS` | 30 | Delete old uploads, reports and cached data after this many days (`0` = never) |
 | `OPENAI_PRICE_INPUT`, `OPENAI_PRICE_OUTPUT`, `OPENAI_PRICE_CACHED_INPUT` | empty | USD per 1M tokens, to show cost per run |

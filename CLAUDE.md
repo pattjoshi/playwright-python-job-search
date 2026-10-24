@@ -56,6 +56,9 @@ supporting. Lower layers never import upper ones.
   `on_each_site`), `filters.py` builds the funnel, and `profile.py` covers resume reading and default
   locations. Progress goes out through an `on_event(name, data)` callback (`stage`, `profile`,
   `site`, `progress`, `funnel`).
+  `profile.search_queries()` dedupes and caps keywords at `MAX_QUERIES` (the resume prompt asks for 6-10 short job
+  titles; bump `PROFILE_VERSION` when that prompt changes). Boards set `cities_per_search` (Naukri 3) and
+  `matching_service.search_locations` groups cities to match.
 - `services/scraping/`: `BaseScraper` (retries on 429/503, `unreachable` after repeated failures,
   `pause()` respects Stop), the three boards, and `SiteSession` (**one Playwright browser per
   site on its own thread**: the sync API is thread-bound). `SCRAPERS` registers boards.

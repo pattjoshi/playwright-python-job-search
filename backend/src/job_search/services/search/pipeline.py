@@ -23,7 +23,7 @@ from job_search.services.reporting import write_html_report, write_reports
 from job_search.services.resume_service import read_resume_text
 from job_search.services.scraping import SCRAPERS, SiteSession
 from job_search.services.search.filters import apply_filters
-from job_search.services.search.profile import read_profile, resume_locations
+from job_search.services.search.profile import read_profile, resume_locations, search_queries
 from job_search.services.search.sites import Progress, collect_site, fetch_details, on_each_site
 
 log = logging.getLogger(__name__)
@@ -66,7 +66,7 @@ def run_pipeline(
     profile = _load_profile(run, llm)
     run.check_stop()
 
-    queries = options.keywords or profile.search_queries[:3] or profile.target_titles[:3]
+    queries = search_queries(options.keywords or profile.search_queries or profile.target_titles)
     if not queries:
         raise ValueError("No search keywords found. Pass them with --keywords.")
     locations = options.locations or resume_locations(profile)

@@ -1,6 +1,7 @@
 import json
 
-from job_search.services.scraping.naukri import parse_api_jobs, search_url
+from job_search.services.scraping.naukri import API_PATH, parse_api_jobs, search_url
+from job_search.services.search.profile import MAX_QUERIES, search_queries
 
 
 def test_naukri_search_url():
@@ -38,3 +39,17 @@ def test_naukri_label_wins_over_old_created_date():
     # No usable label: fall back to createdDate.
     data["jobDetails"][0]["footerPlaceholderLabel"] = ""
     assert round(parse_api_jobs(data)[0].hours_ago) == 720
+
+
+def test_naukri_api_any_version():
+    assert API_PATH.search("https://www.naukri.com/jobapi/v3/search?noOfResults=20")
+    assert API_PATH.search("https://www.naukri.com/jobapi/v4/search?k=sdet")
+    assert not API_PATH.search("https://www.naukri.com/jobapi/v2/job/12345")
+
+
+def test_search_queries_drop_repeats_and_cap(caplog):
+    assert search_queries(["AI Engineer", " ai  engineer ", "", "LLM Engineer"]) == ["AI Engineer", "LLM Engineer"]
+    assert len(search_queries([f"Title {i}" for i in range(15)])) == MAX_QUERIES
+    with caplog.at_level("WARNING"):
+        search_queries(["GenAI Engineer Python FastAPI LangChain"])
+    assert "Long keywords find few jobs on Naukri" in caplog.text

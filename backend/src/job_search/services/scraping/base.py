@@ -23,14 +23,15 @@ class BaseScraper(ABC):
     #: Short id used on the command line and in reports, e.g. "linkedin".
     name: str = ""
     #: True if one search can cover several cities ("Pune, Bengaluru"), saving requests.
-    combine_locations: bool = False
+    #: Cities searched together in one request (boards that accept "Pune, Bengaluru"); 1 = city by city.
+    cities_per_search: int = 1
     #: Seconds to wait before each retry of a rate-limited or failed page load.
     retry_delays: tuple[float, ...] = (8.0, 20.0)
 
     def __init__(
         self,
         context: BrowserContext,
-        max_pages: int = 3,
+        max_pages: int = 5,
         max_age_hours: int = 24,
         delay_range: tuple[float, float] = (2.0, 5.0),
         interactive: bool = False,

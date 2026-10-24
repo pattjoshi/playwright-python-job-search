@@ -31,7 +31,7 @@ class Settings:
     results_per_site: dict[str, int] = field(default_factory=dict)  # from RESULTS_<SITE>
     hours: int = 24
     top: int = 40
-    max_pages: int = 3
+    max_pages: int = 5
     experience: tuple[int, int] | None = None
     only_new: bool = False
     history_path: Path = DATA_DIR / "history.sqlite3"
@@ -67,7 +67,7 @@ def load_settings() -> Settings:
         results_per_site=_get_results_per_site(),
         hours=_get_int("HOURS", 24),
         top=_get_int("TOP", 40),
-        max_pages=_get_int("MAX_PAGES", 3),
+        max_pages=_get_int("MAX_PAGES", 5),
         experience=_get_experience(),
         only_new=_get_bool("ONLY_NEW"),
         history_path=Path(_get("HISTORY_DB") or DATA_DIR / "history.sqlite3"),

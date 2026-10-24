@@ -5,6 +5,8 @@ import { useRef, useState } from "react";
 import { FormField } from "@/components/ui/form-field";
 import { TagInput } from "@/components/ui/tag-input";
 
+const LONG_KEYWORD_WORDS = 4;
+
 interface KeywordsFieldProps {
   keywords: string[];
   onChange: (keywords: string[]) => void;
@@ -29,6 +31,8 @@ export function KeywordsField({ keywords, onChange }: KeywordsFieldProps) {
     }
   };
 
+  // Naukri wants every word to match, so "GenAI Engineer Python FastAPI" finds almost nothing there.
+  const long = keywords.filter((keyword) => keyword.trim().split(/\s+/).length > LONG_KEYWORD_WORDS);
   return (
     <FormField label={<label htmlFor="keyword-input">Keywords</label>} hint="From your resume · Enter to add">
       <TagInput tags={keywords} onClick={() => input.current?.focus()} onRemove={(keyword) => onChange(keywords.filter((k) => k !== keyword))}>
@@ -37,6 +41,12 @@ export function KeywordsField({ keywords, onChange }: KeywordsFieldProps) {
           value={text} onChange={(e) => setText(e.target.value)} onKeyDown={onKeyDown} onBlur={commit}
         />
       </TagInput>
+      {long.length ? (
+        <p className="mt-1.5 text-xs text-warning" role="status">
+          Long keywords find few jobs on Naukri (every word must match). Use short job titles like “AI Engineer” and
+          leave skills out: they are used for scoring.
+        </p>
+      ) : null}
     </FormField>
   );
 }
