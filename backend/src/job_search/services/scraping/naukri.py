@@ -24,7 +24,7 @@ from job_search.services.scraping.base import BaseScraper
 log = logging.getLogger(__name__)
 
 BASE_URL = "https://www.naukri.com"
-API_PATH = "/jobapi/v3/search"
+API_PATH = re.compile(r"/jobapi/v\d+/search")  # the version number changes now and then
 PAGE_SIZE = 20
 
 CARD = "div.srp-jobtuple-wrapper, article.jobTuple"
@@ -39,7 +39,8 @@ TAGS = "ul.tags-gt li, ul.tags li"
 
 class NaukriScraper(BaseScraper):
     name = "naukri"
-    combine_locations = True  # Naukri searches "Pune, Bengaluru" in one go
+    # Naukri searches "Pune, Bengaluru" in one go, but a long city list returns fewer jobs than the cities do alone.
+    cities_per_search = 3
 
     def search(self, query: str, location: str) -> list[Job]:
         jobs: list[Job] = []
@@ -60,11 +61,14 @@ class NaukriScraper(BaseScraper):
     def _load_page(self, url: str) -> list[Job] | None:
         """Jobs on one results page, or None if Naukri blocked us or failed."""
         try:
-            with self.page.expect_response(lambda r: API_PATH in r.url, timeout=20_000) as api:
+            with self.page.expect_response(lambda r: API_PATH.search(r.url) is not None, timeout=20_000) as api:
                 self.page.goto(url, wait_until="domcontentloaded")
             response = api.value
             if response.ok:
-                return parse_api_jobs(response.json())
+                data = response.json()
+                jobs = parse_api_jobs(data)
+                log.info("Naukri: %d jobs on this page (%s in total)", len(jobs), data.get("noOfJobs", "?"))
+                return jobs
             log.warning("Naukri search API returned %s; reading the page instead", response.status)
         except PlaywrightError as error:
             log.debug("Naukri API response not captured (%s); reading the page instead", error)

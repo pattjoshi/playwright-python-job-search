@@ -155,11 +155,12 @@ def matched_skills(job: Job, skills: list[str]) -> list[str]:
 
 
 def search_locations(scraper, locations: list[str]) -> list[str]:
-    """Boards that accept several cities in one search get them combined (fewer requests)."""
+    """Boards that accept several cities in one search get them in small groups (fewer requests, none missed)."""
     from job_search.services.location_service import is_remote  # local import breaks a config <-> matching_service cycle
 
-    if not scraper.combine_locations:
+    size = scraper.cities_per_search
+    if size <= 1:
         return locations
     cities = [location for location in locations if not is_remote(location)]
     remote = [location for location in locations if is_remote(location)]
-    return ([", ".join(cities)] if cities else []) + remote
+    return [", ".join(cities[i:i + size]) for i in range(0, len(cities), size)] + remote

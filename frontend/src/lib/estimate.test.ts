@@ -9,6 +9,11 @@ describe("estimateSearch", () => {
     expect(estimateSearch({ ...base, sites: [] })).toEqual({ text: "Pick at least one job site", tip: false });
   });
 
+  it("groups Naukri cities by three", () => {
+    const cities = ["Hyderabad", "Remote", "Chennai", "Pune", "Delhi", "Mumbai", "Bengaluru", "Kochi"];
+    expect(estimateSearch({ ...base, keywords: 4, locations: cities, sites: ["naukri"] }).text).toMatch(/^16 searches across 1 site/);
+  });
+
   it("counts Naukri cities in one search and runs sites side by side", () => {
     const result = estimateSearch({ ...base, sites: ["linkedin", "naukri"] });
     expect(result.text).toBe("12 searches across 2 sites · about 4 min (sites run at the same time)");
@@ -16,8 +21,8 @@ describe("estimateSearch", () => {
   });
 
   it("adds sites up when they run one after another, and suggests fewer searches", () => {
-    const many = estimateSearch({ ...base, keywords: 8, locations: ["Pune", "Delhi"], sites: ["linkedin", "indeed"], parallel: false });
-    expect(many.text).toMatch(/^32 searches across 2 sites · about \d+ min$/);
+    const many = estimateSearch({ ...base, keywords: 10, locations: ["Pune", "Delhi", "Remote", "Mumbai", "Kochi"], sites: ["linkedin", "indeed"], parallel: false });
+    expect(many.text).toMatch(/^100 searches across 2 sites · about \d+ min$/);
     expect(many.tip).toBe(true);
   });
 });

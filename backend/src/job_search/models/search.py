@@ -16,7 +16,7 @@ class SearchOptions:
     keywords: list[str] = field(default_factory=list)
     experience: tuple[int, int] | None = None  # wanted years, e.g. (1, 2)
     max_age_hours: int = 24
-    max_pages: int = 3
+    max_pages: int = 5
     top_n: int = 40  # jobs per site to open and score
     results: int = 10  # jobs per site shown in the report...
     results_per_site: dict[str, int] = field(default_factory=dict)  # ...unless set for that site here
