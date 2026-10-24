@@ -13,12 +13,16 @@ from job_search.api.routes import (
     resume,
     schedule,
     search,
+    search_filters,
     session,
 )
 
 ROUTERS = [
     module.build_router
-    for module in (auth, applications, answers, auto_apply, extension, notes, resume, session, search, history, schedule, config, reports)
+    for module in (
+        auth, applications, answers, auto_apply, extension, notes, resume, session, search, search_filters, history, schedule,
+        config, reports,
+    )
 ]
 
 __all__ = ["ROUTERS"]

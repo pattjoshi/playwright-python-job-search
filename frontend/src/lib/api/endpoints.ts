@@ -102,6 +102,16 @@ export const notesApi = {
   remove: (id: number) => request<{ ok: boolean }>(`/api/notes/${id}`, { method: "DELETE" }),
 };
 
+export interface SearchFilters {
+  exclude_companies: string[];
+}
+
+export const searchFiltersApi = {
+  get: () => request<{ filters: SearchFilters }>("/api/search-filters"),
+  hideCompany: (company: string) => postJson<{ filters: SearchFilters }>("/api/search-filters/hide-company", { company }),
+  showCompany: (company: string) => postJson<{ filters: SearchFilters }>("/api/search-filters/show-company", { company }),
+};
+
 export const api = {
   config: () => request<AppConfig>("/api/config"),
 

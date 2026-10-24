@@ -10,6 +10,7 @@ from functools import partial
 from job_search.config import Settings
 from job_search.models import Job, Profile, RunStats, SearchOptions, SearchResult
 from job_search.repositories import CacheRepository, JobHistoryRepository, profile_key
+from job_search.repositories.search_filters_repository import SearchFiltersRepository
 from job_search.services.llm_service import SCORING_PROMPT, JobMatcherLLM
 from job_search.services.matching_service import (
     SearchStopped,
@@ -146,7 +147,8 @@ def _search_and_open(run: _Run, queries: list[str], locations: list[str], terms:
             lambda site: partial(collect_site, site=site, queries=queries, locations=locations, emit=run.emit),
         )
         jobs = [job for site in options.sites for job in per_site.get(site, [])]
-        jobs, funnel = apply_filters(jobs, options, run.history, run.emit)
+        saved = SearchFiltersRepository(options.history_path.parent).load() if options.history_path else {}
+        jobs, funnel = apply_filters(jobs, options, run.history, run.emit, saved.get("exclude_companies"))
 
         # Score at least as many jobs as each site will show.
         limits = {site: max(options.top_n, results_for(options, site)) for site in options.sites}

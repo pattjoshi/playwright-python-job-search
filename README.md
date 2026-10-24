@@ -169,6 +169,9 @@ you asked for, a yellow hint tells you which filter removed the most and what to
 - The header shows how many jobs are new, the run time, AI tokens used (and cost, if configured) and how
   many scores were reused from earlier runs.
 - **Tabs**: **All** (best matches from every site) or one site at a time.
+- **Filters** (no new search needed): type words to match the title, company or location, pick a minimum score
+  (60+ / 70+ / 80+) or how recently it was posted, and sort by **Best match**, **Newest** or **Company A–Z**.
+  The line under them says how many jobs the filters left out; **Clear** shows them all again.
 - Each job card shows:
   - the **match score** (green 75+, yellow 50-74, grey below 50)
   - title, company, location, required experience, when it was posted
@@ -176,10 +179,15 @@ you asked for, a yellow hint tells you which filter removed the most and what to
   - **Matching** skills (green) and **Missing** skills
   - a one-line reason for the score
 - Buttons on each job:
+  - **Details**: opens a side panel with the job description, the AI's reason, matching and missing skills,
+    and the same actions, plus **Hide this company**
   - **View job ↗**: opens the job on the site, where you apply
   - **Track**: adds the job to **Applications** as *Saved*, so you can follow it there
   - **✓ Mark applied**: tracks it in *My jobs* and *Applications* (as *Applied*) and never shows it again
   - **Hide**: never show this job again (**Undo** is right there)
+- **Hide this company** (in Details) removes that company's jobs from the results and from every future search
+  ("Acme Pvt Ltd" and "ACME" count as the same company). **Hidden companies (n)**, next to the filters, lists them
+  so you can show one again.
 - **Open report** opens the same results as a standalone HTML page; **Download Excel** gets every scored job.
 
 ### Step 7 · My jobs and search history
@@ -403,6 +411,7 @@ Everything stays in the project folder on your computer:
 | `data/browser-profile/` | Auto-apply's browser, which keeps you signed in to the job boards | Delete it to sign out everywhere |
 | `data/cache.sqlite3` | Saved job details, AI scores, resume readings | `KEEP_DAYS` cleanup; safe to delete anytime |
 | `data/session.json` | What the page shows (resume, last results) | The **Clear** button |
+| `data/search-filters.json` | Companies you hid from searches | **Hidden companies** list next to the result filters |
 | `data/schedule.json`, `data/scheduled.log` | Daily search settings and its log | **Turn off** / log is trimmed when large |
 
 Your resume text and job descriptions are sent to OpenAI for reading and scoring; nothing else leaves your computer.
@@ -427,6 +436,7 @@ backend/                     Python package `job_search` (pip install -r require
       scraping/              one browser per site + linkedin.py, naukri.py, indeed.py
       reporting/             HTML / Excel / CSV reports
       llm_service.py         OpenAI: resume reading, parallel job scoring, token usage
+      search_filters.py      companies you hid (left out of every search)
       applications.py        application tracker: validation, status changes, tracking jobs from results
       answers/               Answer Bank: starter questions, AI matching and drafts, answering form questions
       auto_apply/            auto-apply: queue rules, form reading and filling, submit + confirm, background run
