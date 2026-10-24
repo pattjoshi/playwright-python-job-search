@@ -61,7 +61,10 @@ supporting. Lower layers never import upper ones.
   `matching_service.search_locations` groups cities to match.
 - `services/scraping/`: `BaseScraper` (retries on 429/503, `unreachable` after repeated failures,
   `pause()` respects Stop), the three boards, and `SiteSession` (**one Playwright browser per
-  site on its own thread**: the sync API is thread-bound). `SCRAPERS` registers boards.
+  site on its own thread**: the sync API is thread-bound). `SCRAPERS` registers boards. `browser.launch()` prefers the
+  installed Google Chrome (`channel="chrome"`) with `--disable-blink-features=AutomationControlled` and a normal user
+  agent (no "HeadlessChrome"): Naukri answers "Access Denied" otherwise. A scraper sets `blocked` on that page, which
+  stops the site for the run (status `blocked`); Naukri opens its home page once before searching.
 - Hidden companies: `repositories/search_filters_repository.py` (`data/search-filters.json`), `services/search_filters.py`
   (`company_key` drops Pvt/Ltd/Inc… so names match; same rule in `frontend/src/lib/results-filter.ts`), `api/routes/search_filters.py`.
   `apply_filters(exclude_companies=)` adds the "not from hidden companies" funnel step. `job_to_dict` sends `hours_ago`

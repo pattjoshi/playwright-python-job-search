@@ -13,34 +13,30 @@ from html import unescape
 from urllib.parse import urlencode
 
 from playwright.sync_api import Error as PlaywrightError
-from playwright.sync_api import Page
 
 from job_search.models import Job
 from job_search.services.location_service import is_remote
 from job_search.services.matching_service import parse_relative_age
 from job_search.services.scraping.apply_links import external_apply_url
 from job_search.services.scraping.base import BaseScraper
+from job_search.services.scraping.naukri_cards import BASE_URL, CARD, absolute_url, parse_search_results
 
 log = logging.getLogger(__name__)
 
-BASE_URL = "https://www.naukri.com"
 API_PATH = re.compile(r"/jobapi/v\d+/search")  # the version number changes now and then
 PAGE_SIZE = 20
+API_WAIT_S = 20  # seconds to wait for the results to arrive
 
-CARD = "div.srp-jobtuple-wrapper, article.jobTuple"
-TITLE = "a.title"
-COMPANY = "a.comp-name, .comp-name"
-LOCATION = ".locWdth, .location, .loc"
-POSTED = ".job-post-day, .type br + span, .jobTupleFooter span.fleft"
-SNIPPET = ".job-desc, .job-description"
-EXPERIENCE = ".expwdth, .exp-wrap, .experience"
-TAGS = "ul.tags-gt li, ul.tags li"
 
 
 class NaukriScraper(BaseScraper):
     name = "naukri"
     # Naukri searches "Pune, Bengaluru" in one go, but a long city list returns fewer jobs than the cities do alone.
     cities_per_search = 3
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._warmed = False
 
     def search(self, query: str, location: str) -> list[Job]:
         jobs: list[Job] = []
@@ -60,19 +56,32 @@ class NaukriScraper(BaseScraper):
 
     def _load_page(self, url: str) -> list[Job] | None:
         """Jobs on one results page, or None if Naukri blocked us or failed."""
-        try:
-            with self.page.expect_response(lambda r: API_PATH.search(r.url) is not None, timeout=20_000) as api:
-                self.page.goto(url, wait_until="domcontentloaded")
-            response = api.value
-            if response.ok:
-                data = response.json()
-                jobs = parse_api_jobs(data)
-                log.info("Naukri: %d jobs on this page (%s in total)", len(jobs), data.get("noOfJobs", "?"))
-                return jobs
-            log.warning("Naukri search API returned %s; reading the page instead", response.status)
-        except PlaywrightError as error:
-            log.debug("Naukri API response not captured (%s); reading the page instead", error)
+        self._warm_up()
+        captured: list = []
 
+        def on_response(response) -> None:
+            if API_PATH.search(response.url):
+                captured.append(response)
+
+        self.page.on("response", on_response)
+        try:
+            self.page.goto(url, wait_until="domcontentloaded")
+            # Wait for the page's own search call, but give up at once on the "Access Denied" page.
+            deadline = time.monotonic() + API_WAIT_S
+            while not captured and time.monotonic() < deadline and not self._denied():
+                self.page.wait_for_timeout(250)
+        except PlaywrightError as error:
+            log.warning("Naukri: page failed to load (%s)", error.message.splitlines()[0])
+        finally:
+            self.page.remove_listener("response", on_response)
+
+        if captured and captured[0].ok:
+            data = captured[0].json()
+            jobs = parse_api_jobs(data)
+            log.info("Naukri: %d jobs on this page (%s in total)", len(jobs), data.get("noOfJobs", "?"))
+            return jobs
+        if captured:
+            log.warning("Naukri search API returned %s; reading the page instead", captured[0].status)
         if self._blocked():
             return None
         try:
@@ -82,9 +91,25 @@ class NaukriScraper(BaseScraper):
             return []
         return parse_search_results(self.page)
 
+    def _warm_up(self) -> None:
+        """Open the home page once first, like a person would: straight to a search link looks like a bot."""
+        if self._warmed:
+            return
+        self._warmed = True
+        try:
+            self.page.goto(BASE_URL, wait_until="domcontentloaded")
+            self.page.wait_for_timeout(1500)
+        except PlaywrightError as error:
+            log.debug("Naukri home page didn't load (%s)", error)
+
+    def _denied(self) -> bool:
+        try:
+            return "access denied" in (self.page.title() or "").lower()
+        except PlaywrightError:  # the page is navigating
+            return False
+
     def _blocked(self) -> bool:
-        title = (self.page.title() or "").lower()
-        if "access denied" not in title:
+        if not self._denied():
             return False
         if self.interactive:
             log.warning("Naukri is showing a bot check. Solve it in the browser window (waiting up to 90s)...")
@@ -93,7 +118,9 @@ class NaukriScraper(BaseScraper):
                 return False
             except PlaywrightError:
                 pass
-        log.warning("Naukri blocked the request (Access Denied). Try again later, or run with the browser visible.")
+        self.blocked = True  # every later search would be refused too: stop this site for this run
+        log.warning("Naukri refused the automated browser (Access Denied), so it was skipped this run. "
+                    "Turn on Show browser and search again: you can solve the check in the window if it asks.")
         return True
 
 
@@ -150,7 +177,7 @@ def parse_api_jobs(data: dict) -> list[Job]:
                 title=title,
                 company=(item.get("companyName") or "").strip(),
                 location=placeholders.get("location", ""),
-                url=_absolute(item.get("jdURL") or f"/job-listings-{job_id}"),
+                url=absolute_url(item.get("jdURL") or f"/job-listings-{job_id}"),
                 posted_text=posted_text,
                 hours_ago=hours_ago,
                 description=description,
@@ -162,58 +189,9 @@ def parse_api_jobs(data: dict) -> list[Job]:
     return jobs
 
 
-def parse_search_results(page: Page) -> list[Job]:
-    """Fallback: read job cards from the rendered search page."""
-    jobs = []
-    for card in page.locator(CARD).all():
-        link = card.locator(TITLE).first
-        if not link.count():
-            continue
-        title = " ".join(link.inner_text().split())
-        url = _absolute(link.get_attribute("href") or "")
-        job_id = card.get_attribute("data-job-id") or _job_id_from_url(url)
-        if not (title and job_id):
-            continue
-
-        posted_text = _text(card, POSTED)
-        tags = [" ".join(tag.inner_text().split()) for tag in card.locator(TAGS).all()]
-        description = _text(card, SNIPPET)
-        if tags:
-            description = f"{description}\nSkills: {', '.join(tags)}".strip()
-        jobs.append(
-            Job(
-                source="naukri",
-                job_id=job_id,
-                title=title,
-                company=_text(card, COMPANY),
-                location=_text(card, LOCATION),
-                url=url,
-                posted_text=posted_text,
-                hours_ago=parse_relative_age(posted_text),
-                description=description,
-                experience=_text(card, EXPERIENCE),
-            )
-        )
-    return jobs
-
-
 def _slug(text: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
 
 
-def _absolute(url: str) -> str:
-    return url if url.startswith("http") else f"{BASE_URL}/{url.lstrip('/')}"
-
-
-def _job_id_from_url(url: str) -> str:
-    match = re.search(r"-(\d{6,})(?:\?|$)", url)
-    return match.group(1) if match else ""
-
-
 def _strip_html(html: str) -> str:
     return " ".join(unescape(re.sub(r"<[^>]+>", " ", html)).split())
-
-
-def _text(card, selector: str) -> str:
-    element = card.locator(selector).first
-    return " ".join(element.inner_text().split()) if element.count() else ""

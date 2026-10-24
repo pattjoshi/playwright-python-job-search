@@ -94,7 +94,7 @@ export interface SearchResult {
 }
 
 export interface SiteProgress {
-  status: "waiting" | "running" | "done" | "failed" | string;
+  status: "waiting" | "running" | "done" | "failed" | "blocked" | string;
   found: number;
 }
 

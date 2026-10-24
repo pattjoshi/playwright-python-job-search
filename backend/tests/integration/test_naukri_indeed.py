@@ -1,11 +1,26 @@
+import re
+import time
+
 from job_search.models import Job
 from job_search.services.scraping import indeed, naukri
 from job_search.services.scraping.indeed import IndeedScraper
 from job_search.services.scraping.naukri import NaukriScraper
+from job_search.services.search.sites import collect_site
+
+HOME = "https://www.naukri.com/"
+
+
+def naukri_context(browser, visits=None):
+    """A context whose Naukri home page (opened once before searching) is a local stub."""
+    context = browser.new_context()
+    context.route(HOME, lambda route: (visits is not None and visits.append(1),
+                                       route.fulfill(body="<title>Naukri</title>", content_type="text/html")))
+    return context
 
 
 def test_naukri_search_reads_api_response(browser, fixture_html):
-    context = browser.new_context()
+    visits = []
+    context = naukri_context(browser, visits)
     api_json = fixture_html("naukri_api.json")
     page_html = "<html><body><script>fetch('/jobapi/v3/search?noOfResults=20')</script></body></html>"
     context.route("**/jobapi/v3/search*", lambda route: route.fulfill(body=api_json, content_type="application/json"))
@@ -14,26 +29,41 @@ def test_naukri_search_reads_api_response(browser, fixture_html):
     jobs = NaukriScraper(context, delay_range=(0, 0)).search("Python Developer", "Bengaluru")
 
     assert [job.job_id for job in jobs] == ["021025012345", "021025067890"]
+    assert visits == [1]  # the home page first, like a person
     context.close()
 
 
 def test_naukri_falls_back_to_page_cards(browser, fixture_html, monkeypatch):
-    monkeypatch.setattr(naukri, "API_PATH", "/never-called")
-    context = browser.new_context()
+    monkeypatch.setattr(naukri, "API_PATH", re.compile("/never-called"))
+    monkeypatch.setattr(naukri, "API_WAIT_S", 0.5)  # don't wait 20s for an API call that never comes
+    context = naukri_context(browser)
     html = fixture_html("naukri_search.html")
     context.route("**/qa-jobs*", lambda route: route.fulfill(body=html, content_type="text/html"))
-    scraper = NaukriScraper(context, delay_range=(0, 0))
-    # Don't wait 20s for an API call that never comes.
-    original = scraper.page.expect_response
-    scraper.page.expect_response = lambda predicate, timeout: original(predicate, timeout=500)
-
-    jobs = scraper.search("QA", "")
+    jobs = NaukriScraper(context, delay_range=(0, 0)).search("QA", "")
 
     assert len(jobs) == 1
     job = jobs[0]
     assert (job.job_id, job.title, job.company, job.location) == ("021025099999", "QA Engineer", "Initech", "Hyderabad")
     assert job.hours_ago == 48
     assert job.description == "Manual and automation testing for web apps.\nSkills: Selenium, Java"
+    context.close()
+
+
+def test_naukri_access_denied_stops_the_site_at_once(browser):
+    context = naukri_context(browser)
+    denied = "<html><head><title>Access Denied</title></head><body>You don't have permission</body></html>"
+    requested = []
+    context.route("**/*-jobs*", lambda route: (requested.append(1), route.fulfill(body=denied, status=403, content_type="text/html")))
+    scraper = NaukriScraper(context, delay_range=(0, 0))
+    events = []
+
+    started = time.monotonic()
+    jobs = collect_site(scraper, "naukri", ["AI Engineer", "LLM Engineer"], ["Pune", "Remote"], lambda *a, **k: events.append(k))
+
+    assert jobs == [] and scraper.blocked
+    assert len(requested) == 1  # the other three searches are skipped, not refused one by one
+    assert time.monotonic() - started < 10  # no 20s wait for results that never come
+    assert events[-1] == {"site": "naukri", "status": "blocked", "found": 0}
     context.close()
 
 

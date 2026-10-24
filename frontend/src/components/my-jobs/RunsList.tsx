@@ -16,7 +16,7 @@ function details(run: Run, sites: SiteConfig[]): string {
   const names = Object.fromEntries(sites.map((site) => [site.id, site.name]));
   const order = [...new Set([...sites.map((site) => site.id), ...Object.keys(runSites)])].filter((id) => runSites[id]);
   const siteText = order
-    .map((id) => `${names[id] ?? id} ${runSites[id].status === "failed" ? "✕" : runSites[id].found}`)
+    .map((id) => `${names[id] ?? id} ${["failed", "blocked"].includes(runSites[id].status) ? "✕" : runSites[id].found}`)
     .join(" · ");
   const tokens = (run.usage?.input_tokens ?? 0) + (run.usage?.output_tokens ?? 0);
   const cost = formatCost(run.cost_usd);

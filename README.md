@@ -358,6 +358,7 @@ Click **Notes** in the sidebar: Notion-style pages for company research, intervi
 |---|---|
 | **0 jobs** from a site | Check the funnel line and the yellow hint. Try more cities, fewer filters, *Any* experience or a longer *Posted within*. Click **Show log** for details. |
 | **"verify you're human"** on Naukri or Indeed | Keep **Show browser** on and solve it in the browser window; the search continues. |
+| **Naukri: blocked the search** (log: *Access Denied*) | Naukri refused the automated browser, so the app skipped it for that run instead of waiting on every search. Turn on **Show browser** and search again. Having Google Chrome installed helps: the app uses it when it's there. |
 | A site shows **couldn't load ✕** | The site was down or blocking for now; the other sites still ran. Try again later. |
 | **"OPENAI_API_KEY is not set"** | Put your key in `.env` and restart the app. |
 | **"Could not read your resume"** | Use a text-based PDF or DOCX (not a scanned image). |
