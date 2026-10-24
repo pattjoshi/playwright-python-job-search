@@ -37,7 +37,8 @@ def build_router(ctx: ApiContext) -> APIRouter:
 
     @router.get("")
     def overview(request: Request):
-        return {**service.overview(current_user(request).id), "run": manager.status()}
+        user = current_user(request)
+        return {**service.overview(user.id), "run": manager.status(), "extension": ctx.extension_keys.status(user.id)}
 
     @router.put("/settings")
     async def save_settings(request: Request):
@@ -62,6 +63,17 @@ def build_router(ctx: ApiContext) -> APIRouter:
     def stop(request: Request):
         current_user(request)
         return {"run": manager.stop()}
+
+    @router.post("/extension-key")
+    def extension_key(request: Request):
+        """A new key for the Chrome extension (shown once); the old key stops working."""
+        return {"key": ctx.extension_keys.create(current_user(request).id)}
+
+    @router.delete("/extension-key")
+    def disconnect_extension(request: Request):
+        current_user(request)
+        ctx.extension_keys.remove()
+        return {"ok": True}
 
     @router.post("/boards/{board}/sign-in")
     def sign_in(request: Request, board: str):

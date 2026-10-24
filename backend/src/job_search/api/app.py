@@ -31,6 +31,7 @@ from job_search.services.answers import AnswerAI, AnswerService
 from job_search.services.applications import ApplicationService
 from job_search.services.auth import AuthService
 from job_search.services.auto_apply import AutoApplyManager, AutoApplyService, open_browser
+from job_search.services.auto_apply.extension_keys import ExtensionKeys
 from job_search.services.cleanup_service import cleanup
 from job_search.services.llm_service import JobMatcherLLM
 from job_search.services.notes import NoteService
@@ -140,18 +141,24 @@ def create_app(
         answers=answers,
         auto_apply=auto_apply,
         notes=NoteService(NoteRepository(settings.history_path)),
+        extension_keys=ExtensionKeys(data_dir / "auto-apply"),
     )
     saved = session.resume()
     if saved:  # the resume from before a restart still works without uploading it again
         ctx.resumes[saved["resume_id"]] = {"path": saved["path"], "name": saved["file_name"], "profile": saved["profile"]}
 
     app = FastAPI(title="Job Search")
+    app.state.context = ctx  # tests reach the services through it
 
     @app.exception_handler(ApiError)
     async def handle_api_error(_request: Request, exc: ApiError):
         return JSONResponse({"error": exc.message}, status_code=exc.status)
 
-    install_auth(app, ctx.auth)
+    def extension_user(key: str | None):
+        user_id = ctx.extension_keys.user_id_for(key)
+        return users.by_id(user_id) if user_id is not None else None
+
+    install_auth(app, ctx.auth, extension_user)
     for build_router in ROUTERS:
         app.include_router(build_router(ctx))
     serve_frontend(app, frontend_dir)

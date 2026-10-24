@@ -55,5 +55,6 @@ export interface AutoApplyOverview {
   today: number;
   remaining: number;
   boards: Record<BoardId, { today: number; has_login: boolean; signed_in: boolean }>;
+  extension: { connected: boolean; created_at: string | null; last_seen: string | null };
   run: AutoApplyRun;
 }

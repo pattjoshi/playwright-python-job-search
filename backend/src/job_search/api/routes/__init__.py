@@ -6,6 +6,7 @@ from job_search.api.routes import (
     auth,
     auto_apply,
     config,
+    extension,
     history,
     notes,
     reports,
@@ -17,7 +18,7 @@ from job_search.api.routes import (
 
 ROUTERS = [
     module.build_router
-    for module in (auth, applications, answers, auto_apply, notes, resume, session, search, history, schedule, config, reports)
+    for module in (auth, applications, answers, auto_apply, extension, notes, resume, session, search, history, schedule, config, reports)
 ]
 
 __all__ = ["ROUTERS"]

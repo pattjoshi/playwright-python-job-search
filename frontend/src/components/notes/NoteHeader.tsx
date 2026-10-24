@@ -43,6 +43,7 @@ export function NoteHeader({ title, icon, saved, onTitle, onIcon, onEnter }: Not
       </div>
       <input
         value={title} onChange={(e) => onTitle(e.target.value)} placeholder="Untitled" aria-label="Page title"
+        autoFocus={!title} // a new page: start typing its title
         onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), onEnter())}
         className="w-full bg-transparent text-4xl font-bold tracking-tight outline-none placeholder:text-muted-foreground/50"
       />
