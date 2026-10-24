@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Job Search Auto-apply</title><link rel="stylesheet" href="popup.css"></head>
+<body>
+  <h1>Job Search Auto-apply</h1>
+  <section id="connect">
+    <label>App address <input id="server" type="url" placeholder="http://127.0.0.1:8000"></label>
+    <label>Key <input id="key" type="password" placeholder="Paste the key from Auto-apply → Connect extension"></label>
+    <button id="save" type="button">Save and test</button>
+  </section>
+  <p id="status" role="status">Not connected yet.</p>
+  <ul id="boards"></ul>
+  <div class="row">
+    <button id="start" type="button" class="primary">Start</button>
+    <button id="stop" type="button">Stop</button>
+  </div>
+  <p class="hint">Applies in this Chrome, where you're signed in to Naukri, LinkedIn and Indeed. Leave the tab it opens alone while it works.</p>
+  <pre id="log" aria-label="Log"></pre>
+  <script src="popup.js" type="module"></script>
+</body>
+</html>

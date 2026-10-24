@@ -286,7 +286,14 @@ Safety settings: **Applications per day** (15 to start), **Minimum match score**
 **Apply after each search** (off to start; turn it on for hands-free applying after each search).
 #### Easy Apply on Naukri, LinkedIn and Indeed
 
-Jobs without a company link can be applied to on the board itself, with your own account:
+Jobs without a company link can be applied to on the board itself, with your own account.
+
+**Easiest: the Chrome extension.** It applies in your normal Chrome, where you're already signed in, so there's
+no separate browser and no passwords. Load the `extension` folder in `chrome://extensions` (Developer mode → Load
+unpacked), press **Connect extension** on the Auto-apply page, paste the key into the extension and press **Start**.
+See [extension/README.md](extension/README.md).
+
+**Or let the app use its own browser:**
 
 1. On **Auto-apply → Settings → Job boards**, press **Sign in** next to a board. A browser window opens on that
    board's login page: log in yourself (OTP included). Auto-apply's browser stays signed in from then on

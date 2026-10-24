@@ -95,6 +95,11 @@ supporting. Lower layers never import upper ones.
   visible browser waiting while you log in, so `.env` passwords are optional) and saves the page of jobs that didn't go
   through (served only as a download). `run(only_job=)` is "Try this job". Board pages wait for their Apply button
   (`Board.wait_until`) and report signed-out pages; LinkedIn opens `www.linkedin.com/jobs/view/<id>/`.
+- Chrome extension (`extension/`, Manifest V3, plain JS, no build): applies to queued board jobs in the user's own
+  signed-in Chrome. `api/routes/extension.py` (`/api/extension/*`, signed in with `Authorization: Bearer <key>` instead of
+  a cookie, see `api/auth.py`), `services/auto_apply/extension_keys.py` (one key, only its hash stored) and
+  `extension_bridge.py` (claim next job, answer, write, report). `tests/integration/test_chrome_extension.py` loads the
+  extension in Chromium (`--headless=new`) against the real app and saved board pages.
 - Notes: `notes` table (blocks as JSON, `parent_id` for pages inside pages, cascade delete), `repositories/note_repository.py`,
   `services/notes.py` (`clean_blocks`, `move` refuses loops), `api/routes/notes.py`.
 - `cli/`: `serve`, `search`, `daily`, `reset-password` commands; `__main__.py` and `daily.py` are thin entry points.

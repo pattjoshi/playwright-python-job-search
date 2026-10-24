@@ -14,6 +14,7 @@ import { autoApplyApi } from "@/lib/api/endpoints";
 import type { AutoApplyJob, BoardId } from "@/lib/types";
 
 import { AutoApplyJobRow } from "./AutoApplyJobRow";
+import { ExtensionCard } from "./ExtensionCard";
 import { firstTab, inTab, type QueueTab, TABS } from "./meta";
 import { RunCard } from "./RunCard";
 import { SettingsCard } from "./SettingsCard";
@@ -98,7 +99,8 @@ export function AutoApplyPage() {
               <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">{TABS.find((t) => t.id === tab)!.empty}</p>
             ) : null}
           </div>
-          <div className="grid grid-cols-1 gap-4 lg:sticky lg:top-20">
+          <div className="grid grid-cols-1 gap-4">
+            <ExtensionCard extension={data.extension} onChange={() => void reload()} />
             <SettingsCard
               key={JSON.stringify(data.settings)} settings={data.settings} boards={data.boards} onSaved={() => void reload()}
               onSignIn={signIn} busy={busy || running}

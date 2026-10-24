@@ -1,0 +1,15 @@
+:root { color-scheme: light dark; --fg: #1d2433; --muted: #5c6577; --bg: #ffffff; --line: #d9dee7; --accent: #0b63ce; }
+@media (prefers-color-scheme: dark) { :root { --fg: #e8ebf1; --muted: #9aa3b2; --bg: #161b24; --line: #2d3544; --accent: #5aa2ff; } }
+body { width: 340px; margin: 0; padding: 14px; font: 13px/1.45 system-ui, sans-serif; color: var(--fg); background: var(--bg); }
+h1 { margin: 0 0 10px; font-size: 15px; }
+label { display: grid; gap: 3px; margin-bottom: 8px; color: var(--muted); }
+input { padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--fg); font: inherit; }
+button { padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; background: transparent; color: var(--fg); font: inherit; cursor: pointer; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button:disabled { opacity: .5; cursor: default; }
+.row { display: flex; gap: 8px; margin: 10px 0; }
+#status { margin: 10px 0 4px; font-weight: 600; }
+#boards { margin: 0; padding-left: 18px; color: var(--muted); }
+.hint { color: var(--muted); font-size: 12px; }
+#log { max-height: 180px; overflow: auto; margin: 0; padding: 8px; border-radius: 6px; background: color-mix(in srgb, var(--line) 35%, transparent);
+  font: 11px/1.4 ui-monospace, monospace; white-space: pre-wrap; }
