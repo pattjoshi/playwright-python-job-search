@@ -2,8 +2,10 @@
 
 Every /api/* and /reports/* request needs a signed-in user, except /api/auth/* (sign-in itself).
 Requests that change something must come from this app's own page (checked with the Origin header).
+/api/extension/* is for the Chrome extension: it sends its key ("Authorization: Bearer …") instead of a cookie.
 """
 
+from collections.abc import Callable
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request
@@ -16,14 +18,23 @@ from job_search.services.auth import SESSION_DAYS, AuthService
 COOKIE = "job_search_session"
 PROTECTED_PREFIXES = ("/api/", "/reports/")
 PUBLIC_PREFIXES = ("/api/auth/",)
+EXTENSION_PREFIX = "/api/extension/"
 LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1", "[::1]"}
 UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 
 
-def install_auth(app: FastAPI, auth: AuthService) -> None:
+def install_auth(app: FastAPI, auth: AuthService, extension_user: Callable[[str | None], User | None] = lambda key: None) -> None:
     @app.middleware("http")
     async def require_sign_in(request: Request, call_next) -> Response:
         path = request.url.path
+        if path.startswith(EXTENSION_PREFIX):
+            header = request.headers.get("authorization", "")
+            user = extension_user(header.removeprefix("Bearer ").strip() if header.startswith("Bearer ") else None)
+            if user is None:
+                return JSONResponse({"error": "The extension isn't connected: paste a new key from the Auto-apply page."},
+                                    status_code=401)
+            request.state.user = user
+            return await call_next(request)
         if request.method in UNSAFE_METHODS and path.startswith("/api/") and not _same_site(request):
             return JSONResponse({"error": "This request didn't come from the job search page."}, status_code=403)
         if path.startswith(PROTECTED_PREFIXES) and not path.startswith(PUBLIC_PREFIXES):
