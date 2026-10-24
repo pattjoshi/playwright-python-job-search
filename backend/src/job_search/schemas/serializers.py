@@ -41,6 +41,9 @@ def profile_to_dict(profile: Profile, queries: list[str], locations: list[str]) 
     }
 
 
+MAX_DESCRIPTION = 6000  # characters of a job description sent to the page (details panel)
+
+
 def job_to_dict(job: Job) -> dict:
     return {
         "source": job.source,
@@ -57,6 +60,8 @@ def job_to_dict(job: Job) -> dict:
         "matched_skills": job.matched_skills,
         "missing_skills": job.missing_skills,
         "apply_url": job.apply_url,
+        "hours_ago": None if job.hours_ago is None else round(job.hours_ago, 1),
+        "description": job.description[:MAX_DESCRIPTION],
     }
 
 

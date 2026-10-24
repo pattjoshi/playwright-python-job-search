@@ -59,6 +59,10 @@ supporting. Lower layers never import upper ones.
 - `services/scraping/`: `BaseScraper` (retries on 429/503, `unreachable` after repeated failures,
   `pause()` respects Stop), the three boards, and `SiteSession` (**one Playwright browser per
   site on its own thread**: the sync API is thread-bound). `SCRAPERS` registers boards.
+- Hidden companies: `repositories/search_filters_repository.py` (`data/search-filters.json`), `services/search_filters.py`
+  (`company_key` drops Pvt/Ltd/Inc… so names match; same rule in `frontend/src/lib/results-filter.ts`), `api/routes/search_filters.py`.
+  `apply_filters(exclude_companies=)` adds the "not from hidden companies" funnel step. `job_to_dict` sends `hours_ago`
+  and the description (cut to `MAX_DESCRIPTION`) for the results filters and details panel.
 - `services/search_manager.py`: one search at a time on a background thread for the web page
   (poll + Stop), and it saves the last search to the session so reloads restore it.
 - `services/llm_service.py`: strict JSON-schema output with fallback, parallel scoring batches, `TokenUsage`.
@@ -124,7 +128,7 @@ next-themes, toasts via sonner. Static export: pages become `name.html`, served 
   plus small custom parts (`stepper`, `tag-input`, `form-field`, `step-title`, `chip`).
 - `components/layout/`: `AppShell`, `AppSidebar`, `Topbar`, `nav.ts` (sidebar items; `soon` = later phase),
   `PageHeader`. Feature folders: `dashboard/`, `search/`, `resume/`, `search-form/`, `daily/`, `progress/`,
-  `results/`, `my-jobs/`, `applications/` (board with dnd-kit drag and drop, table, form dialog, details
+  `results/` (`ResultsFilters` toolbar, `JobDetailsSheet`; filtering in `lib/results-filter.ts`), `my-jobs/`, `applications/` (board with dnd-kit drag and drop, table, form dialog, details
   sheet; `statuses.ts` holds the status labels and colours), `answers/` (Answer Bank: tabs by status, rows
   grouped by category with an answer box shaped by `kind`, form dialog, Test a question card; `meta.ts`), `auto-apply/`
   (run card, queue tabs, job rows, settings with a confirm before leaving dry run), `notes/` (Notion-style:
@@ -132,7 +136,7 @@ next-themes, toasts via sonner. Static export: pages become `name.html`, served 
   the "/" menu and dnd-kit sortable; pure helpers in `blocks.ts`), `settings/`, `coming-soon/`.
 - `hooks/`: `useSearchForm`, `useSearchJob`, `useResume`, `useJobHistory`, `useDailySearch`,
   `useSessionRestore`, `useRuns`, `useApplications` (optimistic moves with rollback), `useApplicationStats`,
-  `useAnswers`, `useAutoApply` (polls while a run is going), `useNotes`.
+  `useAnswers`, `useSearchFilters` (hidden companies), `useAutoApply` (polls while a run is going), `useNotes`.
 - `lib/`: `api/` (typed client), `types.ts` (mirrors the API JSON), `format.ts`, `estimate.ts`, `funnel.ts`,
   `storage.ts`, `constants.ts`, `utils.ts` (`cn`).
 

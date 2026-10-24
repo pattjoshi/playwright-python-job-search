@@ -71,6 +71,8 @@ export interface Job {
   missing_skills: string[];
   status?: JobStatus | null; // only on a search restored from the saved session
   apply_url?: string; // the company's own application page ("Apply on company site")
+  hours_ago?: number | null; // how long ago it was posted (null when the board doesn't say)
+  description?: string; // the job description (first 6000 characters)
 }
 
 export interface RunStats {

@@ -1,4 +1,4 @@
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, PanelRightOpen } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,12 +15,13 @@ interface JobCardProps {
   applied: boolean;
   siteName?: string;
   onSetStatus: (status: JobStatus) => void;
+  onDetails: () => void;
 }
 
 const BANDS = { good: "bg-success-soft text-success", ok: "bg-warning-soft text-warning", low: "bg-muted text-muted-foreground" };
 
 /** One job: match score, title and links, matching/missing skills, the AI's reason, and actions. */
-export function JobCard({ job, rank, applied, siteName, onSetStatus }: JobCardProps) {
+export function JobCard({ job, rank, applied, siteName, onSetStatus, onDetails }: JobCardProps) {
   const url = safeUrl(job.url) ?? "#";
   return (
     <li className={cn("grid grid-cols-[52px_minmax(0,1fr)] gap-3.5 border-t px-5 py-4 transition-opacity first:border-t-0 max-sm:grid-cols-1", applied && "opacity-60")}>
@@ -47,6 +48,7 @@ export function JobCard({ job, rank, applied, siteName, onSetStatus }: JobCardPr
         <ChipRow label="Missing" items={job.missing_skills ?? []} kind="miss" />
         {job.match_reason ? <p className="mt-1.5 text-sm">{job.match_reason}</p> : null}
         <div className="mt-2.5 flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={onDetails}><PanelRightOpen /> Details</Button>
           <Button asChild variant="outline" size="sm">
             <a href={url} target="_blank" rel="noopener noreferrer">View job <ExternalLink /></a>
           </Button>
