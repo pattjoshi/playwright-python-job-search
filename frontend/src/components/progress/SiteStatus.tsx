@@ -7,6 +7,7 @@ function label(info: SiteProgress): string {
     case "running": return info.found ? `${info.found} found…` : "searching…";
     case "done": return `${info.found} found ✓`;
     case "failed": return "couldn't load";
+    case "blocked": return "blocked the search · turn on Show browser and try again";
     default: return info.status;
   }
 }
@@ -20,7 +21,7 @@ export function SiteStatus({ sites, progress }: { sites: SiteConfig[]; progress:
         return (
           <span key={site.id} className={cn("inline-flex items-center gap-1.5 rounded-md border bg-muted/40 px-2.5 py-1 text-sm", info.status === "running" && "border-primary")}>
             <b>{site.name}</b>
-            <span className={cn("text-muted-foreground", info.status === "done" && "text-success", info.status === "failed" && "text-destructive")}>
+            <span className={cn("text-muted-foreground", info.status === "done" && "text-success", ["failed", "blocked"].includes(info.status) && "text-destructive")}>
               {label(info)}
             </span>
           </span>

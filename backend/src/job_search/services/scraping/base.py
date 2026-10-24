@@ -48,6 +48,7 @@ class BaseScraper(ABC):
         self.experience = experience
         self.stop_event = stop_event or threading.Event()
         self.failed_loads = 0  # consecutive page loads that failed even after retries
+        self.blocked = False  # the site showed its bot check ("Access Denied") and nobody solved it
         self._page: Page | None = None
 
     @property
@@ -76,7 +77,7 @@ class BaseScraper(ABC):
     @property
     def unreachable(self) -> bool:
         """The site keeps failing (down, blocking us, or no network): stop wasting time on it."""
-        return self.failed_loads >= MAX_FAILED_LOADS
+        return self.blocked or self.failed_loads >= MAX_FAILED_LOADS
 
     def check_stop(self) -> None:
         if self.stop_event.is_set():

@@ -120,6 +120,8 @@ def _collect_site(scraper: BaseScraper, site: str, queries: list[str], locations
         emit("site", site=site, status="running", found=found_here)
         scraper.pause()
     status = "failed" if failures == searches or (scraper.unreachable and not found_here) else "done"
+    if scraper.blocked and not found_here:
+        status = "blocked"  # the page tells the user to turn on Show browser and solve the check
     emit("site", site=site, status=status, found=found_here)
     return jobs
 
