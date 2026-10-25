@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatDateTime, formatDuration } from "@/lib/format";
+import { formatDateTime, formatDuration, runAiUsage } from "@/lib/format";
 import type { Run } from "@/lib/types";
 
 const ORIGINS: Record<string, string> = { daily: "Daily", web: "Manual", cli: "Command line" };
@@ -38,6 +38,7 @@ export function RecentRunsCard({ runs, error }: { runs: Run[] | null; error: str
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Shown</TableHead>
                 <TableHead className="text-right">Time</TableHead>
+                <TableHead className="text-right" title="AI tokens used (and cost, when prices are set in .env)">AI used</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -48,6 +49,7 @@ export function RecentRunsCard({ runs, error }: { runs: Run[] | null; error: str
                   <TableCell><Badge variant="secondary" className={STATUS_STYLES[run.status]}>{run.status}</Badge></TableCell>
                   <TableCell className="text-right tabular-nums">{run.status === "done" ? `${run.shown} (${run.new} new)` : "–"}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatDuration(run.duration_s)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{runAiUsage(run.usage, run.cost_usd)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

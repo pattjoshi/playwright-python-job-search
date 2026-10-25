@@ -71,7 +71,8 @@ supporting. Lower layers never import upper ones.
   and the description (cut to `MAX_DESCRIPTION`) for the results filters and details panel.
 - `services/search_manager.py`: one search at a time on a background thread for the web page
   (poll + Stop), and it saves the last search to the session so reloads restore it.
-- `services/llm_service.py`: strict JSON-schema output with fallback, parallel scoring batches, `TokenUsage`.
+- `services/llm_service.py`: strict JSON-schema output with fallback, parallel scoring batches, `TokenUsage`. Scoring sends
+  `services/job_text.clean_description()` (drops company intro / benefits / EEO sections and lines, cut to `MAX_DESCRIPTION_CHARS`).
 - `api/app.py`: `create_app(settings, output_dir, upload_dir, runner, analyzer, system_scheduler,
   frontend_dir)`, the factory tests use with fakes. `api/routes/*`: one `build_router(ctx)` per resource.
   `ApiError` becomes `{"error": message}`. The built page is mounted last at `/`.

@@ -419,6 +419,9 @@ Everything stays in the project folder on your computer:
 | `data/schedule.json`, `data/scheduled.log` | Daily search settings and its log | **Turn off** / log is trimmed when large |
 
 Your resume text and job descriptions are sent to OpenAI for reading and scoring; nothing else leaves your computer.
+Descriptions are trimmed first: the company intro, benefits, equal-opportunity text and "apply now" lines are left out,
+and at most 1,200 characters of the job itself are sent. The dashboard's **Recent searches** shows the AI tokens
+each run used (and the cost, if you set `OPENAI_PRICE_INPUT` / `OPENAI_PRICE_OUTPUT` in `.env`).
 
 ## 8. For developers
 
