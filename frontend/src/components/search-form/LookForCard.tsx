@@ -5,6 +5,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { SearchFormApi } from "@/hooks/useSearchForm";
 import { HOUR_OPTIONS } from "@/lib/constants";
 
+import { ExcludeCompaniesField } from "./ExcludeCompaniesField";
 import { ExperienceField } from "./ExperienceField";
 import { KeywordsField } from "./KeywordsField";
 import { LocationsField } from "./LocationsField";
@@ -19,6 +20,7 @@ export function LookForCard({ form: api, locationChoices }: { form: SearchFormAp
         <KeywordsField keywords={form.keywords} onChange={setKeywords} />
         <LocationsField choices={locationChoices} locations={form.locations} onChange={setLocations} />
         <ExperienceField value={form.experience} onChange={(experience) => update({ experience })} />
+        <ExcludeCompaniesField />
         <FormField label={<span id="hours-label">Posted within</span>}>
           <ToggleGroup
             type="single" variant="outline" value={String(form.hours)} aria-labelledby="hours-label" className="w-full"
