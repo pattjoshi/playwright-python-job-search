@@ -164,3 +164,24 @@ def search_locations(scraper, locations: list[str]) -> list[str]:
     cities = [location for location in locations if not is_remote(location)]
     remote = [location for location in locations if is_remote(location)]
     return [", ".join(cities[i:i + size]) for i in range(0, len(cities), size)] + remote
+
+
+# Words too common in job titles to show two titles are about the same work.
+_TITLE_FILLER = {"and", "of", "the", "for", "in", "with", "a", "an", "to", "at", "sr", "jr", "senior", "junior", "lead",
+                 "i", "ii", "iii", "remote", "hybrid", "job", "jobs", "hiring", "urgent", "opening", "immediate"}
+
+
+def title_fits(job: Job, queries: list[str], terms: list[str]) -> bool:
+    """Boards also return loose matches ("Sales Executive" for "AI Engineer"). A job fits when its title shares a word
+    with a keyword or wanted title, or it mentions one of the candidate's skills/titles anywhere."""
+    words = {w for text in queries + terms for w in re.findall(r"[a-z0-9+#.]+", text.lower())} - _TITLE_FILLER
+    if not words:
+        return True
+    title = set(re.findall(r"[a-z0-9+#.]+", job.title.lower()))
+    return bool(title & words) or bool(matched_skills(job, terms))
+
+
+def rank_key(job: Job) -> tuple[float, float]:
+    """Best score first; among equal scores, the newest post first."""
+    score = job.score if job.score is not None else -1
+    return score, -(job.hours_ago if job.hours_ago is not None else 10_000)

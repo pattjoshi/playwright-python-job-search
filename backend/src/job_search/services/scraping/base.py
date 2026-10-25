@@ -49,6 +49,7 @@ class BaseScraper(ABC):
         self.stop_event = stop_event or threading.Event()
         self.failed_loads = 0  # consecutive page loads that failed even after retries
         self.blocked = False  # the site showed its bot check ("Access Denied") and nobody solved it
+        self.found_ids: set[str] = set()  # jobs this site already returned in this run (any keyword or city)
         self._page: Page | None = None
 
     @property
@@ -78,6 +79,18 @@ class BaseScraper(ABC):
     def unreachable(self) -> bool:
         """The site keeps failing (down, blocking us, or no network): stop wasting time on it."""
         return self.blocked or self.failed_loads >= MAX_FAILED_LOADS
+
+    def nothing_new(self, page_jobs: list[Job]) -> bool:
+        """True when a whole results page is jobs found earlier in this run: later pages would be repeats too.
+
+        Similar keywords ("AI Engineer", "Gen AI Engineer") return mostly the same jobs, so this skips their pages.
+        """
+        ids = {job.job_id for job in page_jobs}
+        repeat = bool(ids) and ids <= self.found_ids
+        self.found_ids |= ids
+        if repeat:
+            log.info("%s: this page only had jobs already found; skipping the rest of this search", self.name)
+        return repeat
 
     def check_stop(self) -> None:
         if self.stop_event.is_set():

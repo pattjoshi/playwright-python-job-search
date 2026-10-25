@@ -63,6 +63,8 @@ class IndeedScraper(BaseScraper):
                 break
             seen.update(job.job_id for job in new_jobs)
             jobs.extend(new_jobs)
+            if self.nothing_new(new_jobs):
+                break
             self.pause()
         return jobs
 

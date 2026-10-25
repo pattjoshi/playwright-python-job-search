@@ -171,6 +171,9 @@ you asked for, a yellow hint tells you which filter removed the most and what to
 
 - The header shows how many jobs are new, the run time, AI tokens used (and cost, if configured) and how
   many scores were reused from earlier runs.
+- Before opening jobs, the search drops loose matches the boards add (a "Sales Executive" for "AI Engineer": the
+  title shares no word with your keywords and the job mentions none of your skills), merges the same job posted on
+  two sites ("Sr. AI Engineer" at "Acme Pvt Ltd" = "Senior AI Engineer" at "ACME"), and ranks equal scores newest first.
 - **Tabs**: **All** (best matches from every site) or one site at a time.
 - **Filters** (no new search needed): type words to match the title, company or location, pick a minimum score
   (60+ / 70+ / 80+) or how recently it was posted, and sort by **Best match**, **Newest** or **Company A–Z**.
@@ -363,7 +366,8 @@ Click **Notes** in the sidebar: Notion-style pages for company research, intervi
 | **"OPENAI_API_KEY is not set"** | Put your key in `.env` and restart the app. |
 | **"Could not read your resume"** | Use a text-based PDF or DOCX (not a scanned image). |
 | **"Upload your resume first"** | Your saved resume file was cleaned up or cleared; upload it again. |
-| Searches are slow | Fewer keywords or cities, fewer *Pages per search*, or a lower *Jobs to score per site*. Repeat runs are faster because work is reused. |
+| Searches are slow | Fewer keywords or cities, fewer *Pages per search*, or a lower *Jobs to score per site*. Repeat runs are faster because work is reused: a keyword + city searched on a site in the last **2 hours** isn't searched there again, and a search stops early once a page only shows jobs already found. |
+| A search found nothing new right after the last one | Results from the last 2 hours are reused. Wait a little, or delete `data/cache.sqlite3` to search every site live. |
 | Too many browser windows | That's one per site while searching in parallel. Set `PARALLEL_SITES=false` in `.env` to use one at a time. |
 | Want to see the cost in $ | Add your model's prices to `.env` (`OPENAI_PRICE_INPUT`, `OPENAI_PRICE_OUTPUT`). |
 
@@ -413,7 +417,7 @@ Everything stays in the project folder on your computer:
 | `data/history.sqlite3` | Your account, applications, Answer Bank, notes, auto-apply queue, applied / hidden / seen jobs and the search history | Never automatically |
 | `data/auto-apply/` | Screenshots of filled application forms and the cover letters sent | When you remove the job from Auto-apply |
 | `data/browser-profile/` | Auto-apply's browser, which keeps you signed in to the job boards | Delete it to sign out everywhere |
-| `data/cache.sqlite3` | Saved job details, AI scores, resume readings | `KEEP_DAYS` cleanup; safe to delete anytime |
+| `data/cache.sqlite3` | Saved job details, AI scores, resume readings, searches from the last 2 hours | `KEEP_DAYS` cleanup; safe to delete anytime |
 | `data/session.json` | What the page shows (resume, last results) | The **Clear** button |
 | `data/search-filters.json` | Companies you hid from searches | **Hidden companies** list next to the result filters |
 | `data/schedule.json`, `data/scheduled.log` | Daily search settings and its log | **Turn off** / log is trimmed when large |
