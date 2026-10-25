@@ -21,11 +21,17 @@ npm run build</pre>
 <p>Or double-click <b>start_ui.bat</b> on Windows, which does this for you.</p></body>"""
 
 
+IMMUTABLE = "public, max-age=31536000, immutable"
+
+
 class PageFiles(StaticFiles):
     """Static files with clean page URLs: Next.js exports /dashboard as dashboard.html."""
 
     async def get_response(self, path: str, scope: Scope) -> Response:
         response = await self._get_or_404(path, scope)
+        if path.startswith("_next/static/") and response.status_code < 400:
+            # Next.js puts a content hash in these file names, so the browser can keep them for good (no re-checks).
+            response.headers["Cache-Control"] = IMMUTABLE
         if response.status_code == 404 and path.strip("/") and not Path(path).suffix:
             page = await self._get_or_404(f"{path.strip('/')}.html", scope)
             if page.status_code < 400:  # 200, or 304 "not modified" when the browser reloads

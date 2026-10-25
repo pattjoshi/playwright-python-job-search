@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { api } from "@/lib/api/endpoints";
-import { POLL_MS } from "@/lib/constants";
+import { waitForNextPoll } from "@/lib/poll";
 import type { SearchJob, SearchRequest } from "@/lib/types";
 
 export type RunView = "idle" | "running" | "finished";
@@ -57,7 +57,7 @@ export function useSearchJob(onFinished: (job: SearchJob) => void) {
     finishedRef.current(ended);
   }, [show]);
 
-  /** Ask for the status every POLL_MS until the search ends (or another search is being watched). */
+  /** Ask for the status (every POLL_MS, slower in a background tab) until the search ends (or another search is being watched). */
   const poll = useCallback(
     async (id: string) => {
       while (watching.current === id) {
@@ -71,7 +71,7 @@ export function useSearchJob(onFinished: (job: SearchJob) => void) {
           setError(`${(err as Error).message}. Is the app still running?`);
           return finish(failedJob(id, latest.current));
         }
-        await new Promise((resolve) => window.setTimeout(resolve, POLL_MS));
+        await waitForNextPoll();
       }
     },
     [finish, show],

@@ -3,9 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { autoApplyApi } from "@/lib/api/endpoints";
+import { waitForNextPoll } from "@/lib/poll";
 import type { AutoApplyOverview } from "@/lib/types";
-
-const POLL_MS = 2000;
 
 /** Auto-apply's settings, queue and run; polls while a run is going so the page follows it live. */
 export function useAutoApply() {
@@ -34,8 +33,16 @@ export function useAutoApply() {
   const active = ["running", "stopping", "signing_in"].includes(data?.run.status ?? "");
   useEffect(() => {
     if (!active) return;
-    const timer = window.setInterval(() => void reload(), POLL_MS);
-    return () => window.clearInterval(timer);
+    let stopped = false;
+    void (async () => {
+      while (!stopped) {
+        await waitForNextPoll();
+        if (!stopped) await reload();
+      }
+    })();
+    return () => {
+      stopped = true;
+    };
   }, [active, reload]);
 
   return { data, error, reload, active };

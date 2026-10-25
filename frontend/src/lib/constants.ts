@@ -1,6 +1,7 @@
 import type { Stage } from "@/lib/types";
 
 export const POLL_MS = 1200;
+export const HIDDEN_POLL_MS = 10_000; // while the browser tab is in the background
 export const MAX_KEYWORDS = 8;
 export const MAX_LOCATIONS = 10;
 export const REMOTE = "Remote";
