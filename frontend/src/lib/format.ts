@@ -83,3 +83,11 @@ export function jobKey(job: Pick<Job, "source" | "job_id">): string {
 export function uniqueTrimmed(items: string[], limit: number): string[] {
   return [...new Set(items.map((item) => item.trim()).filter(Boolean))].slice(0, limit);
 }
+
+/** "12k (~$0.0040)" for a past run, "–" when it used no AI. */
+export function runAiUsage(usage: { input_tokens?: number; output_tokens?: number } | undefined, costUsd?: number | null): string {
+  const tokens = (usage?.input_tokens ?? 0) + (usage?.output_tokens ?? 0);
+  if (!tokens) return "–";
+  const cost = formatCost(costUsd);
+  return `${formatTokens(tokens)}${cost ? ` (${cost})` : ""}`;
+}

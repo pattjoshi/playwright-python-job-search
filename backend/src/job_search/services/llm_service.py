@@ -9,6 +9,7 @@ from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from openai import BadRequestError, OpenAI
 
 from job_search.models import Job, Profile, TokenUsage
+from job_search.services.job_text import clean_description
 
 log = logging.getLogger(__name__)
 
@@ -34,7 +35,7 @@ that clearly require experience outside that range low. Also list the candidate'
 Return JSON: {"results": [{"id": "<job id>", "score": <int>, "reason": "<text>",
 "matched_skills": ["..."], "missing_skills": ["..."]}]}"""
 
-MAX_DESCRIPTION_CHARS = 1500
+MAX_DESCRIPTION_CHARS = 1200  # after filler is removed (company intro, benefits, EEO text)
 # Scoring requests in flight at once. OpenAI's client retries 429/5xx itself with backoff.
 SCORING_CONCURRENCY = 4
 MAX_RETRIES = 4
@@ -142,7 +143,7 @@ class JobMatcherLLM:
                     "company": job.company,
                     "location": job.location,
                     "experience": job.experience,
-                    "description": job.description[:MAX_DESCRIPTION_CHARS],
+                    "description": clean_description(job.description, MAX_DESCRIPTION_CHARS),
                 }
                 for job in batch
             ]

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { formatCost, formatDays, formatDuration, formatTokens, safeUrl, scoreBand, statsParts, uniqueTrimmed } from "./format";
+import {
+  formatCost, formatDays, formatDuration, formatTokens, runAiUsage, safeUrl, scoreBand, statsParts, uniqueTrimmed,
+} from "./format";
 
 describe("format", () => {
   it("formats durations, tokens and cost", () => {
@@ -34,5 +36,13 @@ describe("format", () => {
   it("bands scores and cleans lists", () => {
     expect([scoreBand(90), scoreBand(60), scoreBand(20), scoreBand(null)]).toEqual(["good", "ok", "low", "low"]);
     expect(uniqueTrimmed([" SDET ", "QA", "SDET", ""], 8)).toEqual(["SDET", "QA"]);
+  });
+});
+
+describe("runAiUsage", () => {
+  it("shows tokens, the cost when known, and a dash without AI", () => {
+    expect(runAiUsage({ input_tokens: 9000, output_tokens: 3000 }, 0.004)).toBe("12k (~$0.0040)");
+    expect(runAiUsage({ input_tokens: 600, output_tokens: 0 }, null)).toBe("600");
+    expect(runAiUsage(undefined)).toBe("–");
   });
 });
