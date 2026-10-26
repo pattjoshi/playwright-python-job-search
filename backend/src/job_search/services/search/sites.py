@@ -8,12 +8,14 @@ from concurrent.futures import Future
 from playwright.sync_api import Error as PlaywrightError
 
 from job_search.models import Job
+from job_search.repositories import CacheRepository
 from job_search.services.matching_service import SearchStopped, search_locations
 from job_search.services.scraping import BaseScraper, SiteSession
 
 log = logging.getLogger(__name__)
 
 Emit = Callable[..., None]
+SEARCH_REUSE_HOURS = 2  # a keyword + city searched this recently on a site isn't searched there again
 
 
 def _ignore(*_args, **_kwargs) -> None:
@@ -86,11 +88,12 @@ def fetch_details(scraper: BaseScraper, jobs: list[Job], progress: Progress) -> 
 
 
 def collect_site(
-    scraper: BaseScraper, site: str, queries: list[str], locations: list[str], emit: Emit = _ignore
+    scraper: BaseScraper, site: str, queries: list[str], locations: list[str], emit: Emit = _ignore,
+    cache: CacheRepository | None = None,
 ) -> list[Job]:
     """Run every search for one site (on that site's browser thread)."""
     try:
-        return _collect_site(scraper, site, queries, locations, emit)
+        return _collect_site(scraper, site, queries, locations, emit, cache)
     except SearchStopped:
         raise
     except Exception:
@@ -98,15 +101,33 @@ def collect_site(
         raise
 
 
-def _collect_site(scraper: BaseScraper, site: str, queries: list[str], locations: list[str], emit: Emit) -> list[Job]:
+def search_key(scraper: BaseScraper, query: str, location: str) -> str:
+    """Everything that changes what a site returns for a search."""
+    return "|".join(str(part).lower() for part in (
+        scraper.name, query, location, scraper.max_age_hours, scraper.experience, scraper.max_pages,
+    ))
+
+
+def _collect_site(
+    scraper: BaseScraper, site: str, queries: list[str], locations: list[str], emit: Emit, cache: CacheRepository | None,
+) -> list[Job]:
     jobs: list[Job] = []
     emit("site", site=site, status="running", found=0)
-    found_here, failures, searches = 0, 0, 0
+    found_here, failures, searches, reused = 0, 0, 0, 0
     for query, location in [(q, loc) for q in queries for loc in search_locations(scraper, locations)]:
         if scraper.unreachable:
             log.warning("%s isn't responding; skipping its remaining searches this run", scraper.name)
             break
         searches += 1
+        key = search_key(scraper, query, location)
+        found = cache.get_search(key, SEARCH_REUSE_HOURS) if cache else None
+        if found is not None:
+            reused += 1
+            scraper.found_ids |= {job.job_id for job in found}
+            jobs.extend(found)
+            found_here += len(found)
+            emit("site", site=site, status="running", found=found_here)
+            continue
         try:
             found = scraper.search(query, location)
         except PlaywrightError as error:
@@ -115,10 +136,14 @@ def _collect_site(scraper: BaseScraper, site: str, queries: list[str], locations
             failures += 1
             continue
         log.info("%s: %d jobs for %r in %r", scraper.name, len(found), query, location)
+        if cache and not scraper.unreachable:  # a refused or broken search isn't saved, so it's tried again
+            cache.save_search(key, found)
         jobs.extend(found)
         found_here += len(found)
         emit("site", site=site, status="running", found=found_here)
         scraper.pause()
+    if reused:
+        log.info("%s: reused %d of %d searches run in the last %d hours", scraper.name, reused, searches, SEARCH_REUSE_HOURS)
     status = "failed" if failures == searches or (scraper.unreachable and not found_here) else "done"
     if scraper.blocked and not found_here:
         status = "blocked"  # the page tells the user to turn on Show browser and solve the check

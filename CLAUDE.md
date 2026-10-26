@@ -58,7 +58,11 @@ supporting. Lower layers never import upper ones.
   `site`, `progress`, `funnel`).
   `profile.search_queries()` dedupes and caps keywords at `MAX_QUERIES` (the resume prompt asks for 6-10 short job
   titles; bump `PROFILE_VERSION` when that prompt changes). Boards set `cities_per_search` (Naukri 3) and
-  `matching_service.search_locations` groups cities to match.
+  `matching_service.search_locations` groups cities to match. Speed: `collect_site(cache=)` reuses a site's results for a
+  `search_key` (site, keyword, city, hours, experience, pages) for `SEARCH_REUSE_HOURS` (cache table `searches`; refused
+  searches aren't saved); `BaseScraper.nothing_new()` ends a search when a page only repeats jobs found earlier this run.
+  `apply_filters(queries=, terms=)` adds the "title fits" step (`matching_service.title_fits`), `Job.dedupe_key` normalises
+  Sr/Pvt Ltd/(Remote)/city, and results sort by `rank_key` (score, then newest).
 - `services/scraping/`: `BaseScraper` (retries on 429/503, `unreachable` after repeated failures,
   `pause()` respects Stop), the three boards, and `SiteSession` (**one Playwright browser per
   site on its own thread**: the sync API is thread-bound). `SCRAPERS` registers boards. `browser.launch()` prefers the

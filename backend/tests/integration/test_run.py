@@ -114,7 +114,7 @@ def test_run_with_locations_experience_and_events(tmp_path, fake_board):
     assert stages == ["resume", "search", "details", "score", "report"]
     assert ("site", {"site": "linkedin", "status": "done", "found": 30}) in events  # 15 per location
     funnels = [data["steps"] for name, data in events if name == "funnel"]
-    assert funnels[0] == [("found", 30), ("unique", 15), ("posted in 24h", 15), ("match 1-3 yrs", 14)]
+    assert funnels[0] == [("found", 30), ("unique", 15), ("title fits", 15), ("posted in 24h", 15), ("match 1-3 yrs", 14)]
     assert funnels[-1][-2:] == [("checked", 14), ("scored", 14)]
 
 

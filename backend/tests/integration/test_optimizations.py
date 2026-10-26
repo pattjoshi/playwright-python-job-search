@@ -21,7 +21,7 @@ SAMPLE_RESUME = Path(__file__).parent.parent / "sample_resume.txt"
 
 
 def job(job_id, source="linkedin", **kwargs):
-    return Job(source, job_id, f"Job {job_id}", "Co", "Pune", f"https://example.com/{job_id}", **kwargs)
+    return Job(source, job_id, f"Python Engineer {job_id}", "Co", "Pune", f"https://example.com/{job_id}", **kwargs)
 
 
 # ---------- pipeline reuses cached work ----------

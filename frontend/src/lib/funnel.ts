@@ -7,6 +7,7 @@ const ADVICE: [match: string, advice: string][] = [
   ["yrs", "a wider experience range (or Any)"],
   ["new", "turning off “Only new jobs”"],
   ["checked", "a higher “Jobs to score per site” (Advanced)"],
+  ["title fits", "more job titles in Keywords"],
 ];
 
 export function funnelHint(steps: FunnelStep[], requested: Record<string, number>): string | null {

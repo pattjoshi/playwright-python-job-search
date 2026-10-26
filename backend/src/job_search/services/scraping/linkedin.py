@@ -62,7 +62,7 @@ class LinkedInScraper(BaseScraper):
 
             page_jobs = parse_search_results(self.page)
             jobs.extend(page_jobs)
-            if len(page_jobs) < PAGE_SIZE:
+            if len(page_jobs) < PAGE_SIZE or self.nothing_new(page_jobs):
                 break
             self.pause()
         return jobs

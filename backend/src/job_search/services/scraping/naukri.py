@@ -49,7 +49,7 @@ class NaukriScraper(BaseScraper):
             if page_jobs is None:
                 break
             jobs.extend(page_jobs)
-            if len(page_jobs) < PAGE_SIZE:
+            if len(page_jobs) < PAGE_SIZE or self.nothing_new(page_jobs):
                 break
             self.pause()
         return jobs

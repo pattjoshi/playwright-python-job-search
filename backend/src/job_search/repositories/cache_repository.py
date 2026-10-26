@@ -3,6 +3,7 @@
   job_details   job pages already opened (description, company apply link) -> not opened again
   scores        AI scores for a job + this resume profile + model + prompt -> not scored again
   profiles      AI reading of a resume file (by content hash) + model -> not sent again
+  searches      one site's results for a keyword + city, reused for SEARCH_REUSE_HOURS -> a repeat run skips the site
 
 Everything here is safe to delete at any time; it's rebuilt on the next run.
 Old rows are removed by cleanup (KEEP_DAYS).
@@ -30,6 +31,11 @@ CREATE TABLE IF NOT EXISTS scores (
     score INTEGER, reason TEXT NOT NULL, matched TEXT NOT NULL, missing TEXT NOT NULL,
     saved_at TEXT NOT NULL,
     PRIMARY KEY (source, job_id, profile_key)
+);
+CREATE TABLE IF NOT EXISTS searches (
+    search_key TEXT PRIMARY KEY,
+    jobs TEXT NOT NULL,
+    saved_at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS profiles (
     resume_key TEXT PRIMARY KEY,
@@ -98,6 +104,27 @@ class CacheRepository:
         with self._db.lock, self._db.connect() as db:
             db.executemany("INSERT OR REPLACE INTO scores VALUES (?, ?, ?, ?, ?, ?, ?, ?)", rows)
 
+    # ---------- search results ----------
+
+    def get_search(self, search_key: str, max_age_hours: float) -> list[Job] | None:
+        """A search's jobs if it ran in the last max_age_hours, with their age moved on by the time since."""
+        with self._db.lock, self._db.connect() as db:
+            row = db.execute("SELECT jobs, saved_at FROM searches WHERE search_key = ?", (search_key,)).fetchone()
+        if not row:
+            return None
+        waited = (datetime.now() - datetime.fromisoformat(row[1])).total_seconds() / 3600
+        if waited > max_age_hours:
+            return None
+        jobs = [Job(**item) for item in json.loads(row[0])]
+        for job in jobs:
+            job.hours_ago = None if job.hours_ago is None else job.hours_ago + waited
+        return jobs
+
+    def save_search(self, search_key: str, jobs: list[Job]) -> None:
+        with self._db.lock, self._db.connect() as db:
+            db.execute("INSERT OR REPLACE INTO searches VALUES (?, ?, ?)",
+                       (search_key, json.dumps([asdict(job) for job in jobs]), _now()))
+
     # ---------- resume profiles ----------
 
     def get_profile(self, resume_key: str) -> Profile | None:
@@ -115,7 +142,7 @@ class CacheRepository:
         cutoff = (datetime.now() - timedelta(days=days)).isoformat(timespec="seconds")
         removed = 0
         with self._db.lock, self._db.connect() as db:
-            for table in ("job_details", "scores", "profiles"):
+            for table in ("job_details", "scores", "profiles", "searches"):
                 removed += db.execute(f"DELETE FROM {table} WHERE saved_at < ?", (cutoff,)).rowcount
         return removed
 

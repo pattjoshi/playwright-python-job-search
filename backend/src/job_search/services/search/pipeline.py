@@ -17,6 +17,7 @@ from job_search.services.matching_service import (
     filter_experience,
     keyword_score,
     matched_skills,
+    rank_key,
     shortlist_per_site,
 )
 from job_search.services.reporting import write_html_report, write_reports
@@ -144,11 +145,11 @@ def _search_and_open(run: _Run, queries: list[str], locations: list[str], terms:
             log.info("Searching %d sites at the same time", len(sessions))
         per_site = on_each_site(
             sessions, options.parallel_sites,
-            lambda site: partial(collect_site, site=site, queries=queries, locations=locations, emit=run.emit),
+            lambda site: partial(collect_site, site=site, queries=queries, locations=locations, emit=run.emit, cache=run.cache),
         )
         jobs = [job for site in options.sites for job in per_site.get(site, [])]
         saved = SearchFiltersRepository(options.history_path.parent).load() if options.history_path else {}
-        jobs, funnel = apply_filters(jobs, options, run.history, run.emit, saved.get("exclude_companies"))
+        jobs, funnel = apply_filters(jobs, options, run.history, run.emit, saved.get("exclude_companies"), queries, terms)
 
         # Score at least as many jobs as each site will show.
         limits = {site: max(options.top_n, results_for(options, site)) for site in options.sites}
@@ -215,7 +216,7 @@ def _score(run: _Run, llm: JobMatcherLLM | None, profile: Profile, shortlist: li
 def _report(run: _Run, profile: Profile, shortlist: list[Job]) -> SearchResult:
     options = run.options
     run.emit("stage", stage="report")
-    shortlist.sort(key=lambda job: job.score if job.score is not None else -1, reverse=True)
+    shortlist.sort(key=rank_key, reverse=True)
     top_by_site = {
         site: [job for job in shortlist if job.source == site][: results_for(options, site)] for site in options.sites
     }
