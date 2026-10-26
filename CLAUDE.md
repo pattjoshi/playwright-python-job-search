@@ -79,7 +79,8 @@ supporting. Lower layers never import upper ones.
   `services/job_text.clean_description()` (drops company intro / benefits / EEO sections and lines, cut to `MAX_DESCRIPTION_CHARS`).
 - `api/app.py`: `create_app(settings, output_dir, upload_dir, runner, analyzer, system_scheduler,
   frontend_dir)`, the factory tests use with fakes. `api/routes/*`: one `build_router(ctx)` per resource.
-  `ApiError` becomes `{"error": message}`. The built page is mounted last at `/`.
+  `ApiError` becomes `{"error": message}`. The built page is mounted last at `/` (`api/frontend.PageFiles`: `_next/static/*`
+  is cached for good, `IMMUTABLE`); responses over 1 KB are gzipped (`GZipMiddleware`).
 - Auth: `services/auth/` (`AuthService`, scrypt `passwords.py`, `LoginThrottle`), `repositories/user_repository.py`,
   `api/auth.py` (middleware: `/api/*` and `/reports/*` need a session cookie except `/api/auth/*`; cross-site
   writes refused; `current_user`/`require_owner` helpers), `api/routes/auth.py`. Tests sign in with
@@ -150,7 +151,8 @@ next-themes, toasts via sonner. Static export: pages become `name.html`, served 
   `useAnswers`, `useSearchFilters` (hidden companies: one module-level store shared by `search-form/ExcludeCompaniesField`
   and the results), `useAutoApply` (polls while a run is going), `useNotes`.
 - `lib/`: `api/` (typed client), `types.ts` (mirrors the API JSON), `format.ts`, `estimate.ts`, `funnel.ts`,
-  `storage.ts`, `constants.ts`, `utils.ts` (`cn`).
+  `storage.ts`, `constants.ts`, `utils.ts` (`cn`), `poll.ts` (`waitForNextPoll`: `POLL_MS`, `HIDDEN_POLL_MS` in a background tab,
+  at once on return; used by `useSearchJob` and `useAutoApply`).
 
 Use theme tokens (`bg-card`, `text-muted-foreground`, `bg-success-soft`…), never raw colours. Give
 one-column grids `grid-cols-1` so long text can't widen the page.

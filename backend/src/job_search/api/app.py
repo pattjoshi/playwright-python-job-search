@@ -7,6 +7,7 @@ import logging
 from pathlib import Path
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 
 from job_search.api.auth import install_auth
@@ -162,6 +163,7 @@ def create_app(
         return users.by_id(user_id) if user_id is not None else None
 
     install_auth(app, ctx.auth, extension_user)
+    app.add_middleware(GZipMiddleware, minimum_size=1024)  # page scripts and job lists shrink ~70%
     for build_router in ROUTERS:
         app.include_router(build_router(ctx))
     serve_frontend(app, frontend_dir)

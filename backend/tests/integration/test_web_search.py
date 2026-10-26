@@ -18,6 +18,8 @@ def test_frontend_page_or_build_hint(make_client, tmp_path):
     (built / "dashboard").mkdir()  # Next.js also writes a folder of page data next to dashboard.html
     (built / "404.html").write_text("not found")
     (built / "_next" / "app.js").write_text("console.log(1)")
+    (built / "_next" / "static").mkdir()
+    (built / "_next" / "static" / "page-3f2a.js").write_text("console.log('page');" * 200)
     client, _ = make_client()
     assert b"<title>Job Search</title>" in client.get("/").content
     page = client.get("/dashboard")
@@ -25,6 +27,10 @@ def test_frontend_page_or_build_hint(make_client, tmp_path):
     reload = client.get("/dashboard", headers={"If-None-Match": page.headers["etag"]})
     assert reload.status_code == 304  # a browser reload gets "not modified", not the 404 page
     assert client.get("/_next/app.js").text == "console.log(1)"
+    hashed = client.get("/_next/static/page-3f2a.js", headers={"Accept-Encoding": "gzip"})
+    assert hashed.headers["cache-control"] == "public, max-age=31536000, immutable"  # kept by the browser for good
+    assert hashed.headers["content-encoding"] == "gzip" and hashed.text.startswith("console.log('page');")
+    assert "cache-control" not in page.headers  # pages themselves are always checked again
     missing = client.get("/no-such-page")
     assert missing.status_code == 404 and missing.text == "not found"
     assert client.get("/api/session").json() == {"resume": None, "last_job": None}  # API still wins
