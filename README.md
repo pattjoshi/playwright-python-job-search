@@ -129,7 +129,11 @@ a message pops up when it's done.
    **Add "…"**. Leave it empty to use the city from your resume.
 3. **Experience**: e.g. **2 to 4** years. Jobs asking for clearly more or less are filtered out.
    Tick **Any** to switch this off.
-4. **Posted within**: **12 hours**, **24 hours**, **3 days** or **7 days**.
+4. **Exclude companies**: type a company and press **Enter** (or several with commas, e.g. `TCS, Wipro`). Their
+   jobs are left out of every search, the daily search and the results on screen. "Infosys Ltd" and "INFOSYS" count
+   as the same company. It's the same list as **Hide this company** in the results, so a company you hide there
+   shows up here too; click **×** to show its jobs again.
+5. **Posted within**: **12 hours**, **24 hours**, **3 days** or **7 days**.
 
 ### Step 3 · Job sites and how many jobs to show
 

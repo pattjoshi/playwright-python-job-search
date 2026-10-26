@@ -142,7 +142,8 @@ next-themes, toasts via sonner. Static export: pages become `name.html`, served 
   the "/" menu and dnd-kit sortable; pure helpers in `blocks.ts`), `settings/`, `coming-soon/`.
 - `hooks/`: `useSearchForm`, `useSearchJob`, `useResume`, `useJobHistory`, `useDailySearch`,
   `useSessionRestore`, `useRuns`, `useApplications` (optimistic moves with rollback), `useApplicationStats`,
-  `useAnswers`, `useSearchFilters` (hidden companies), `useAutoApply` (polls while a run is going), `useNotes`.
+  `useAnswers`, `useSearchFilters` (hidden companies: one module-level store shared by `search-form/ExcludeCompaniesField`
+  and the results), `useAutoApply` (polls while a run is going), `useNotes`.
 - `lib/`: `api/` (typed client), `types.ts` (mirrors the API JSON), `format.ts`, `estimate.ts`, `funnel.ts`,
   `storage.ts`, `constants.ts`, `utils.ts` (`cn`).
 
