@@ -1,7 +1,5 @@
 "use client";
 
-import { CheckCircle2, TriangleAlert } from "lucide-react";
-
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,13 +8,15 @@ import { useSearchSession } from "@/providers/SearchSessionProvider";
 
 import { AccountCard } from "./AccountCard";
 import { AppearanceCard } from "./AppearanceCard";
+import { OpenAIKeyCard } from "./OpenAIKeyCard";
 
 const DATA_FOLDERS = [
   ["uploads/", "Resumes you uploaded"],
   ["output/", "HTML / Excel / CSV reports"],
   ["data/history.sqlite3", "Applied, hidden and seen jobs, and the search history"],
   ["data/cache.sqlite3", "Saved job details, AI scores and resume readings (safe to delete)"],
-  [".env", "Your settings and OpenAI key"],
+  ["data/secrets.json", "Your OpenAI key, encrypted (the key to read it: data/secret.key, or APP_SECRET)"],
+  [".env", "Your settings"],
 ];
 
 export function SettingsPage() {
@@ -28,21 +28,7 @@ export function SettingsPage() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <AccountCard />
         <AppearanceCard />
-        <Card>
-          <CardHeader>
-            <CardTitle>OpenAI key</CardTitle>
-            <CardDescription>Used to read your resume and score jobs.</CardDescription>
-          </CardHeader>
-          <CardContent className="text-sm">
-            {config.has_api_key ? (
-              <p className="flex items-center gap-2 text-success"><CheckCircle2 className="size-4" /> Key found in .env</p>
-            ) : (
-              <p className="flex items-center gap-2 text-destructive">
-                <TriangleAlert className="size-4" /> Not set: add OPENAI_API_KEY to the .env file and restart the app.
-              </p>
-            )}
-          </CardContent>
-        </Card>
+        <OpenAIKeyCard />
         <Card>
           <CardHeader>
             <CardTitle>Seen jobs</CardTitle>

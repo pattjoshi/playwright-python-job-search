@@ -37,7 +37,7 @@ def build_router(ctx: ApiContext) -> APIRouter:
                 "top": settings.top,
                 "parallel_sites": settings.parallel_sites,
             },
-            "has_api_key": bool(settings.openai_api_key),
+            "has_api_key": bool(ctx.openai_key.current()),
             "running_job": ctx.manager.running.id if ctx.manager.running else None,
             "resume_types": list(SUPPORTED_SUFFIXES),
             "history": ctx.history.counts(),

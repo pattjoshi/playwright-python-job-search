@@ -9,6 +9,7 @@ from job_search.api.routes import (
     extension,
     history,
     notes,
+    openai_key,
     reports,
     resume,
     schedule,
@@ -21,7 +22,7 @@ ROUTERS = [
     module.build_router
     for module in (
         auth, applications, answers, auto_apply, extension, notes, resume, session, search, search_filters, history, schedule,
-        config, reports,
+        config, openai_key, reports,
     )
 ]
 

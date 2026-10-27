@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRef, useState } from "react";
 
 import { DailySearchCard } from "@/components/daily/DailySearchCard";
@@ -65,7 +66,11 @@ export function SearchPage() {
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[400px_minmax(0,1fr)]">
         <form className="grid grid-cols-1 gap-3.5" noValidate onSubmit={onSubmit}>
           {!config.has_api_key ? (
-            <Alert variant="destructive"><AlertDescription>OPENAI_API_KEY is not set. Add it to your .env file and restart the app.</AlertDescription></Alert>
+            <Alert variant="destructive">
+              <AlertDescription>
+                <span>Add your OpenAI key first: <Link href="/settings" className="font-medium underline">Settings → OpenAI key</Link>.</span>
+              </AlertDescription>
+            </Alert>
           ) : null}
           <ResumeCard resume={resumeApi} />
           <LookForCard form={formApi} locationChoices={config.location_choices} />

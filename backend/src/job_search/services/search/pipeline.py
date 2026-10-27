@@ -94,9 +94,9 @@ def run_pipeline(
 def _make_llm(run: _Run) -> JobMatcherLLM | None:
     if not run.options.use_llm:
         return None
-    if not run.settings.openai_api_key:
-        raise ValueError("OPENAI_API_KEY is not set. Add it to .env, or run with --no-llm and --keywords.")
-    llm = JobMatcherLLM(run.settings.openai_api_key, run.settings.openai_model)
+    if not run.settings.api_key():
+        raise ValueError("No OpenAI key: save one in Settings → OpenAI key or OPENAI_API_KEY in .env, or run with --no-llm and --keywords.")
+    llm = JobMatcherLLM(run.settings.api_key(), run.settings.openai_model)
     run.stats.usage = getattr(llm, "usage", run.stats.usage)
     return llm
 

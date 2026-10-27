@@ -75,6 +75,10 @@ supporting. Lower layers never import upper ones.
   and the description (cut to `MAX_DESCRIPTION`) for the results filters and details panel.
 - `services/search_manager.py`: one search at a time on a background thread for the web page
   (poll + Stop), and it saves the last search to the session so reloads restore it.
+- OpenAI key: `services/openai_key.py` (`OpenAIKeyService`: saved key wins over `.env`, checked with `models.list()` before saving,
+  `hint()` only ever sent back; `with_saved_key(settings)` attaches it, so always call `settings.api_key()`, never
+  `settings.openai_api_key`), `repositories/secret_store.py` (Fernet, `data/secrets.json` 0600, key from `APP_SECRET` or
+  `data/secret.key`), `api/routes/openai_key.py` (owner-only PUT/DELETE). Tests pass `create_app(key_checker=)`.
 - `services/llm_service.py`: strict JSON-schema output with fallback, parallel scoring batches, `TokenUsage`. Scoring sends
   `services/job_text.clean_description()` (drops company intro / benefits / EEO sections and lines, cut to `MAX_DESCRIPTION_CHARS`).
 - `api/app.py`: `create_app(settings, output_dir, upload_dir, runner, analyzer, system_scheduler,

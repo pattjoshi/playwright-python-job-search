@@ -11,6 +11,7 @@ from job_search.cli.logs import setup_logging
 from job_search.config import load_settings
 from job_search.repositories import LOG_FILE, SessionRepository, UserRepository, load_schedule, save_state
 from job_search.services.cleanup_service import cleanup
+from job_search.services.openai_key import with_saved_key
 from job_search.services.schedule_service import options_from_dict
 from job_search.services.search import run
 
@@ -18,7 +19,7 @@ log = logging.getLogger(__name__)
 
 
 def main(_argv: list[str] | None = None) -> int:
-    settings = load_settings()
+    settings = with_saved_key(load_settings())
     data_dir = settings.history_path.parent
     data_dir.mkdir(parents=True, exist_ok=True)
     handlers = [logging.FileHandler(data_dir / LOG_FILE, encoding="utf-8"), logging.StreamHandler(sys.stderr)]

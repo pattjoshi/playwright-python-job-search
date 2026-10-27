@@ -65,13 +65,19 @@ cd ..
 # Windows: copy .env.example .env      macOS/Linux: cp .env.example .env
 ```
 
-Open `.env` in a text editor and paste your key:
+**Your OpenAI key:** the easiest way is to start the app (step 2), sign in and open **Settings → OpenAI key**: paste
+it and press **Save key**. The app checks it with OpenAI first, saves it **encrypted** in `data/secrets.json` and never
+shows it again (only `sk-…abcd`). It's used at once, also by the daily search; **Remove** goes back to `.env`.
+
+Or put it in `.env` instead:
 
 ```ini
 OPENAI_API_KEY=sk-...
 ```
 
-`.env` is never uploaded to GitHub, so your key stays on your computer.
+`.env` and `data/` are never uploaded to GitHub, so your key stays on your computer. For extra safety set
+`APP_SECRET` in `.env` (any long random text): the saved key is then encrypted with it instead of `data/secret.key`,
+so a copy of the `data/` folder alone can't reveal it.
 
 ## 2. Start the app
 
@@ -367,7 +373,7 @@ Click **Notes** in the sidebar: Notion-style pages for company research, intervi
 | **"verify you're human"** on Naukri or Indeed | Keep **Show browser** on and solve it in the browser window; the search continues. |
 | **Naukri: blocked the search** (log: *Access Denied*) | Naukri refused the automated browser, so the app skipped it for that run instead of waiting on every search. Turn on **Show browser** and search again. Having Google Chrome installed helps: the app uses it when it's there. |
 | A site shows **couldn't load ✕** | The site was down or blocking for now; the other sites still ran. Try again later. |
-| **"OPENAI_API_KEY is not set"** | Put your key in `.env` and restart the app. |
+| **"Add your OpenAI key first"** | Save it in **Settings → OpenAI key** (or put `OPENAI_API_KEY` in `.env` and restart). |
 | **"Could not read your resume"** | Use a text-based PDF or DOCX (not a scanned image). |
 | **"Upload your resume first"** | Your saved resume file was cleaned up or cleared; upload it again. |
 | Searches are slow | Fewer keywords or cities, fewer *Pages per search*, or a lower *Jobs to score per site*. Repeat runs are faster because work is reused: a keyword + city searched on a site in the last **2 hours** isn't searched there again, and a search stops early once a page only shows jobs already found. |
@@ -386,7 +392,8 @@ command line). See `.env.example` for the full list with comments.
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `OPENAI_API_KEY` | (required) | Your OpenAI key |
+| `OPENAI_API_KEY` | (or Settings) | Your OpenAI key; a key saved in **Settings → OpenAI key** is used instead |
+| `APP_SECRET` | (optional) | Encrypts the key saved in Settings (otherwise `data/secret.key` is used) |
 | `OPENAI_MODEL` | `gpt-5.4-mini` | Model used to read resumes and score jobs |
 | `RESULTS`, `RESULTS_LINKEDIN`, `RESULTS_NAUKRI`, `RESULTS_INDEED` | 10 | Jobs shown per site |
 | `LOCATION` | from resume | Cities, comma separated (`Pune, Bengaluru, Remote`) |

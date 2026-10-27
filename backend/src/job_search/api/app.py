@@ -28,6 +28,7 @@ from job_search.repositories import (
     resume_key,
 )
 from job_search.repositories.search_filters_repository import SearchFiltersRepository
+from job_search.repositories.secret_store import SecretStore
 from job_search.schemas.common import ApiError
 from job_search.services.answers import AnswerAI, AnswerService
 from job_search.services.applications import ApplicationService
@@ -37,6 +38,7 @@ from job_search.services.auto_apply.extension_keys import ExtensionKeys
 from job_search.services.cleanup_service import cleanup
 from job_search.services.llm_service import JobMatcherLLM
 from job_search.services.notes import NoteService
+from job_search.services.openai_key import NO_KEY_MESSAGE, OpenAIKeyService, check_with_openai, with_saved_key
 from job_search.services.resume_service import read_resume_text
 from job_search.services.schedule_service import SystemScheduler
 from job_search.services.search import run
@@ -48,15 +50,15 @@ log = logging.getLogger(__name__)
 
 def default_analyzer(settings: Settings):
     def analyze(resume_path: Path) -> Profile:
-        if not settings.openai_api_key:
-            raise ValueError("OPENAI_API_KEY is not set. Add it to your .env file and restart the app.")
+        if not settings.api_key():
+            raise ValueError(NO_KEY_MESSAGE)
         # The same resume file (by content) is only sent to the AI once.
         cache = CacheRepository(settings.cache_path)
         key = resume_key(resume_path, settings.openai_model)
         profile = cache.get_profile(key)
         if profile is None:
             text = read_resume_text(resume_path)
-            profile = JobMatcherLLM(settings.openai_api_key, settings.openai_model).extract_profile(text)
+            profile = JobMatcherLLM(settings.api_key(), settings.openai_model).extract_profile(text)
             cache.save_profile(key, profile)
         return profile
 
@@ -65,7 +67,8 @@ def default_analyzer(settings: Settings):
 
 def default_answer_ai(settings: Settings):
     def make() -> AnswerAI | None:
-        return AnswerAI(JobMatcherLLM(settings.openai_api_key, settings.openai_model)) if settings.openai_api_key else None
+        key = settings.api_key()
+        return AnswerAI(JobMatcherLLM(key, settings.openai_model)) if key else None
 
     return make
 
@@ -111,9 +114,12 @@ def create_app(
     frontend_dir: Path = FRONTEND_BUILD_DIR,
     answer_ai=None,
     auto_apply_browser=None,
+    key_checker=None,
 ) -> FastAPI:
     settings = settings or load_settings()
     data_dir = settings.history_path.parent
+    openai_key = OpenAIKeyService(SecretStore(data_dir), settings.openai_api_key, key_checker or check_with_openai)
+    settings = with_saved_key(settings, openai_key)
     try:
         cleanup(settings.keep_days, data_dir, upload_dir, output_dir, settings.cache_path)
     except Exception:  # housekeeping must never stop the app from starting
@@ -146,6 +152,7 @@ def create_app(
         notes=NoteService(NoteRepository(settings.history_path)),
         extension_keys=ExtensionKeys(data_dir / "auto-apply"),
         search_filters=SearchFilterService(SearchFiltersRepository(data_dir)),
+        openai_key=openai_key,
     )
     saved = session.resume()
     if saved:  # the resume from before a restart still works without uploading it again
