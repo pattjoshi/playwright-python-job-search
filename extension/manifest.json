@@ -1,10 +1,23 @@
 {
   "manifest_version": 3,
   "name": "Job Search Auto-apply",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Applies to your queued Easy Apply jobs (Naukri, LinkedIn, Indeed) in your own signed-in Chrome, using your local Job Search app.",
-  "permissions": ["storage", "tabs", "scripting", "alarms"],
-  "host_permissions": ["<all_urls>"],
-  "background": { "service_worker": "background.js", "type": "module" },
-  "action": { "default_title": "Job Search Auto-apply", "default_popup": "popup.html" }
+  "permissions": [
+    "storage",
+    "tabs",
+    "scripting",
+    "alarms"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Job Search Auto-apply",
+    "default_popup": "popup.html"
+  }
 }

@@ -41,6 +41,8 @@ class Settings:
     price_input: float | None = None
     price_output: float | None = None
     price_cached_input: float | None = None
+    # Other names this computer may be reached by (ALLOWED_HOSTS); the app answers only on 127.0.0.1 / localhost otherwise.
+    allowed_hosts: tuple[str, ...] = ()
     # Job-board logins for Easy Apply: {"naukri": (email, password), ...}. Never printed or logged.
     board_logins: dict[str, tuple[str, str]] = field(default_factory=dict, repr=False)
 
@@ -73,6 +75,7 @@ def load_settings() -> Settings:
         history_path=Path(_get("HISTORY_DB") or DATA_DIR / "history.sqlite3"),
         keep_days=_get_int("KEEP_DAYS", 30, minimum=0),
         parallel_sites=_get_bool("PARALLEL_SITES", default=True),
+        allowed_hosts=tuple(h.strip() for h in (_get("ALLOWED_HOSTS") or "").split(",") if h.strip()),
         price_input=_get_price("OPENAI_PRICE_INPUT"),
         price_output=_get_price("OPENAI_PRICE_OUTPUT"),
         price_cached_input=_get_price("OPENAI_PRICE_CACHED_INPUT"),

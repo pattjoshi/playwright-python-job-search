@@ -19,7 +19,8 @@ COOKIE = "job_search_session"
 PROTECTED_PREFIXES = ("/api/", "/reports/")
 PUBLIC_PREFIXES = ("/api/auth/",)
 EXTENSION_PREFIX = "/api/extension/"
-LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1", "[::1]"}
+# `npm run dev` serves the page on :3000 and forwards /api to the app; those requests carry its Origin.
+DEV_ORIGINS = frozenset({"http://localhost:3000", "http://127.0.0.1:3000"})
 UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 
 
@@ -46,12 +47,15 @@ def install_auth(app: FastAPI, auth: AuthService, extension_user: Callable[[str 
 
 
 def _same_site(request: Request) -> bool:
-    """True for requests from this app's page (or tools that send no Origin, like the command line)."""
+    """True for requests from this app's page (or tools that send no Origin, like the command line).
+
+    The Origin must be this very address (port included): another web page on your computer, e.g. on localhost:5000,
+    is a different origin and can't make changes, even though the browser would send it the cookie.
+    """
     origin = request.headers.get("origin")
     if not origin:
         return True
-    host = urlsplit(origin).hostname or ""
-    return host in LOCAL_HOSTS or urlsplit(origin).netloc == request.headers.get("host")
+    return origin.rstrip("/").lower() in DEV_ORIGINS or urlsplit(origin).netloc.lower() == request.headers.get("host", "").lower()
 
 
 def current_user(request: Request) -> User:

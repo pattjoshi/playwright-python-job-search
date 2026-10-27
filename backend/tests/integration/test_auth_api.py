@@ -16,7 +16,7 @@ def make_client(tmp_path) -> TestClient:
         upload_dir=tmp_path / "up", analyzer=lambda path: PROFILE, system_scheduler=FakeScheduler(),
         frontend_dir=tmp_path / "frontend",
     )
-    return TestClient(app)
+    return TestClient(app, base_url="http://127.0.0.1")
 
 
 def test_everything_needs_sign_in_except_sign_in_itself(tmp_path):
@@ -62,7 +62,10 @@ def test_requests_from_other_websites_are_refused(tmp_path):
     evil = client.post("/api/history/forget", headers={"Origin": "https://evil.example"})
     assert evil.status_code == 403
     assert client.post("/api/history/forget", headers={"Origin": "http://localhost:3000"}).status_code == 200
-    assert client.post("/api/history/forget", headers={"Origin": "http://testserver"}).status_code == 200
+    assert client.post("/api/history/forget", headers={"Origin": "http://127.0.0.1"}).status_code == 200
+    # Another web page on this computer (other port) is another origin, though the browser sends it the cookie.
+    assert client.post("/api/history/forget", headers={"Origin": "http://127.0.0.1:5000"}).status_code == 403
+    assert client.post("/api/history/forget", headers={"Origin": "http://localhost:8888"}).status_code == 403
 
 
 def test_only_the_owner_can_change_the_daily_search(tmp_path):

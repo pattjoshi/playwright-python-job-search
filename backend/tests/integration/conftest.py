@@ -23,6 +23,6 @@ def make_client(tmp_path):
             frontend_dir=tmp_path / "frontend",
             answer_ai=answer_ai or (lambda: None),  # tests never call OpenAI
         )
-        return signed_in(TestClient(app)), runner
+        return signed_in(TestClient(app, base_url="http://127.0.0.1")), runner
 
     return make

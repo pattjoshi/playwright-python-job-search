@@ -151,7 +151,7 @@ def test_runs_api(tmp_path):
 
     app = create_app(Settings("key", history_path=tmp_path / "history.sqlite3"), output_dir=output,
                      upload_dir=tmp_path / "uploads", analyzer=lambda p: Profile(), system_scheduler=NoScheduler())
-    body = signed_in(TestClient(app)).get("/api/runs").json()
+    body = signed_in(TestClient(app, base_url="http://127.0.0.1")).get("/api/runs").json()
 
     assert [r["status"] for r in body["runs"]] == ["error", "done"]
     assert body["runs"][1]["report_url"] == "/reports/jobs_1.html"

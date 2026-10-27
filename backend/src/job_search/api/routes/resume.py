@@ -28,7 +28,7 @@ def build_router(ctx: ApiContext) -> APIRouter:
         if suffix not in SUPPORTED_SUFFIXES:
             raise ApiError(f"Resume must be one of: {', '.join(SUPPORTED_SUFFIXES)}")
 
-        data = await resume.read()
+        data = await resume.read(MAX_UPLOAD_BYTES + 1)  # never more than the limit in memory
         if len(data) > MAX_UPLOAD_BYTES:
             raise ApiError(f"Resume file is too big (max {MAX_UPLOAD_BYTES // (1024 * 1024)} MB).", status=413)
 

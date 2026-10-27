@@ -11,7 +11,7 @@ PNG = "data:image/png;base64," + base64.b64encode(b"\x89PNG\r\n\x1a\n" + b"0" * 
 
 def connect(client):
     key = client.post("/api/auto-apply/extension-key").json()["key"]
-    extension = TestClient(client.app, headers={"Authorization": f"Bearer {key}", "Origin": "chrome-extension://abcdef"})
+    extension = TestClient(client.app, base_url="http://127.0.0.1", headers={"Authorization": f"Bearer {key}", "Origin": "chrome-extension://abcdef"})
     return key, extension
 
 
@@ -24,8 +24,9 @@ def test_key_connects_and_replacing_it_disconnects(make_client):
     assert status["dry_run"] is True and status["waiting"] == 0 and set(status["boards"]) == {"naukri", "linkedin", "indeed"}
     assert client.get("/api/auto-apply").json()["extension"]["connected"] is True
 
-    assert TestClient(client.app).get("/api/extension/status").status_code == 401  # no key
-    assert TestClient(client.app, headers={"Authorization": "Bearer jsa_wrong"}).get("/api/extension/status").status_code == 401
+    assert TestClient(client.app, base_url="http://127.0.0.1").get("/api/extension/status").status_code == 401  # no key
+    wrong = TestClient(client.app, base_url="http://127.0.0.1", headers={"Authorization": "Bearer jsa_wrong"})
+    assert wrong.get("/api/extension/status").status_code == 401
     _, newer = connect(client)
     assert extension.get("/api/extension/status").status_code == 401  # the old key stopped working
     assert newer.get("/api/extension/status").status_code == 200
