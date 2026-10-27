@@ -2,15 +2,9 @@
 
 import { postJson, request } from "@/lib/api/client";
 import type {
-  Answer,
   Block,
   NotePage,
   NoteSummary,
-  AutoApplyJob,
-  AutoApplyOverview,
-  AutoApplyRun,
-  AutoApplySettings,
-  AnswerInput,
   Application,
   ApplicationEvent,
   ApplicationInput,
@@ -27,7 +21,6 @@ import type {
   SearchJob,
   SearchRequest,
   SessionState,
-  TryResult,
 } from "@/lib/types";
 
 export const authApi = {
@@ -53,39 +46,6 @@ export const applicationsApi = {
   track: (job: { source: string; job_id: string; title: string; company: string; url: string; location: string }) =>
     postJson<{ application: Application; created: boolean }>("/api/applications/track", job),
   importApplied: () => postJson<{ added: number }>("/api/applications/import-applied"),
-};
-
-export const answersApi = {
-  list: () => request<{ answers: Answer[] }>("/api/answers"),
-  create: (body: AnswerInput) => postJson<{ answer: Answer }>("/api/answers", body),
-  update: (id: number, body: AnswerInput) =>
-    request<{ answer: Answer }>(`/api/answers/${id}`, {
-      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
-    }),
-  approve: (id: number) => postJson<{ answer: Answer }>(`/api/answers/${id}/approve`),
-  remove: (id: number) => request<{ ok: boolean }>(`/api/answers/${id}`, { method: "DELETE" }),
-  addStarters: () => postJson<{ added: number }>("/api/answers/starters"),
-  fillFromResume: () => postJson<{ filled: number }>("/api/answers/fill-from-resume"),
-  tryQuestion: (question: string, options: string[]) => postJson<TryResult>("/api/answers/try", { question, options }),
-};
-
-export const autoApplyApi = {
-  overview: () => request<AutoApplyOverview>("/api/auto-apply"),
-  saveSettings: (body: Partial<AutoApplySettings>) =>
-    request<{ settings: AutoApplySettings }>("/api/auto-apply/settings", {
-      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
-    }),
-  queueLastSearch: () => postJson<{ added: number }>("/api/auto-apply/queue-last-search"),
-  run: () => postJson<{ run: AutoApplyRun }>("/api/auto-apply/run"),
-  stop: () => postJson<{ run: AutoApplyRun }>("/api/auto-apply/stop"),
-  retry: (id: number) => postJson<{ job: AutoApplyJob }>(`/api/auto-apply/${id}/retry`),
-  remove: (id: number) => request<{ ok: boolean }>(`/api/auto-apply/${id}`, { method: "DELETE" }),
-  extensionKey: () => postJson<{ key: string }>("/api/auto-apply/extension-key"),
-  disconnectExtension: () => request<{ ok: boolean }>("/api/auto-apply/extension-key", { method: "DELETE" }),
-  signIn: (board: string) => postJson<{ run: AutoApplyRun }>(`/api/auto-apply/boards/${board}/sign-in`),
-  tryJob: (id: number) => postJson<{ run: AutoApplyRun }>(`/api/auto-apply/${id}/try`),
-  pageUrl: (id: number) => `/api/auto-apply/${id}/page`,
-  screenshotUrl: (id: number, version: string) => `/api/auto-apply/${id}/screenshot?v=${encodeURIComponent(version)}`,
 };
 
 export const notesApi = {

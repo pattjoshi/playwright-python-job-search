@@ -2,7 +2,6 @@
 
 import { EyeOff, ExternalLink } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChipRow } from "@/components/ui/chip";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -70,7 +69,7 @@ export function JobDetailsSheet({ job, siteName, applied, onClose, onSetStatus, 
               </div>
               <div>
                 <h4 className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
-                  Job description {job.apply_url ? <Badge variant="outline">Company site</Badge> : null}
+                  Job description
                 </h4>
                 {job.description ? (
                   <p className="text-sm leading-relaxed break-words whitespace-pre-wrap">{job.description}</p>

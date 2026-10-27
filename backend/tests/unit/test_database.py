@@ -61,3 +61,33 @@ def test_table_models_match_the_migrations(tmp_path):
     with engine.connect() as connection:
         differences = compare_metadata(MigrationContext.configure(connection), Base.metadata)
     assert differences == []
+
+
+def test_removed_features_lose_their_tables_and_nothing_else(tmp_path):
+    """0008 drops the Auto-apply and Answer Bank tables; the account, applications and notes stay."""
+    from alembic import command
+    from sqlalchemy import create_engine
+
+    path = tmp_path / "history.sqlite3"
+    old = create_engine(f"sqlite:///{path}")
+    config = alembic_config()
+    with old.begin() as connection:  # a database made by the version that still had them
+        config.attributes["connection"] = connection
+        command.upgrade(config, "0007")
+    with sqlite3.connect(path) as db:
+        db.execute("INSERT INTO users (email, name, password_hash, role, created_at) VALUES ('a@b.c', 'A', 'x', 'owner', 'now')")
+        db.execute("INSERT INTO answers (user_id, question, answer, kind, category, status, created_at, updated_at) "
+                   "VALUES (1, 'Notice period?', '30 days', 'text', 'other', 'answered', 'now', 'now')")
+    old.dispose()
+
+    engine = get_engine(path)
+    tables = set(inspect(engine).get_table_names())
+    assert not tables & {"answers", "answer_wordings", "auto_apply_jobs", "auto_apply_settings"}
+    assert {"users", "applications", "notes", "jobs", "runs"} <= tables
+    with engine.connect() as connection:
+        assert connection.exec_driver_sql("SELECT email FROM users").scalar() == "a@b.c"
+
+    with engine.begin() as connection:  # and back: the tables return, empty
+        config.attributes["connection"] = connection
+        command.downgrade(config, "0007")
+    assert {"answers", "auto_apply_settings"} <= set(inspect(engine).get_table_names())

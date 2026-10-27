@@ -21,7 +21,6 @@ class Job:
     missing_skills: list[str] = field(default_factory=list)
     experience: str = ""  # as the board shows it, e.g. "2-5 Yrs"
     is_new: bool = True  # False if shown in an earlier search
-    apply_url: str = ""  # the company's own application page, when the board links to one ("Apply on company site")
 
     @property
     def dedupe_key(self) -> str:

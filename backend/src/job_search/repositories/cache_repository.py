@@ -1,6 +1,6 @@
 """Local cache (SQLite) so repeat and daily runs skip work they've already done.
 
-  job_details   job pages already opened (description, company apply link) -> not opened again
+  job_details   job pages already opened (description) -> not opened again
   scores        AI scores for a job + this resume profile + model + prompt -> not scored again
   profiles      AI reading of a resume file (by content hash) + model -> not sent again
   searches      one site's results for a keyword + city, reused for SEARCH_REUSE_HOURS -> a repeat run skips the site
@@ -22,7 +22,7 @@ _SCHEMA = """
 DROP TABLE IF EXISTS descriptions;  -- replaced by job_details (it had no apply link); the cache is disposable
 CREATE TABLE IF NOT EXISTS job_details (
     source TEXT NOT NULL, job_id TEXT NOT NULL,
-    description TEXT NOT NULL, experience TEXT NOT NULL DEFAULT '', apply_url TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL, experience TEXT NOT NULL DEFAULT '',
     saved_at TEXT NOT NULL,
     PRIMARY KEY (source, job_id)
 );
@@ -61,21 +61,23 @@ class CacheRepository:
         with self._db.lock, self._db.connect() as db:
             for job in jobs:
                 row = db.execute(
-                    "SELECT description, experience, apply_url FROM job_details WHERE source = ? AND job_id = ?",
+                    "SELECT description, experience FROM job_details WHERE source = ? AND job_id = ?",
                     (job.source, job.job_id),
                 ).fetchone()
                 if row:
                     job.description = row[0]
                     job.experience = job.experience or row[1]
-                    job.apply_url = job.apply_url or row[2]
                 else:
                     missing.append(job)
         return missing
 
     def save_descriptions(self, jobs: list[Job]) -> None:
-        rows = [(j.source, j.job_id, j.description, j.experience, j.apply_url, _now()) for j in jobs if j.description]
+        rows = [(j.source, j.job_id, j.description, j.experience, _now()) for j in jobs if j.description]
         with self._db.lock, self._db.connect() as db:
-            db.executemany("INSERT OR REPLACE INTO job_details VALUES (?, ?, ?, ?, ?, ?)", rows)
+            # Named columns: caches made before auto-apply was removed still have an unused apply_url column.
+            db.executemany(
+                "INSERT OR REPLACE INTO job_details (source, job_id, description, experience, saved_at) VALUES (?, ?, ?, ?, ?)", rows
+            )
 
     # ---------- AI scores ----------
 

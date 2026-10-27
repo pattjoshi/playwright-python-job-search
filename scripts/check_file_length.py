@@ -1,7 +1,7 @@
 """Fail when a source file has 250 lines or more (project rule: keep every file small and focused).
 
 Usage: python scripts/check_file_length.py [--max 250]
-Checks tracked and new files under backend/, frontend/ and extension/ (code and styles, not docs or test fixtures).
+Checks tracked and new files under backend/, frontend/ and scripts/ (code and styles, not docs or test fixtures).
 """
 
 import argparse
@@ -17,7 +17,7 @@ SKIP_NAMES = {"next-env.d.ts"}
 
 def source_files() -> list[Path]:
     listed = subprocess.run(
-        ["git", "ls-files", "--cached", "--others", "--exclude-standard", "backend", "frontend", "scripts", "extension"],
+        ["git", "ls-files", "--cached", "--others", "--exclude-standard", "backend", "frontend", "scripts"],
         cwd=ROOT, capture_output=True, text=True, check=True,
     ).stdout.split()
     files = [ROOT / name for name in listed]

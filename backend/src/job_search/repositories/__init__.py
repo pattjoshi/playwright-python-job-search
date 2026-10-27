@@ -1,6 +1,4 @@
-from job_search.repositories.answer_repository import AnswerRepository
 from job_search.repositories.application_repository import ApplicationRepository
-from job_search.repositories.auto_apply_repository import AutoApplyRepository
 from job_search.repositories.cache_repository import CacheRepository, profile_key, resume_key
 from job_search.repositories.history_repository import MAX_RUNS, STATUSES, JobHistoryRepository
 from job_search.repositories.note_repository import NoteRepository
@@ -18,9 +16,7 @@ from job_search.repositories.session_repository import SessionRepository
 from job_search.repositories.user_repository import User, UserRepository
 
 __all__ = [
-    "AnswerRepository",
     "ApplicationRepository",
-    "AutoApplyRepository",
     "CacheRepository",
     "NoteRepository",
     "profile_key",
