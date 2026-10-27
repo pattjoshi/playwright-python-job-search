@@ -106,6 +106,19 @@ export interface SearchFilters {
   exclude_companies: string[];
 }
 
+export interface OpenAIKeyStatus {
+  source: "settings" | "env" | null; // saved here, from .env, or none
+  hint: string | null; // "sk-…a1b2", never the key itself
+}
+
+export const openAIKeyApi = {
+  get: () => request<OpenAIKeyStatus>("/api/settings/openai-key"),
+  save: (key: string) => request<OpenAIKeyStatus>("/api/settings/openai-key", {
+    method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key }),
+  }),
+  remove: () => request<OpenAIKeyStatus>("/api/settings/openai-key", { method: "DELETE" }),
+};
+
 export const searchFiltersApi = {
   get: () => request<{ filters: SearchFilters }>("/api/search-filters"),
   hideCompany: (company: string) => postJson<{ filters: SearchFilters }>("/api/search-filters/hide-company", { company }),

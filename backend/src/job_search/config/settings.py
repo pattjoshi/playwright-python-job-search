@@ -5,6 +5,7 @@ option of the same name (RESULTS <-> --results), and the command line always win
 """
 
 import os
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -18,7 +19,7 @@ DEFAULT_MODEL = "gpt-5.4-mini"
 
 @dataclass(frozen=True)
 class Settings:
-    openai_api_key: str | None
+    openai_api_key: str | None = field(repr=False)  # never printed or logged
     openai_model: str = DEFAULT_MODEL
     chromium_executable: str | None = None
 
@@ -43,6 +44,14 @@ class Settings:
     price_cached_input: float | None = None
     # Job-board logins for Easy Apply: {"naukri": (email, password), ...}. Never printed or logged.
     board_logins: dict[str, tuple[str, str]] = field(default_factory=dict, repr=False)
+
+    # The key saved in Settings (encrypted on disk), attached by the app; it wins over OPENAI_API_KEY from .env.
+    saved_key: Callable[[], str | None] | None = field(default=None, repr=False, compare=False)
+
+    def api_key(self) -> str | None:
+        """The OpenAI key to use right now (a key saved in Settings applies without a restart)."""
+        saved = self.saved_key() if self.saved_key else None
+        return saved or self.openai_api_key
 
     @property
     def cache_path(self) -> Path:

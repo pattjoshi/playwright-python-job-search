@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Request
 from job_search.api.dependencies import ApiContext
 from job_search.models import SearchOptions
 from job_search.schemas.common import ApiError, int_in_range, str_list
+from job_search.services.openai_key import NO_KEY_MESSAGE
 from job_search.services.reporting import SITE_NAMES
 from job_search.services.scraping import SCRAPERS
 
@@ -72,8 +73,8 @@ def build_router(ctx: ApiContext) -> APIRouter:
 
     @router.post("/api/search", status_code=202)
     async def start_search(request: Request):
-        if not ctx.settings.openai_api_key:
-            raise ApiError("OPENAI_API_KEY is not set. Add it to your .env file and restart the app.")
+        if not ctx.settings.api_key():
+            raise ApiError(NO_KEY_MESSAGE)
         try:
             body = await request.json()
         except Exception:

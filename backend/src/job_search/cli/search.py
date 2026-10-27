@@ -14,6 +14,7 @@ from job_search.cli.logs import setup_logging
 from job_search.config import OUTPUT_DIR, Settings, load_settings
 from job_search.models import SearchOptions
 from job_search.services.matching_service import parse_experience_option
+from job_search.services.openai_key import with_saved_key
 from job_search.services.scraping import SCRAPERS
 from job_search.services.search import run
 
@@ -156,7 +157,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_search_parser()
     args = parser.parse_args(argv)
     try:
-        settings = load_settings()
+        settings = with_saved_key(load_settings())
         options = build_search_options(args, settings)
     except ValueError as error:
         parser.error(str(error))

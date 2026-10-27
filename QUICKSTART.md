@@ -94,7 +94,8 @@ Every step from zero to your first job search. For the full guide with screensho
     | Git Bash / Mac / Linux | `cp .env.example .env` |
     | Command Prompt / PowerShell | `copy .env.example .env` |
 
-15. Open **`.env`** in any text editor (Notepad, VS Code) and put your key on this line, then **save**:
+15. Open **`.env`** in any text editor (Notepad, VS Code) and put your key on this line, then **save**.
+    (Or skip this and paste the key later in the app: **Settings → OpenAI key → Save key**.)
 
     ```ini
     OPENAI_API_KEY=sk-your-key-here
@@ -178,7 +179,7 @@ Every step from zero to your first job search. For the full guide with screensho
 | `npm` not found | Install Node.js (step 2), then open a **new** terminal. |
 | `No module named fastapi` / `playwright` | The environment isn't active (no `(.venv)`): run step 10, then step 11. |
 | Browser error on start ("Executable doesn't exist") | Run step 12: `playwright install chromium`. |
-| Page says **OPENAI_API_KEY is not set** | Check step 15 (key saved in `.env`), then restart the app (Ctrl+C, step 16). |
+| Page says **Add your OpenAI key first** | Open **Settings → OpenAI key** and save it, or check step 15 and restart the app (Ctrl+C, step 16). |
 | Forgot your password | In the project folder (with `(.venv)` active): `python -m job_search reset-password --email you@example.com`. |
 | **Address already in use** / port 8000 busy | The app is already running in another window, or start it on another port: `python -m job_search --port 8001`. |
 | A site finds **0 jobs** | Look at the number line under the progress bar and the yellow hint; widen cities, experience or *Posted within*. Click **Show log** for details. |

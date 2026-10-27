@@ -13,6 +13,7 @@ from job_search.services.auth import AuthService
 from job_search.services.auto_apply import AutoApplyManager
 from job_search.services.auto_apply.extension_keys import ExtensionKeys
 from job_search.services.notes import NoteService
+from job_search.services.openai_key import OpenAIKeyService
 from job_search.services.schedule_service import SystemScheduler
 from job_search.services.search_filters import SearchFilterService
 from job_search.services.search_manager import SearchManager
@@ -36,4 +37,5 @@ class ApiContext:
     notes: NoteService
     extension_keys: ExtensionKeys
     search_filters: SearchFilterService
+    openai_key: OpenAIKeyService
     resumes: dict[str, dict] = field(default_factory=dict)
