@@ -13,7 +13,7 @@ def make_app(tmp_path, **settings):
     return create_app(
         Settings("key", history_path=tmp_path / "history.sqlite3", **settings), output_dir=tmp_path / "out",
         upload_dir=tmp_path / "up", analyzer=lambda path: PROFILE, system_scheduler=FakeScheduler(),
-        frontend_dir=tmp_path / "frontend",
+        frontend_dir=tmp_path / "frontend", key_checker=lambda key: None,  # tests never call OpenAI
     )
 
 

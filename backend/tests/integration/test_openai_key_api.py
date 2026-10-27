@@ -35,8 +35,8 @@ def test_only_the_owner_changes_the_key(make_client):
     client, _ = make_client()
     ctx = client.app.state.context
     ctx.auth.users.create("guest@example.com", "Guest", hash_password("guest password 1"), role="member")
-    guest = TestClient(client.app)
+    guest = TestClient(client.app, base_url="http://127.0.0.1")
     assert guest.post("/api/auth/login", json={"email": "guest@example.com", "password": "guest password 1"}).status_code == 200
     assert guest.put("/api/settings/openai-key", json={"key": KEY}).status_code == 403
     assert guest.delete("/api/settings/openai-key").status_code == 403
-    assert TestClient(client.app).get("/api/settings/openai-key").status_code == 401  # signed out
+    assert TestClient(client.app, base_url="http://127.0.0.1").get("/api/settings/openai-key").status_code == 401  # signed out
