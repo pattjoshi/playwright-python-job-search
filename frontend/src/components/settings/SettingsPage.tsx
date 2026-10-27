@@ -28,33 +28,37 @@ export function SettingsPage() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <AccountCard />
         <AppearanceCard />
-        <OpenAIKeyCard />
-        <Card>
-          <CardHeader>
-            <CardTitle>Seen jobs</CardTitle>
-            <CardDescription>With “Only new jobs” on, jobs you were already shown are skipped.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-wrap items-center gap-3 text-sm">
-            <span>{history.counts.seen ? `${history.counts.seen} jobs marked as seen.` : "No seen jobs yet."}</span>
-            <Button variant="outline" size="sm" disabled={!history.counts.seen} onClick={forgetSeen}>Forget seen jobs</Button>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Your data</CardTitle>
-            <CardDescription>Everything stays in the project folder on this computer.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <dl className="grid grid-cols-1 gap-2 text-sm">
-              {DATA_FOLDERS.map(([path, what]) => (
-                <div key={path} className="grid grid-cols-[minmax(0,11rem)_1fr] gap-3">
-                  <dt className="truncate font-mono text-xs leading-5">{path}</dt>
-                  <dd className="text-muted-foreground">{what}</dd>
-                </div>
-              ))}
-            </dl>
-          </CardContent>
-        </Card>
+        {config.hosted ? null : <OpenAIKeyCard />}
+        {config.hosted ? null : (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle>Seen jobs</CardTitle>
+                <CardDescription>With “Only new jobs” on, jobs you were already shown are skipped.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-wrap items-center gap-3 text-sm">
+                <span>{history.counts.seen ? `${history.counts.seen} jobs marked as seen.` : "No seen jobs yet."}</span>
+                <Button variant="outline" size="sm" disabled={!history.counts.seen} onClick={forgetSeen}>Forget seen jobs</Button>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Your data</CardTitle>
+                <CardDescription>Everything stays in the project folder on this computer.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <dl className="grid grid-cols-1 gap-2 text-sm">
+                  {DATA_FOLDERS.map(([path, what]) => (
+                    <div key={path} className="grid grid-cols-[minmax(0,11rem)_1fr] gap-3">
+                      <dt className="truncate font-mono text-xs leading-5">{path}</dt>
+                      <dd className="text-muted-foreground">{what}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
       <p className="mt-6 text-xs text-muted-foreground">Job Search {config.version ? `v${config.version}` : ""}</p>
     </>

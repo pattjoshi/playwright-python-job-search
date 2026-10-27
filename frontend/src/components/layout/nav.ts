@@ -23,6 +23,9 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/notes", label: "Notes", description: "Interview prep and research notes", icon: NotebookPen },
 ];
 
+/** Paths that need the app running on your computer (a browser, long runs): hidden online. */
+export const LOCAL_ONLY_PATHS = ["/search"];
+
 export const SETTINGS_ITEM: NavItem = {
   href: "/settings", label: "Settings", description: "Appearance, AI key and your data", icon: Settings,
 };

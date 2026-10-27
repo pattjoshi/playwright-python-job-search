@@ -1,0 +1,11 @@
+# Never uploaded to Vercel: your local data, secrets and build leftovers.
+.env
+data/
+output/
+uploads/
+.venv/
+venv/
+**/node_modules/
+**/__pycache__/
+backend/tests/
+docs/screenshots/

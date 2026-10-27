@@ -12,7 +12,8 @@ import { authApi } from "@/lib/api/endpoints";
 import { PasswordField } from "./PasswordField";
 
 /** Sign in, or (first run) create the owner account. Calls onDone after the session cookie is set. */
-export function AuthForm({ mode, onDone }: { mode: "setup" | "signin"; onDone: () => void }) {
+export function AuthForm({ mode, onDone, needsCode = false }: { mode: "setup" | "signin"; onDone: () => void; needsCode?: boolean }) {
+  const [code, setCode] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,7 +28,7 @@ export function AuthForm({ mode, onDone }: { mode: "setup" | "signin"; onDone: (
     if (setup && password !== confirm) return setError("The two passwords don't match.");
     setBusy(true);
     try {
-      await (setup ? authApi.setup({ name, email, password }) : authApi.login({ email, password }));
+      await (setup ? authApi.setup({ name, email, password, ...(needsCode ? { setup_code: code } : {}) }) : authApi.login({ email, password }));
       onDone();
     } catch (err) {
       setError((err as Error).message);
@@ -53,6 +54,12 @@ export function AuthForm({ mode, onDone }: { mode: "setup" | "signin"; onDone: (
       />
       {setup ? (
         <PasswordField id="confirm" label="Confirm password" value={confirm} onChange={setConfirm} autoComplete="new-password" />
+      ) : null}
+      {setup && needsCode ? (
+        <PasswordField
+          id="setup-code" label="Setup code" value={code} onChange={setCode} autoComplete="off"
+          hint="The SETUP_CODE you set when deploying: only you can create the account."
+        />
       ) : null}
       {error ? <Alert variant="destructive"><AlertDescription>{error}</AlertDescription></Alert> : null}
       <Button type="submit" size="lg" disabled={busy}>

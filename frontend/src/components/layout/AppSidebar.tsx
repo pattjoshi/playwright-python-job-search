@@ -6,8 +6,9 @@ import { usePathname } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { useConfig } from "@/providers/ConfigProvider";
 
-import { NAV_ITEMS, type NavItem, SETTINGS_ITEM } from "./nav";
+import { LOCAL_ONLY_PATHS, NAV_ITEMS, type NavItem, SETTINGS_ITEM } from "./nav";
 
 interface AppSidebarProps {
   collapsed?: boolean;
@@ -16,16 +17,20 @@ interface AppSidebarProps {
 
 /** The left navigation. `collapsed` shows icons only (with tooltips). */
 export function AppSidebar({ collapsed = false, onNavigate }: AppSidebarProps) {
+  const { config } = useConfig();
+  const items = config.hosted ? NAV_ITEMS.filter((item) => !LOCAL_ONLY_PATHS.includes(item.href)) : NAV_ITEMS;
   return (
     <nav aria-label="Main" className="flex h-full flex-col gap-1 p-3">
       <Link href="/dashboard" onClick={onNavigate} className={cn("mb-4 flex items-center gap-2.5 px-2 py-1", collapsed && "justify-center px-0")}>
         <span className="grid grid-cols-1 size-8 shrink-0 place-items-center rounded-lg bg-primary text-[15px] font-bold text-primary-foreground">J</span>
         {!collapsed ? <span className="text-base font-bold">Job Search</span> : null}
       </Link>
-      {NAV_ITEMS.map((item) => <SidebarLink key={item.href} item={item} collapsed={collapsed} onNavigate={onNavigate} />)}
+      {items.map((item) => <SidebarLink key={item.href} item={item} collapsed={collapsed} onNavigate={onNavigate} />)}
       <div className="mt-auto flex flex-col gap-1 border-t border-sidebar-border pt-3">
         <SidebarLink item={SETTINGS_ITEM} collapsed={collapsed} onNavigate={onNavigate} />
-        {!collapsed ? <p className="px-2.5 pt-2 text-xs text-muted-foreground">Runs on your computer · private</p> : null}
+        {!collapsed ? (
+          <p className="px-2.5 pt-2 text-xs text-muted-foreground">{config.hosted ? "Online · Search runs on your computer" : "Runs on your computer · private"}</p>
+        ) : null}
       </div>
     </nav>
   );

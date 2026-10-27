@@ -25,7 +25,7 @@ import type {
 
 export const authApi = {
   status: () => request<AuthStatus>("/api/auth/status"),
-  setup: (body: { name: string; email: string; password: string }) => postJson<{ user: AuthUser }>("/api/auth/setup", body),
+  setup: (body: { name: string; email: string; password: string; setup_code?: string }) => postJson<{ user: AuthUser }>("/api/auth/setup", body),
   login: (body: { email: string; password: string }) => postJson<{ user: AuthUser }>("/api/auth/login", body),
   logout: () => postJson<{ ok: boolean }>("/api/auth/logout"),
   logoutEverywhere: () => postJson<{ ok: boolean }>("/api/auth/logout-everywhere"),

@@ -36,3 +36,24 @@ def fixture_html():
 def no_retry_waits(monkeypatch):
     """Retries still happen in tests, just without the real 8s/20s waits."""
     monkeypatch.setattr(BaseScraper, "retry_delays", (0.0, 0.0))
+
+
+@pytest.fixture(autouse=True)
+def fresh_postgres(monkeypatch):
+    """With TEST_DATABASE_URL set (e.g. CI's Postgres), every test gets an empty Postgres database instead of SQLite."""
+    url = os.getenv("TEST_DATABASE_URL")
+    if not url:
+        yield
+        return
+    from sqlalchemy import create_engine, text
+
+    from job_search.database import engine as engines
+
+    admin = create_engine(url.replace("postgresql://", "postgresql+psycopg://", 1))
+    with admin.begin() as db:
+        db.execute(text("DROP SCHEMA public CASCADE; CREATE SCHEMA public"))
+    admin.dispose()
+    monkeypatch.setenv("DATABASE_URL", url)
+    engines._engines.clear()
+    yield
+    engines._engines.clear()

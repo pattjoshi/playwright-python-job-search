@@ -99,7 +99,15 @@ supporting. Lower layers never import upper ones.
   `api/routes/applications.py`.
 - Notes: `notes` table (blocks as JSON, `parent_id` for pages inside pages, cascade delete), `repositories/note_repository.py`,
   `services/notes.py` (`clean_blocks`, `move` refuses loops), `api/routes/notes.py`.
-- `cli/`: `serve`, `search`, `daily`, `reset-password` commands; `__main__.py` and `daily.py` are thin entry points.
+- Online (Vercel, see DEPLOY.md): `api/index.py` (repo root) is the function, `vercel.json` builds `frontend/out` and rewrites
+  `/api/*` to it, `api/requirements.txt` its packages (Playwright's driver excluded). `database/engine.get_engine()` uses
+  `DATABASE_URL` (Postgres, `NullPool`) when set, else the SQLite file; repositories must stay dialect-neutral
+  (`history_repository._upsert()`). `config.paths.HOSTED` (VERCEL/HOSTED env): files under /tmp, `Settings.hosted`,
+  `setup_code` (first account needs it), Vercel URLs added to `allowed_hosts`, Secure cookie, `client_address()` from
+  X-Forwarded-For, `security.LOCAL_ONLY` routes refused (409); the page hides Search (`nav.LOCAL_ONLY_PATHS`, `LocalOnly`).
+  `cli/copy_to_cloud.py` copies users/applications/notes/jobs/runs once. Tests: `TEST_DATABASE_URL=postgresql://… pytest`
+  runs everything on Postgres (fresh schema per test; CI job `backend-postgres`).
+- `cli/`: `serve`, `search`, `daily`, `reset-password`, `copy-to-cloud` commands; `__main__.py` and `daily.py` are thin entry points.
 
 Tests patch `job_search.services.search.pipeline.SCRAPERS` / `.JobMatcherLLM` to fake boards and AI.
 Calling `run()` always starts real Chromium (via `SiteSession`), so such tests live in `integration/`.

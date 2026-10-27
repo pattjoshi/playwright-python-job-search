@@ -1,7 +1,9 @@
 """The app database: migrations run automatically, keep old data, and match the table models."""
 
+import os
 import sqlite3
 
+import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
@@ -22,6 +24,10 @@ CREATE TABLE runs (id INTEGER PRIMARY KEY AUTOINCREMENT, started_at TEXT NOT NUL
 """
 
 
+# These upgrade a database file from an older version of the app, so they only make sense for SQLite.
+sqlite_only = pytest.mark.skipif(bool(os.getenv("TEST_DATABASE_URL")), reason="upgrades a SQLite file")
+
+
 def head_revision() -> str:
     return ScriptDirectory.from_config(alembic_config()).get_current_head()
 
@@ -39,6 +45,7 @@ def test_new_database_is_created_at_the_latest_version(tmp_path):
     assert get_engine(tmp_path / "new" / "history.sqlite3") is engine  # one engine per file
 
 
+@sqlite_only
 def test_database_from_an_older_version_keeps_its_data(tmp_path):
     path = tmp_path / "history.sqlite3"
     with sqlite3.connect(path) as db:
@@ -63,6 +70,7 @@ def test_table_models_match_the_migrations(tmp_path):
     assert differences == []
 
 
+@sqlite_only
 def test_removed_features_lose_their_tables_and_nothing_else(tmp_path):
     """0008 drops the Auto-apply and Answer Bank tables; the account, applications and notes stay."""
     from alembic import command

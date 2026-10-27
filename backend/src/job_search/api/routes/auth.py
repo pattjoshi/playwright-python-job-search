@@ -1,8 +1,10 @@
 """Sign in, first-run account setup, sign out and password change."""
 
+import secrets
+
 from fastapi import APIRouter, Request, Response
 
-from job_search.api.auth import COOKIE, clear_session_cookie, current_user, set_session_cookie
+from job_search.api.auth import COOKIE, clear_session_cookie, client_address, current_user, set_session_cookie
 from job_search.api.dependencies import ApiContext
 from job_search.repositories import User
 from job_search.schemas.common import ApiError
@@ -27,6 +29,14 @@ def build_router(ctx: ApiContext) -> APIRouter:
     router = APIRouter(prefix="/api/auth")
     auth = ctx.auth
 
+    def check_setup_code(given: str) -> None:
+        """Online, anyone could open the page first: creating the account needs the SETUP_CODE you set in Vercel."""
+        expected = ctx.settings.setup_code
+        if ctx.settings.hosted and not expected:
+            raise ApiError("Set SETUP_CODE in the hosting settings first, then create your account with it.", status=403)
+        if expected and not secrets.compare_digest(given.encode(), expected.encode()):
+            raise ApiError("That setup code isn't right.", status=403)
+
     def run(action):
         try:
             return action()
@@ -36,21 +46,23 @@ def build_router(ctx: ApiContext) -> APIRouter:
     @router.get("/status")
     def status(request: Request):
         user = auth.user_for(request.cookies.get(COOKIE))
-        return {"setup_required": auth.setup_required(), "user": user_to_dict(user) if user else None}
+        return {"setup_required": auth.setup_required(), "setup_code_required": bool(ctx.settings.setup_code or ctx.settings.hosted),
+                "user": user_to_dict(user) if user else None}
 
     @router.post("/setup")
     async def setup(request: Request, response: Response):
         body = await _body(request)
+        check_setup_code(str(body.get("setup_code") or ""))
         user, token = run(lambda: auth.create_owner(body.get("name", ""), body.get("email", ""), body.get("password", "")))
-        set_session_cookie(response, token)
+        set_session_cookie(response, token, secure=ctx.settings.hosted)
         return {"user": user_to_dict(user)}
 
     @router.post("/login")
     async def login(request: Request, response: Response):
         body = await _body(request)
-        client = request.client.host if request.client else "local"
+        client = client_address(request, ctx.settings.hosted)
         user, token = run(lambda: auth.sign_in(body.get("email", ""), body.get("password", ""), client))
-        set_session_cookie(response, token)
+        set_session_cookie(response, token, secure=ctx.settings.hosted)
         return {"user": user_to_dict(user)}
 
     @router.post("/logout")

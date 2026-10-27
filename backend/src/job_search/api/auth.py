@@ -62,9 +62,16 @@ def require_owner(request: Request) -> User:
     return user
 
 
-def set_session_cookie(response: Response, token: str) -> None:
+def set_session_cookie(response: Response, token: str, secure: bool = False) -> None:
     # HttpOnly: page scripts can't read it. SameSite=Lax: other websites can't send it with their requests.
-    response.set_cookie(COOKIE, token, max_age=SESSION_DAYS * 86_400, httponly=True, samesite="lax", path="/")
+    # Secure (online): only ever sent over HTTPS.
+    response.set_cookie(COOKIE, token, max_age=SESSION_DAYS * 86_400, httponly=True, samesite="lax", path="/", secure=secure)
+
+
+def client_address(request: Request, hosted: bool) -> str:
+    """Who is signing in, for the guessing limit. Online every request comes through Vercel's proxy, which says who."""
+    forwarded = request.headers.get("x-forwarded-for", "") if hosted else ""
+    return forwarded.split(",")[0].strip() or (request.client.host if request.client else "local")
 
 
 def clear_session_cookie(response: Response) -> None:

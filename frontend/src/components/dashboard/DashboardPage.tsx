@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/button";
 import { useApplicationStats } from "@/hooks/useApplicationStats";
 import { useRuns } from "@/hooks/useRuns";
+import { useConfig } from "@/providers/ConfigProvider";
 import { useSearchSession } from "@/providers/SearchSessionProvider";
 
 import { ComingNextCard } from "./ComingNextCard";
@@ -22,24 +23,25 @@ export function DashboardPage() {
   // Reload the search history whenever a search finishes.
   const { runs, error } = useRuns(search.view === "finished" ? search.job?.id : null);
   const tracker = useApplicationStats();
+  const { hosted } = useConfig().config; // online there's no Search: its cards are hidden
   return (
     <>
       <PageHeader
         title="Dashboard"
         description="Your job search at a glance."
-        actions={<Button asChild><Link href="/search"><Search /> Search jobs</Link></Button>}
+        actions={hosted ? undefined : <Button asChild><Link href="/search"><Search /> Search jobs</Link></Button>}
       />
       <div className="grid grid-cols-1 gap-4">
         <StatCards counts={history.counts} searches={runs ? (runs.length >= 50 ? "50+" : runs.length) : null} />
         <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
           <div className="grid min-w-0 grid-cols-1 content-start gap-4">
             <PipelineCard stats={tracker.stats} error={tracker.error} />
-            <CurrentSearchCard />
+            {hosted ? null : <CurrentSearchCard />}
             <RecentRunsCard runs={runs} error={error} />
           </div>
           <div className="grid min-w-0 grid-cols-1 content-start gap-4">
             <FollowUpsCard stats={tracker.stats} />
-            <DailySummaryCard />
+            {hosted ? null : <DailySummaryCard />}
             <ComingNextCard />
           </div>
         </div>

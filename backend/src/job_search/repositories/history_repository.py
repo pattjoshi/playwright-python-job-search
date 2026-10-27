@@ -11,6 +11,7 @@ from datetime import datetime
 from pathlib import Path
 
 from sqlalchemy import delete, func, insert, literal_column, select, tuple_
+from sqlalchemy.dialects.postgresql import insert as postgres_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from job_search.config import DATA_DIR
@@ -60,6 +61,14 @@ class JobHistoryRepository:
             kept.append(job)
         return kept
 
+    def _upsert(self):
+        """INSERT … ON CONFLICT for this database (SQLite on your computer, Postgres online)."""
+        return (postgres_insert if self._engine.dialect.name == "postgresql" else sqlite_insert)(JobRecord)
+
+    def _newest_added(self):
+        """Ties (rows saved before times had microseconds) broken by the order rows were added: rowid, or first_seen."""
+        return literal_column("rowid").desc() if self._engine.dialect.name == "sqlite" else JobRecord.first_seen.desc()
+
     def record_seen(self, jobs: list[Job]) -> None:
         if not jobs:
             return
@@ -70,13 +79,13 @@ class JobHistoryRepository:
             for j in jobs
         ]
         with self._engine.begin() as db:
-            db.execute(sqlite_insert(JobRecord).on_conflict_do_nothing(index_elements=["source", "job_id"]), rows)
+            db.execute(self._upsert().on_conflict_do_nothing(index_elements=["source", "job_id"]), rows)
 
     def set_status(self, source: str, job_id: str, status: str, title: str = "", company: str = "", url: str = "") -> None:
         if status not in STATUSES:
             raise ValueError(f"status must be one of {', '.join(STATUSES)}")
         now = _now()
-        statement = sqlite_insert(JobRecord).values(
+        statement = self._upsert().values(
             source=source, job_id=job_id, title=title, company=company, url=url, status=status, first_seen=now, updated_at=now,
         )
         statement = statement.on_conflict_do_update(
@@ -92,7 +101,7 @@ class JobHistoryRepository:
             raise ValueError(f"status must be one of {', '.join(STATUSES)}")
         query = (
             select(*_JOB_COLUMNS).where(JobRecord.status == status)
-            .order_by(JobRecord.updated_at.desc(), literal_column("rowid").desc()).limit(limit)
+            .order_by(JobRecord.updated_at.desc(), self._newest_added()).limit(limit)
         )
         with self._engine.connect() as db:
             return [dict(row._mapping) for row in db.execute(query)]
@@ -124,4 +133,5 @@ class JobHistoryRepository:
 
 
 def _now() -> str:
-    return datetime.now().isoformat(timespec="seconds")
+    # Microseconds: two changes in the same second still sort in order (Postgres has no rowid to break ties).
+    return datetime.now().isoformat(timespec="microseconds")

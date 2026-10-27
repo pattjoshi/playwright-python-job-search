@@ -38,6 +38,7 @@ def build_router(ctx: ApiContext) -> APIRouter:
                 "parallel_sites": settings.parallel_sites,
             },
             "has_api_key": bool(ctx.openai_key.current()),
+            "hosted": settings.hosted,  # online: the page hides Search, the daily search and the local-only settings
             "running_job": ctx.manager.running.id if ctx.manager.running else None,
             "resume_types": list(SUPPORTED_SUFFIXES),
             "history": ctx.history.counts(),

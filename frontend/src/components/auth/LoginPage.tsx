@@ -22,12 +22,14 @@ const TEXT = {
 export function LoginPage() {
   const [mode, setMode] = useState<"setup" | "signin" | null>(null);
   const [failed, setFailed] = useState(false);
+  const [needsCode, setNeedsCode] = useState(false);
 
   useEffect(() => {
     authApi.status()
       .then((status) => {
         if (status.user) window.location.replace(nextUrl());
         else setMode(status.setup_required ? "setup" : "signin");
+        setNeedsCode(!!status.setup_code_required);
       })
       .catch(() => setFailed(true));
   }, []);
@@ -52,7 +54,7 @@ export function LoginPage() {
               <CardDescription>{TEXT[mode].description}</CardDescription>
             </CardHeader>
             <CardContent>
-              <AuthForm mode={mode} onDone={() => window.location.replace(nextUrl())} />
+              <AuthForm mode={mode} needsCode={needsCode} onDone={() => window.location.replace(nextUrl())} />
             </CardContent>
           </>
         )}

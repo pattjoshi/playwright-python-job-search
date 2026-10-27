@@ -33,6 +33,7 @@ export interface AppConfig {
     parallel_sites: boolean;
   };
   has_api_key: boolean;
+  hosted?: boolean; // online (Vercel): Search, the daily search and local-only settings are hidden
   running_job: string | null;
   resume_types: string[];
   history: HistoryCounts;
@@ -192,6 +193,7 @@ export interface AuthUser {
 
 export interface AuthStatus {
   setup_required: boolean;
+  setup_code_required?: boolean; // online: creating the first account needs the SETUP_CODE set when deploying
   user: AuthUser | null;
 }
 

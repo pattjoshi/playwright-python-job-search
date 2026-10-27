@@ -1,0 +1,13 @@
+# What the online (Vercel) function needs. Search isn't available online, so no browser is installed.
+fastapi>=0.115
+python-multipart>=0.0.9
+sqlalchemy>=2.0
+alembic>=1.13
+psycopg[binary]>=3.2
+python-dotenv>=1.0
+cryptography>=42
+openai>=1.40
+# Imported by the search modules the app loads; only the Python package, its browser driver is left out (vercel.json).
+playwright>=1.45
+# Resume reading (pdfplumber, python-docx) is local-only, so it isn't installed here.
+openpyxl>=3.1

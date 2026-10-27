@@ -21,7 +21,7 @@ def make_client(tmp_path) -> TestClient:
 
 def test_everything_needs_sign_in_except_sign_in_itself(tmp_path):
     client = make_client(tmp_path)
-    assert client.get("/api/auth/status").json() == {"setup_required": True, "user": None}
+    assert client.get("/api/auth/status").json() == {"setup_required": True, "setup_code_required": False, "user": None}
     for path in ("/api/config", "/api/session", "/api/runs", "/api/schedule", "/reports/jobs.html"):
         response = client.get(path)
         assert response.status_code == 401 and response.json() == {"error": "Please sign in."}, path

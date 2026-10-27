@@ -11,7 +11,7 @@ from pathlib import Path
 
 from dotenv import find_dotenv, load_dotenv
 
-from job_search.config.paths import DATA_DIR, PROJECT_ENV
+from job_search.config.paths import DATA_DIR, HOSTED, PROJECT_ENV
 from job_search.services.matching_service import parse_experience_option
 
 DEFAULT_MODEL = "gpt-5.4-mini"
@@ -42,6 +42,9 @@ class Settings:
     price_input: float | None = None
     price_output: float | None = None
     price_cached_input: float | None = None
+    # Online (Vercel): Search, resume reading and the daily search are off; sign-up needs SETUP_CODE.
+    hosted: bool = False
+    setup_code: str | None = field(default=None, repr=False)
     # Other names this computer may be reached by (ALLOWED_HOSTS); the app answers only on 127.0.0.1 / localhost otherwise.
     allowed_hosts: tuple[str, ...] = ()
 
@@ -82,11 +85,20 @@ def load_settings() -> Settings:
         history_path=Path(_get("HISTORY_DB") or DATA_DIR / "history.sqlite3"),
         keep_days=_get_int("KEEP_DAYS", 30, minimum=0),
         parallel_sites=_get_bool("PARALLEL_SITES", default=True),
-        allowed_hosts=tuple(h.strip() for h in (_get("ALLOWED_HOSTS") or "").split(",") if h.strip()),
+        hosted=HOSTED,
+        setup_code=_get("SETUP_CODE"),
+        allowed_hosts=_allowed_hosts(),
         price_input=_get_price("OPENAI_PRICE_INPUT"),
         price_output=_get_price("OPENAI_PRICE_OUTPUT"),
         price_cached_input=_get_price("OPENAI_PRICE_CACHED_INPUT"),
     )
+
+
+def _allowed_hosts() -> tuple[str, ...]:
+    """ALLOWED_HOSTS, plus the addresses Vercel gives this deployment (production, preview and branch URLs)."""
+    names = (_get("ALLOWED_HOSTS") or "").split(",")
+    names += [_get(name) or "" for name in ("VERCEL_URL", "VERCEL_BRANCH_URL", "VERCEL_PROJECT_PRODUCTION_URL")]
+    return tuple(dict.fromkeys(name.strip().lower() for name in names if name.strip()))
 
 
 def _get(name: str) -> str | None:

@@ -14,6 +14,8 @@ https://github.com/user-attachments/assets/533608e4-3862-4822-bb7c-f1f81f2b237c
 > Screenshots in this guide use sample data.
 >
 > **New here?** Follow [QUICKSTART.md](QUICKSTART.md): every step from installing Python to your first search.
+>
+> **Want Applications and Notes online?** See [DEPLOY.md](DEPLOY.md) (Vercel + a free Postgres database).
 
 **What it does for you**
 

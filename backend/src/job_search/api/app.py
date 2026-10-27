@@ -109,7 +109,7 @@ def create_app(
         return JSONResponse({"error": exc.message}, status_code=exc.status)
 
     install_auth(app, ctx.auth)
-    install_security(app, settings.allowed_hosts)  # added last, so it runs first on every request
+    install_security(app, settings.allowed_hosts, settings.hosted)  # added last, so it runs first on every request
     app.add_middleware(GZipMiddleware, minimum_size=1024)  # page scripts and job lists shrink ~70%
     for build_router in ROUTERS:
         app.include_router(build_router(ctx))

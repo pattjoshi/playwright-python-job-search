@@ -36,6 +36,38 @@ jobs:
       - name: Tests
         run: pytest
 
+  backend-postgres:
+    name: Backend tests on Postgres (the online database)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: js
+          POSTGRES_PASSWORD: js
+          POSTGRES_DB: jobsearch
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U js" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://js:js@127.0.0.1:5432/jobsearch
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Install Chromium for the browser tests
+        run: python -m playwright install --with-deps chromium
+      - name: Tests
+        run: pytest
+
   frontend:
     name: Frontend (lint, types, tests, build)
     runs-on: ubuntu-latest

@@ -11,7 +11,7 @@ interface PasswordFieldProps {
   label: string;
   value: string;
   onChange: (value: string) => void;
-  autoComplete: "current-password" | "new-password";
+  autoComplete: "current-password" | "new-password" | "off";
   hint?: string;
 }
 
