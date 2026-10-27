@@ -85,9 +85,14 @@ supporting. Lower layers never import upper ones.
   frontend_dir)`, the factory tests use with fakes. `api/routes/*`: one `build_router(ctx)` per resource.
   `ApiError` becomes `{"error": message}`. The built page is mounted last at `/` (`api/frontend.PageFiles`: `_next/static/*`
   is cached for good, `IMMUTABLE`); responses over 1 KB are gzipped (`GZipMiddleware`).
+- Security (`api/security.py`, added last so it runs first): Host must be 127.0.0.1/localhost/::1 (+ `ALLOWED_HOSTS`;
+  stops DNS rebinding), bodies over `MAX_BODY_BYTES` refused, `nosniff`/`DENY`/`frame-ancestors`/`Referrer-Policy` headers.
+  Scraped data is untrusted: `excel_csv.as_text()` (no formulas), `apply_links.public_host()` (no private/loopback apply
+  links), `platforms.on_board()` (Easy Apply links on their board), extension `allowedPage()` in `background.js`.
+  Tests use `TestClient(app, base_url="http://127.0.0.1")`.
 - Auth: `services/auth/` (`AuthService`, scrypt `passwords.py`, `LoginThrottle`), `repositories/user_repository.py`,
-  `api/auth.py` (middleware: `/api/*` and `/reports/*` need a session cookie except `/api/auth/*`; cross-site
-  writes refused; `current_user`/`require_owner` helpers), `api/routes/auth.py`. Tests sign in with
+  `api/auth.py` (middleware: `/api/*` and `/reports/*` need a session cookie except `/api/auth/*`; writes need an Origin
+  equal to the Host or `DEV_ORIGINS` (`npm run dev`); `current_user`/`require_owner` helpers), `api/routes/auth.py`. Tests sign in with
   `tests/auth_helpers.signed_in(client)`.
 - Application tracker: `repositories/application_repository.py` (applications + their status-change events,
   per user; `stats()` for the dashboard), `services/applications.py` (`STATUSES`, validation in `clean()`,

@@ -1,5 +1,6 @@
 """Find the company's own application page behind a board's "Apply on company site" link."""
 
+import ipaddress
 import re
 from urllib.parse import parse_qs, urljoin, urlparse
 
@@ -21,13 +22,18 @@ def external_apply_url(raw: str, base: str = "", board_hosts: tuple[str, ...] = 
     quoted = _QUOTED_URL.search(raw)
     url = urljoin(base, quoted.group(1) if quoted else raw).replace("&amp;", "&")
     parsed = urlparse(url)
-    if parsed.scheme not in ("http", "https"):
+    if parsed.scheme not in ("http", "https") or not public_host(parsed.hostname or ""):
         return ""
     if _on(parsed.hostname or "", board_hosts):
         query = parse_qs(parsed.query)
         for name in _REDIRECT_PARAMS:
             target = (query.get(name) or [""])[0]
-            if target.startswith(("http://", "https://")) and not _on(urlparse(target).hostname or "", board_hosts):
+            host = urlparse(target).hostname or ""
+            if not target.startswith(("http://", "https://")):
+                continue
+            if not public_host(host):
+                return ""  # a board redirect into your own network: never followed
+            if not _on(host, board_hosts):
                 return target
         if "externalApply" in parsed.path:
             return ""
@@ -36,3 +42,18 @@ def external_apply_url(raw: str, base: str = "", board_hosts: tuple[str, ...] = 
 
 def _on(host: str, hosts: tuple[str, ...]) -> bool:
     return any(host == h or host.endswith(f".{h}") for h in hosts)
+
+
+def public_host(host: str) -> bool:
+    """False for this computer and private networks (localhost, 127.x, 10.x, 192.168.x, ...).
+
+    A job posting can't send auto-apply's browser to your router's admin page or to another app on your computer.
+    """
+    host = host.strip("[]").lower().rstrip(".")
+    if not host or host == "localhost" or host.endswith((".localhost", ".local", ".internal", ".lan")):
+        return False
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        return "." in host  # a normal domain name
+    return address.is_global

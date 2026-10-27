@@ -25,7 +25,7 @@ from job_search.services.auto_apply.applier import Outcome, apply_one, take_scre
 from job_search.services.auto_apply.boards import BOARDS
 from job_search.services.auto_apply.browser import open_browser, write_docx
 from job_search.services.auto_apply.filler import Filler
-from job_search.services.auto_apply.platforms import detect
+from job_search.services.auto_apply.platforms import detect, on_board
 from job_search.services.auto_apply.rules import AutoApplyError, clean_settings, remaining_today, skipped_platforms
 from job_search.services.auto_apply.sessions import SIGN_IN_WAIT_S, BoardSignIns, BrowserClosedError, is_closed_error, save_page
 
@@ -82,7 +82,7 @@ class AutoApplyService:
                 continue
             if job.apply_url:
                 link, platform = job.apply_url, detect(job.apply_url)
-            elif job.source in BOARDS and settings.get(job.source) and job.url:
+            elif job.source in BOARDS and settings.get(job.source) and on_board(job.url, job.source):
                 link, platform = job.url, job.source
             else:
                 continue

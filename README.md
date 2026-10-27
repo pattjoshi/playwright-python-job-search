@@ -438,6 +438,20 @@ Descriptions are trimmed first: the company intro, benefits, equal-opportunity t
 and at most 1,200 characters of the job itself are sent. The dashboard's **Recent searches** shows the AI tokens
 each run used (and the cost, if you set `OPENAI_PRICE_INPUT` / `OPENAI_PRICE_OUTPUT` in `.env`).
 
+### How the app protects you
+
+- It only listens on your own computer (`127.0.0.1`) and only answers requests addressed to `127.0.0.1` or
+  `localhost`, so other devices on your Wi-Fi can't reach it, and a website can't reach it either, even with tricks
+  like DNS rebinding. (Need another name, e.g. `my-pc.local`? Add it to `ALLOWED_HOSTS` in `.env`.)
+- Everything except sign-in needs your password (scrypt-hashed; 5 wrong tries pause sign-in for a while). Changes
+  must come from the app's own page: other websites, and other pages on your computer, are refused.
+- Job details come from the job sites and are treated as untrusted. They're shown as plain text, links must be
+  `http(s)`, Excel/CSV cells can't turn into formulas, and auto-apply never opens an address on your computer or home
+  network. Easy Apply only fills pages on the job's own board, and the Chrome extension refuses any other site.
+- Secrets are never shown or logged: your OpenAI key and job-site passwords only appear as `sk-…abcd` or not at all.
+- Your data in `data/`, `uploads/` and `output/` isn't encrypted (only the saved OpenAI key is). Anyone who can open
+  your user account's files can read it, so keep your computer account protected.
+
 ## 8. For developers
 
 The project has two parts: a **Python backend** (FastAPI + Playwright + OpenAI) and a **Next.js frontend**

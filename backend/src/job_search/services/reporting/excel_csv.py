@@ -8,6 +8,19 @@ from openpyxl.styles import Font
 
 from job_search.models import Job
 
+# Text from job sites starting with one of these would run as a formula in Excel ("=HYPERLINK(...)", "=cmd|...").
+FORMULA_START = ("=", "+", "-", "@", "\t", "\r")
+
+
+def as_text(value):
+    """Scraped text kept as plain text in a spreadsheet: a leading ' stops Excel from treating it as a formula."""
+    return f"'{value}" if isinstance(value, str) and value.startswith(FORMULA_START) else value
+
+
+def web_link(url: str) -> str:
+    """Only http(s) links become clickable in the spreadsheet (no file:, javascript: or other schemes)."""
+    return url if url.lower().startswith(("https://", "http://")) else ""
+
 COLUMNS = [
     ("Score", 8, lambda j: j.score),
     ("Title", 40, lambda j: j.title),
@@ -44,9 +57,9 @@ def _write_xlsx(jobs: list[Job], path: Path) -> None:
 
     link_column = len(COLUMNS)
     for job in jobs:
-        sheet.append([getter(job) for _, _, getter in COLUMNS])
+        sheet.append([as_text(getter(job)) for _, _, getter in COLUMNS])
         link_cell = sheet.cell(row=sheet.max_row, column=link_column)
-        if job.url:
+        if web_link(job.url):
             link_cell.hyperlink = job.url
             link_cell.style = "Hyperlink"
 
@@ -61,4 +74,4 @@ def _write_csv(jobs: list[Job], path: Path) -> None:
         writer = csv.writer(handle)
         writer.writerow([name for name, _, _ in COLUMNS])
         for job in jobs:
-            writer.writerow(["" if (value := getter(job)) is None else value for _, _, getter in COLUMNS])
+            writer.writerow(["" if (value := getter(job)) is None else as_text(value) for _, _, getter in COLUMNS])

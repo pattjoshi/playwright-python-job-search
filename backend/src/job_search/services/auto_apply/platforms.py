@@ -44,3 +44,16 @@ def form_url(url: str, platform: str) -> str:
     if platform == "ashby" and not path.endswith("/application"):
         return url.split("?")[0].rstrip("/") + "/application"
     return url
+
+
+BOARD_HOSTS = {"linkedin": ("linkedin.com",), "naukri": ("naukri.com",), "indeed": ("indeed.com",)}
+LOOPBACK = {"127.0.0.1", "localhost", "::1"}  # saved board pages served on this computer (tests)
+
+
+def on_board(url: str, board: str) -> bool:
+    """An Easy Apply job's link must be on its own board: auto-apply never fills your answers into another site."""
+    parsed = urlparse(url or "")
+    host = (parsed.hostname or "").lower()
+    if parsed.scheme not in ("http", "https"):
+        return False
+    return host in LOOPBACK or any(host == h or host.endswith(f".{h}") for h in BOARD_HOSTS.get(board, ()))

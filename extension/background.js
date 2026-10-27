@@ -4,6 +4,23 @@ import { call, config } from "./lib/api.js";
 const FILES = ["content/fields.js", "content/fill.js", "content/boards.js", "content/naukri-chat.js"];
 const GAP_S = [30, 50]; // seconds between two applications, like a person (Chrome alarms can't go below 30 s)
 const submitting = {}; // job id → answers, once Submit was pressed (the page may navigate away)
+// The only sites the extension fills or captures (Chrome needs <all_urls> for screenshots, so it's enforced here).
+const BOARD_HOSTS = { linkedin: ["linkedin.com"], naukri: ["naukri.com"], indeed: ["indeed.com"] };
+const LOCAL_HOSTS = ["127.0.0.1", "localhost"]; // saved board pages served by the app on this computer
+
+/** True when the page belongs to the job's board (or is served on this computer). */
+export function allowedPage(url, platform) {
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
+  if (!["https:", "http:"].includes(parsed.protocol)) return false;
+  const host = parsed.hostname.toLowerCase();
+  if (LOCAL_HOSTS.includes(host)) return true;
+  return parsed.protocol === "https:" && (BOARD_HOSTS[platform] || []).some((h) => host === h || host.endsWith(`.${h}`));
+}
 
 async function state() {
   const { run } = await chrome.storage.local.get("run");
@@ -105,6 +122,10 @@ async function openTab(url) {
 }
 
 async function inject(tabId, job, pace, entry = "run") {
+  const tab = await chrome.tabs.get(tabId);
+  if (!allowedPage(tab.url || "", job.platform)) { // e.g. a redirect away from the board
+    return { status: "failed", message: `The job moved to another site (${new URL(tab.url).hostname}); nothing was filled there.` };
+  }
   await chrome.scripting.executeScript({ target: { tabId }, files: FILES });
   const [frame] = await chrome.scripting.executeScript({
     target: { tabId }, args: [job, pace, entry],
@@ -118,6 +139,11 @@ async function inject(tabId, job, pace, entry = "run") {
 
 async function applyTo(job, pace) {
   delete submitting[job.id];
+  if (!allowedPage(job.url, job.platform)) {
+    const outcome = { status: "failed", message: `Not a ${job.platform} page, so the extension didn't open it.` };
+    await call(`/jobs/${job.id}/result`, { method: "POST", body: { ...outcome, answers: [], screenshot: "", page: "", signed_in: false } });
+    return outcome;
+  }
   let tabId = await openTab(job.url);
   let outcome;
   try {
@@ -145,7 +171,8 @@ async function applyTo(job, pace) {
 }
 
 async function report(job, outcome, tabId) {
-  const tab = await chrome.tabs.get(tabId).catch(() => null);
+  const found = await chrome.tabs.get(tabId).catch(() => null);
+  const tab = found && allowedPage(found.url || "", job.platform) ? found : null; // never capture another site
   const screenshot = tab ? await chrome.tabs.captureVisibleTab(tab.windowId, { format: "png" }).catch(() => "") : "";
   let page = "";
   if (tab && !["filled", "submitted"].includes(outcome.status)) {

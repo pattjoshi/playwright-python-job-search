@@ -128,3 +128,17 @@ def test_extension_dry_run_unknown_question_and_signed_out(app_server):
     acme = service.repo.get(1, jobs["Acme"]["id"])
     assert acme["status"] == "filled", acme["message"]
     assert service.applications.repo.for_user(1) == []  # a dry run applies to nothing
+
+
+def test_extension_refuses_pages_off_the_board(app_server):
+    ctx, base = app_server
+    ctx.auth.users.create("om@example.com", "Om", "x", "owner")
+    service = ctx.auto_apply.service
+    service.save_settings(1, {"linkedin": True, "min_score": 0, "dry_run": False})
+    # Written straight into the queue: queue_jobs() itself never accepts an off-board link (on_board()).
+    service.repo.enqueue(1, [{"source": "linkedin", "source_job_id": "9", "title": "QA", "company": "Evil", "location": "Pune",
+                              "job_url": "https://evil.example/job", "apply_url": "https://evil.example/job", "platform": "linkedin",
+                              "score": 99, "description": ""}])
+    log = run_extension(ctx, base, "1 waiting")
+    job = service.repo.for_user(1)[0]
+    assert job["status"] == "failed" and "Not a linkedin page" in job["message"], log

@@ -31,7 +31,9 @@ already signed in. It works with the Job Search app running on your computer: th
 - `content/fields.js` reads and fills form fields, `content/fill.js` decides each answer (resume upload, AI cover
   letter, names, else the Answer Bank), `content/boards.js` runs LinkedIn / Indeed / Naukri Easy Apply and
   `content/naukri-chat.js` answers Naukri's chat questions.
-- `<all_urls>` access is needed to fill job pages and take screenshots. The extension only talks to the app
-  address you set (default `http://127.0.0.1:8000`).
+- Chrome asks for access to all sites because screenshots need it, but the extension only opens, fills and captures
+  pages on the job's own board (LinkedIn, Naukri, Indeed over https) or the app on your computer (`allowedPage()` in
+  `background.js`): a job link pointing anywhere else is refused, and so is a page that redirected away from the board. It only talks to the app
+  address you set (default `http://127.0.0.1:8000`). After updating, press **Reload** on `chrome://extensions`.
 
 Job boards don't allow automated applying; keep the daily limits low.

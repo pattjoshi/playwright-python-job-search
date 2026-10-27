@@ -57,7 +57,7 @@ def make_app(tmp_path):
         runner = runner or FakeRunner(output)
         app = create_app(Settings("key", history_path=tmp_path / "data" / "history.sqlite3"), output_dir=output,
                          upload_dir=tmp_path / "uploads", runner=runner, analyzer=analyzer, system_scheduler=FakeScheduler())
-        return signed_in(TestClient(app)), runner
+        return signed_in(TestClient(app, base_url="http://127.0.0.1")), runner
 
     make.analyzer_calls = analyzer_calls
     return make

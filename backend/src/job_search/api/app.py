@@ -14,6 +14,7 @@ from job_search.api.auth import install_auth
 from job_search.api.dependencies import ApiContext
 from job_search.api.frontend import serve_frontend
 from job_search.api.routes import ROUTERS
+from job_search.api.security import install_security
 from job_search.config import FRONTEND_BUILD_DIR, OUTPUT_DIR, UPLOAD_DIR, Settings, load_settings
 from job_search.models import Profile
 from job_search.repositories import (
@@ -170,6 +171,7 @@ def create_app(
         return users.by_id(user_id) if user_id is not None else None
 
     install_auth(app, ctx.auth, extension_user)
+    install_security(app, settings.allowed_hosts)  # added last, so it runs first on every request
     app.add_middleware(GZipMiddleware, minimum_size=1024)  # page scripts and job lists shrink ~70%
     for build_router in ROUTERS:
         app.include_router(build_router(ctx))

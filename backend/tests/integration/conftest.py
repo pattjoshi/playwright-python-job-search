@@ -24,6 +24,6 @@ def make_client(tmp_path):
             answer_ai=answer_ai or (lambda: None),  # tests never call OpenAI
             key_checker=key_checker or (lambda key: None),  # ...not even to check a key
         )
-        return signed_in(TestClient(app)), runner
+        return signed_in(TestClient(app, base_url="http://127.0.0.1")), runner
 
     return make
