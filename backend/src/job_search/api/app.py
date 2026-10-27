@@ -18,9 +18,7 @@ from job_search.api.security import install_security
 from job_search.config import FRONTEND_BUILD_DIR, OUTPUT_DIR, UPLOAD_DIR, Settings, load_settings
 from job_search.models import Profile
 from job_search.repositories import (
-    AnswerRepository,
     ApplicationRepository,
-    AutoApplyRepository,
     CacheRepository,
     JobHistoryRepository,
     NoteRepository,
@@ -31,11 +29,8 @@ from job_search.repositories import (
 from job_search.repositories.search_filters_repository import SearchFiltersRepository
 from job_search.repositories.secret_store import SecretStore
 from job_search.schemas.common import ApiError
-from job_search.services.answers import AnswerAI, AnswerService
 from job_search.services.applications import ApplicationService
 from job_search.services.auth import AuthService
-from job_search.services.auto_apply import AutoApplyManager, AutoApplyService, open_browser
-from job_search.services.auto_apply.extension_keys import ExtensionKeys
 from job_search.services.cleanup_service import cleanup
 from job_search.services.llm_service import JobMatcherLLM
 from job_search.services.notes import NoteService
@@ -66,45 +61,6 @@ def default_analyzer(settings: Settings):
     return analyze
 
 
-def default_answer_ai(settings: Settings):
-    def make() -> AnswerAI | None:
-        key = settings.api_key()
-        return AnswerAI(JobMatcherLLM(key, settings.openai_model)) if key else None
-
-    return make
-
-
-def saved_resume_text(session: SessionRepository):
-    """The text of the resume on the Search page (None when there isn't one)."""
-    def read() -> str | None:
-        saved = session.resume()
-        return read_resume_text(saved["path"]) if saved else None
-
-    return read
-
-
-def saved_resume_path(session: SessionRepository):
-    """The resume file on the Search page (None when there isn't one)."""
-    def path() -> Path | None:
-        saved = session.resume()
-        return saved["path"] if saved else None
-
-    return path
-
-
-def build_auto_apply(settings: Settings, session: SessionRepository, answer_ai=None, browser=None) -> AutoApplyManager:
-    """Auto-apply with the Answer Bank and the tracker it uses (shared by the web app and the daily search)."""
-    path = settings.history_path
-    answer_ai = answer_ai or default_answer_ai(settings)
-    answers = AnswerService(AnswerRepository(path), answer_ai, saved_resume_text(session))
-    return AutoApplyManager(AutoApplyService(
-        AutoApplyRepository(path), answers, ApplicationService(ApplicationRepository(path)), path.parent / "auto-apply",
-        saved_resume_path(session), saved_resume_text(session), answer_ai,
-        browser or (lambda headless: open_browser(headless, settings.chromium_executable, path.parent / "browser-profile")),
-        board_logins=settings.board_logins,
-    ))
-
-
 def create_app(
     settings: Settings | None = None,
     output_dir: Path = OUTPUT_DIR,
@@ -113,8 +69,6 @@ def create_app(
     analyzer=None,
     system_scheduler: SystemScheduler | None = None,
     frontend_dir: Path = FRONTEND_BUILD_DIR,
-    answer_ai=None,
-    auto_apply_browser=None,
     key_checker=None,
 ) -> FastAPI:
     settings = settings or load_settings()
@@ -127,31 +81,19 @@ def create_app(
         log.exception("Cleanup failed")
     session = SessionRepository(data_dir)
     users = UserRepository(settings.history_path)
-    auto_apply = build_auto_apply(settings, session, answer_ai, auto_apply_browser)
-    auto_apply.service.repo.requeue_interrupted()
-    answers, applications = auto_apply.service.answers, auto_apply.service.applications
-
-    def queue_for_auto_apply(result) -> None:
-        owner = users.owner_id()
-        if owner is not None:
-            auto_apply.after_search(owner, result.jobs)
-
     ctx = ApiContext(
         settings=settings,
         output_dir=output_dir,
         upload_dir=upload_dir,
         data_dir=data_dir,
-        manager=SearchManager(settings, output_dir, runner, session, after_search=queue_for_auto_apply),
+        manager=SearchManager(settings, output_dir, runner, session),
         history=JobHistoryRepository(settings.history_path),
         session=session,
         scheduler=system_scheduler or SystemScheduler(data_dir),
         analyzer=analyzer or default_analyzer(settings),
         auth=AuthService(users),
-        applications=applications,
-        answers=answers,
-        auto_apply=auto_apply,
+        applications=ApplicationService(ApplicationRepository(settings.history_path)),
         notes=NoteService(NoteRepository(settings.history_path)),
-        extension_keys=ExtensionKeys(data_dir / "auto-apply"),
         search_filters=SearchFilterService(SearchFiltersRepository(data_dir)),
         openai_key=openai_key,
     )
@@ -166,11 +108,7 @@ def create_app(
     async def handle_api_error(_request: Request, exc: ApiError):
         return JSONResponse({"error": exc.message}, status_code=exc.status)
 
-    def extension_user(key: str | None):
-        user_id = ctx.extension_keys.user_id_for(key)
-        return users.by_id(user_id) if user_id is not None else None
-
-    install_auth(app, ctx.auth, extension_user)
+    install_auth(app, ctx.auth)
     install_security(app, settings.allowed_hosts)  # added last, so it runs first on every request
     app.add_middleware(GZipMiddleware, minimum_size=1024)  # page scripts and job lists shrink ~70%
     for build_router in ROUTERS:

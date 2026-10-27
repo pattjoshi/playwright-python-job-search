@@ -33,20 +33,6 @@ def test_fetch_description(browser, fixture_html):
 
     assert job.description.startswith("About the role")
     assert "Playwright and pytest" in job.description
-    assert job.apply_url == ""  # applied to on LinkedIn itself
-    context.close()
-
-
-def test_fetch_description_finds_company_apply_link(browser, fixture_html):
-    context = browser.new_context()
-    hidden = '<code id="applyUrl" style="display: none"><!--"https://www.linkedin.com/jobs/view/externalApply/1?url=https%3A%2F%2Fjobs.lever.co%2Facme%2Fabc&amp;urlHash=x"--></code>'
-    html = fixture_html("linkedin_job.html") + hidden
-    context.route("**/jobs-guest/jobs/api/jobPosting/*", lambda route: route.fulfill(body=html, content_type="text/html"))
-    job = Job("linkedin", "4012345678", "Python Automation Engineer", "Acme", "Bengaluru", "url")
-
-    LinkedInScraper(context, delay_range=(0, 0)).fetch_description(job)
-
-    assert job.apply_url == "https://jobs.lever.co/acme/abc"
     context.close()
 
 

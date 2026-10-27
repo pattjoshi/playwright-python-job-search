@@ -9,7 +9,7 @@ from tests.integration.web_support import PROFILE, FakeRunner, FakeScheduler
 
 @pytest.fixture
 def make_client(tmp_path):
-    def make(runner=None, api_key="key", analyzer=None, scheduler=None, answer_ai=None, key_checker=None, **settings):
+    def make(runner=None, api_key="key", analyzer=None, scheduler=None, key_checker=None, **settings):
         output_dir = tmp_path / "output"
         output_dir.mkdir(exist_ok=True)
         runner = runner or FakeRunner(output_dir)
@@ -21,8 +21,7 @@ def make_client(tmp_path):
             analyzer=analyzer or (lambda path: PROFILE),
             system_scheduler=scheduler or FakeScheduler(),
             frontend_dir=tmp_path / "frontend",
-            answer_ai=answer_ai or (lambda: None),  # tests never call OpenAI
-            key_checker=key_checker or (lambda key: None),  # ...not even to check a key
+            key_checker=key_checker or (lambda key: None),  # tests never call OpenAI, not even to check a key
         )
         return signed_in(TestClient(app, base_url="http://127.0.0.1")), runner
 

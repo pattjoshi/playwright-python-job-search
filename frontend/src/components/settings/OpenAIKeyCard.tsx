@@ -45,7 +45,7 @@ export function OpenAIKeyCard() {
       <CardHeader>
         <CardTitle>OpenAI key</CardTitle>
         <CardDescription>
-          Reads your resume, scores jobs and writes answers. Get one at{" "}
+          Reads your resume and scores jobs. Get one at{" "}
           <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
             platform.openai.com/api-keys
           </a>.

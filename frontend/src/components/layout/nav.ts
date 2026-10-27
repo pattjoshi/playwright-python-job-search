@@ -1,6 +1,4 @@
 import {
-  BookOpenText,
-  Bot,
   BriefcaseBusiness,
   LayoutDashboard,
   type LucideIcon,
@@ -22,8 +20,6 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", description: "Your job search at a glance", icon: LayoutDashboard },
   { href: "/search", label: "Search jobs", description: "Find and rank recent jobs from your resume", icon: Search },
   { href: "/applications", label: "Applications", description: "Track every job you apply to", icon: BriefcaseBusiness },
-  { href: "/auto-apply", label: "Auto-apply", description: "Apply to matching jobs automatically", icon: Bot },
-  { href: "/answers", label: "Answer Bank", description: "Answers to application questions", icon: BookOpenText },
   { href: "/notes", label: "Notes", description: "Interview prep and research notes", icon: NotebookPen },
 ];
 

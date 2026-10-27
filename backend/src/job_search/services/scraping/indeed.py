@@ -13,7 +13,6 @@ from playwright.sync_api import Page
 
 from job_search.models import Job
 from job_search.services.matching_service import parse_relative_age
-from job_search.services.scraping.apply_links import external_apply_url
 from job_search.services.scraping.base import BaseScraper
 
 log = logging.getLogger(__name__)
@@ -29,8 +28,6 @@ LOCATION = "[data-testid='text-location'], div.companyLocation"
 POSTED = "[data-testid='myJobsStateDate'], span.date"
 SNIPPET = "[data-testid='belowJobSnippet'], div.job-snippet, .underShelfFooter"
 DESCRIPTION = "#jobDescriptionText"
-# "Apply on company site" (jobs applied to on Indeed itself have a button without a link)
-APPLY_LINK = "#applyButtonLinkContainer a[href]"
 BOT_CHECK_TITLES = ("just a moment", "security check", "verify", "blocked")
 
 
@@ -75,9 +72,6 @@ class IndeedScraper(BaseScraper):
             description = self.page.locator(DESCRIPTION).first
             description.wait_for(timeout=10_000)
             job.description = description.inner_text().strip()
-            apply_link = self.page.locator(APPLY_LINK).first
-            if apply_link.count():
-                job.apply_url = external_apply_url(apply_link.get_attribute("href") or "", BASE_URL, ("indeed.com",))
         except PlaywrightError:
             log.warning("Could not load Indeed job %s", job.job_id)
         self.pause()

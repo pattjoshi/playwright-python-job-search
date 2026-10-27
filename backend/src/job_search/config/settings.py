@@ -44,8 +44,6 @@ class Settings:
     price_cached_input: float | None = None
     # Other names this computer may be reached by (ALLOWED_HOSTS); the app answers only on 127.0.0.1 / localhost otherwise.
     allowed_hosts: tuple[str, ...] = ()
-    # Job-board logins for Easy Apply: {"naukri": (email, password), ...}. Never printed or logged.
-    board_logins: dict[str, tuple[str, str]] = field(default_factory=dict, repr=False)
 
     # The key saved in Settings (encrypted on disk), attached by the app; it wins over OPENAI_API_KEY from .env.
     saved_key: Callable[[], str | None] | None = field(default=None, repr=False, compare=False)
@@ -88,18 +86,7 @@ def load_settings() -> Settings:
         price_input=_get_price("OPENAI_PRICE_INPUT"),
         price_output=_get_price("OPENAI_PRICE_OUTPUT"),
         price_cached_input=_get_price("OPENAI_PRICE_CACHED_INPUT"),
-        board_logins=_get_board_logins(),
     )
-
-
-def _get_board_logins() -> dict[str, tuple[str, str]]:
-    """NAUKRI_EMAIL / NAUKRI_PASSWORD, LINKEDIN_..., INDEED_... (a board needs both)."""
-    logins = {}
-    for board in ("naukri", "linkedin", "indeed"):
-        email, password = _get(f"{board.upper()}_EMAIL"), _get(f"{board.upper()}_PASSWORD")
-        if email and password:
-            logins[board] = (email, password)
-    return logins
 
 
 def _get(name: str) -> str | None:

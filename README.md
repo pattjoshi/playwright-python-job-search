@@ -256,92 +256,7 @@ Click **Applications** in the sidebar.
 - The **Dashboard** shows how many applications are in each stage, how many you applied to each day
   for the last two weeks, and your next **follow-ups** (overdue ones in red).
 
-### Step 11 · Answer Bank (answers for application forms)
-
-Click **Answer Bank** in the sidebar. These are the answers auto-apply will put into application forms.
-
-![Answer Bank](docs/screenshots/12-answer-bank.png)
-
-1. Click **Add common questions**: about 25 questions forms ask most (notice period, expected CTC,
-   relocation, work authorization…). If your resume is on the Search jobs page, the AI fills in what your
-   resume says (name, email, experience, skills).
-2. **Needs review**: answers the AI wrote. Check each one and click **Approve**, or change it and **Save answer**.
-3. **Needs answer**: questions only you can answer (salary, notice period…). Write the answer once.
-
-How a form question gets its answer:
-
-| The question is… | What happens |
-|---|---|
-| One you saved, in any wording you saved | Your answer is used |
-| Worded differently ("How soon can you join?" for "Notice period") | The AI recognises it, uses your answer and remembers that wording |
-| Not saved, but your resume answers it | The AI drafts an answer from your resume; it goes to **Needs review** |
-| Not in your resume or the bank | **The AI never guesses.** It's added to **Needs answer** for you to write |
-
-- **Test a question** (right side) shows exactly what auto-apply will do with any question.
-- Click the pencil to change a question, its category, its answer type (text, number, Yes/No, options) and the
-  **other wordings** forms use for it.
-
-### Step 12 · Auto-apply (company career pages)
-
-Click **Auto-apply** in the sidebar.
-
-![Auto-apply](docs/screenshots/13-auto-apply.png)
-
-Some jobs on LinkedIn, Naukri and Indeed say **Apply on company site**. Those show a **Company site** badge in
-the results. After every search (and the daily search), the ones scoring at least your **minimum match score**
-(75 to start) are added to the auto-apply queue.
-
-1. Click **Run now**. For each job, auto-apply opens the company's application page (Greenhouse, Lever, Ashby,
-   SmartRecruiters or a simple company form), clicks **Apply** if needed and fills the form:
-   - **Resume / CV** upload: your resume file
-   - **Cover letter** and "Why do you want to join us?": written by the AI for that job, from your resume
-   - **Everything else**: your Answer Bank
-2. Every filled form is **screenshotted**. Open **What was filled in** on a job to see each answer.
-3. **Dry run is on at first**: forms are filled but never submitted. When the screenshots look right, turn
-   **Dry run** off in Settings (it asks you to confirm). Submitted jobs are added to **Applications** as Applied.
-
-| What you see | Meaning |
-|---|---|
-| **Needs your answer** | A required question isn't in your resume or Answer Bank. It's added to the Answer Bank's **Needs answer** list. Answer it there, then press **Retry**. Nothing is guessed or submitted half-filled. |
-| **Submitted** / **Submitted?** | Sent. "Submitted?" means no confirmation page appeared, so check your email. |
-| **Do it yourself** | The site needs an account or sign-in (e.g. Workday), or showed a CAPTCHA. Turn on **Show browser** to solve CAPTCHAs while it runs. |
-
-Safety settings: **Applications per day** (15 to start), **Minimum match score**, **Dry run**, **Show browser**, and
-**Apply after each search** (off to start; turn it on for hands-free applying after each search).
-#### Easy Apply on Naukri, LinkedIn and Indeed
-
-Jobs without a company link can be applied to on the board itself, with your own account.
-
-**Easiest: the Chrome extension.** It applies in your normal Chrome, where you're already signed in, so there's
-no separate browser and no passwords. Load the `extension` folder in `chrome://extensions` (Developer mode → Load
-unpacked), press **Connect extension** on the Auto-apply page, paste the key into the extension and press **Start**.
-See [extension/README.md](extension/README.md).
-
-**Or let the app use its own browser:**
-
-1. On **Auto-apply → Settings → Job boards**, press **Sign in** next to a board. A browser window opens on that
-   board's login page: log in yourself (OTP included). Auto-apply's browser stays signed in from then on
-   (in `data/browser-profile`), and your password is never saved.
-   *Optional:* instead, put `NAUKRI_EMAIL` / `NAUKRI_PASSWORD` (and `LINKEDIN_…`, `INDEED_…`) in `.env` and the
-   app types them for you.
-2. Turn on the boards you want. This also turns on **Show browser**, so you can pass a security check if one appears.
-3. From the next search on, matches on those boards are queued too. They go slowly on purpose: pauses
-   between steps, 20-45 seconds between applications on the same board, and at most **10 per board per day**
-   (change it in Settings).
-
-If a job doesn't go through, press **Try this job** to watch it in a visible browser, and download its
-**Saved page** (the page as it was when it stopped) to send for a fix.
-
-| Board | What happens | Dry run |
-|---|---|---|
-| Naukri | Clicks **Apply**, then answers the chat questions from your Answer Bank | Only checks you're signed in and Easy Apply is there (Naukri applies on the first click) |
-| LinkedIn | Fills every step of the **Easy Apply** pop-up, then **Submit application** | Fills every step, then discards the pop-up |
-| Indeed | **Apply now**, every page, then **Submit your application** | Fills every page, doesn't submit |
-
-**Risk:** job boards don't allow automated applying, and LinkedIn is the strictest. An account can be warned or
-restricted even at this slow pace. Start with a low daily limit and keep an eye on it.
-
-### Step 13 · Notes
+### Step 11 · Notes
 
 Click **Notes** in the sidebar: Notion-style pages for company research, interview prep and plans.
 
@@ -425,9 +340,7 @@ Everything stays in the project folder on your computer:
 |---|---|---|
 | `uploads/` | Resumes you uploaded | `KEEP_DAYS` cleanup (never the one in use) |
 | `output/` | HTML / Excel / CSV reports | `KEEP_DAYS` cleanup (never the one on screen) |
-| `data/history.sqlite3` | Your account, applications, Answer Bank, notes, auto-apply queue, applied / hidden / seen jobs and the search history | Never automatically |
-| `data/auto-apply/` | Screenshots of filled application forms and the cover letters sent | When you remove the job from Auto-apply |
-| `data/browser-profile/` | Auto-apply's browser, which keeps you signed in to the job boards | Delete it to sign out everywhere |
+| `data/history.sqlite3` | Your account, applications, notes, applied / hidden / seen jobs and the search history | Never automatically |
 | `data/cache.sqlite3` | Saved job details, AI scores, resume readings, searches from the last 2 hours | `KEEP_DAYS` cleanup; safe to delete anytime |
 | `data/session.json` | What the page shows (resume, last results) | The **Clear** button |
 | `data/search-filters.json` | Companies you hid from searches | **Hidden companies** list next to the result filters |
@@ -438,6 +351,11 @@ Descriptions are trimmed first: the company intro, benefits, equal-opportunity t
 and at most 1,200 characters of the job itself are sent. The dashboard's **Recent searches** shows the AI tokens
 each run used (and the cost, if you set `OPENAI_PRICE_INPUT` / `OPENAI_PRICE_OUTPUT` in `.env`).
 
+**Updating from a version with Auto-apply / Answer Bank?** They were removed. On the next start the app deletes their
+saved data from `data/history.sqlite3` (back up `data/` first if you want to keep your answers). The folders
+`data/auto-apply/` and `data/browser-profile/` and the `NAUKRI_/LINKEDIN_/INDEED_EMAIL` and `_PASSWORD` lines in `.env`
+are no longer used: delete them. In Chrome, remove the "Job Search Auto-apply" extension on `chrome://extensions`.
+
 ### How the app protects you
 
 - It only listens on your own computer (`127.0.0.1`) and only answers requests addressed to `127.0.0.1` or
@@ -446,9 +364,8 @@ each run used (and the cost, if you set `OPENAI_PRICE_INPUT` / `OPENAI_PRICE_OUT
 - Everything except sign-in needs your password (scrypt-hashed; 5 wrong tries pause sign-in for a while). Changes
   must come from the app's own page: other websites, and other pages on your computer, are refused.
 - Job details come from the job sites and are treated as untrusted. They're shown as plain text, links must be
-  `http(s)`, Excel/CSV cells can't turn into formulas, and auto-apply never opens an address on your computer or home
-  network. Easy Apply only fills pages on the job's own board, and the Chrome extension refuses any other site.
-- Secrets are never shown or logged: your OpenAI key and job-site passwords only appear as `sk-…abcd` or not at all.
+  `http(s)`, and Excel/CSV cells can't turn into formulas.
+- Secrets are never shown or logged: your OpenAI key only appears as `sk-…abcd`.
 - Your data in `data/`, `uploads/` and `output/` isn't encrypted (only the saved OpenAI key is). Anyone who can open
   your user account's files can read it, so keep your computer account protected.
 
@@ -474,8 +391,6 @@ backend/                     Python package `job_search` (pip install -r require
       llm_service.py         OpenAI: resume reading, parallel job scoring, token usage
       search_filters.py      companies you hid (left out of every search)
       applications.py        application tracker: validation, status changes, tracking jobs from results
-      answers/               Answer Bank: starter questions, AI matching and drafts, answering form questions
-      auto_apply/            auto-apply: queue rules, form reading and filling, submit + confirm, background run
       search_manager.py      runs one search at a time in the background for the web page
       schedule_service.py    daily search (Windows Task Scheduler / cron)
   tests/                     unit/ (fast) and integration/ (headless browser, fakes)
